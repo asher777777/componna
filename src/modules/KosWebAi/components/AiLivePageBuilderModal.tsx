@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { TenantTokenBadge } from '../../../core/ai';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
@@ -100,6 +101,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   onComplete,
 }) => {
   const { getCapability } = useHostCapabilities();
+  const { tenantId } = useTenantScope();
   const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
   const { openConnectorModal, getApiKeysForModule } = useSystemConnection();
@@ -232,7 +234,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
           height: prefilledImageSpec.height,
           aspectRatio: prefilledImageSpec.aspectRatio,
         },
-        { apiKey }
+        { apiKey: apiKey || undefined, tenantId }
       );
       if (synthesized) {
         setCustomHeroImagePrompt(synthesized);
@@ -446,11 +448,8 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   };
 
   const handleMicroAssist = async (stepId: 'topic_and_goal' | 'seo_geo_focus') => {
-    if (!apiKey) {
-      setErrorMsg('להפעלת עוזר ה-AI המהיר נדרש מפתח API בהגדרות.');
-      return;
-    }
     setIsMicroAssisting(true);
+    setErrorMsg(null);
     try {
       const suggestion = await microAssistWizardStepWithKosai(
         {
@@ -460,7 +459,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
           currentInput: stepId === 'topic_and_goal' ? promptTopic : targetGeoQuestion || promptTopic,
           uvp: brandDna?.audience?.mainUvp,
         },
-        { apiKey }
+        { apiKey: apiKey || undefined, tenantId }
       );
       if (suggestion) {
         if (stepId === 'topic_and_goal') setPromptTopic(suggestion);
@@ -485,7 +484,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const item = await extractTextFromUploadedFile(file);
+    const item = await extractTextFromUploadedFile(file, { tenantId });
     setGroundingSources((prev) => [...prev, item]);
     e.target.value = '';
   };
@@ -617,7 +616,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
     setErrorMsg(null);
     try {
       const wizardOptions = buildWizardOptions();
-      const generatedDraft = await generateStructuredPageDraft(wizardOptions, brandDna, apiKey);
+      const generatedDraft = await generateStructuredPageDraft(wizardOptions, brandDna, apiKey || undefined, tenantId);
       setDraft(generatedDraft);
       setStage('review');
     } catch (err: any) {
@@ -643,7 +642,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
           companyName: company,
           currentConfig: currentData,
         },
-        { apiKey }
+        { apiKey: apiKey || undefined, tenantId }
       );
 
       if (updated && typeof updated === 'object') {
@@ -683,7 +682,8 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
         (step, partial) => {
           setCurrentStreamStep(step);
           setStreamedConfig(partial);
-        }
+        },
+        tenantId
       );
 
       setIsStreaming(false);
@@ -981,12 +981,12 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
                       <label className="p-4 rounded-2xl border border-dashed border-slate-700 hover:border-indigo-500 bg-slate-950/60 cursor-pointer flex items-center gap-3 transition-all">
                         <Upload className="w-5 h-5 text-indigo-400 shrink-0" />
                         <div>
-                          <div className="text-xs font-bold text-white">העלאת קובץ (PDF / DOCX / TXT)</div>
-                          <div className="text-[11px] text-slate-400">חילוץ נתונים אוטומטי ל-AI</div>
+                          <div className="text-xs font-bold text-white">העלאת קובץ (PDF / DOCX / PNG / JPG / TXT)</div>
+                          <div className="text-[11px] text-slate-400">חילוץ נתונים וטקסט מתמונות ומסמכים ל-AI</div>
                         </div>
                         <input
                           type="file"
-                          accept=".pdf,.doc,.docx,.txt,.md,.csv,.html"
+                          accept=".pdf,.doc,.docx,.txt,.md,.csv,.html,.png,.jpg,.jpeg,.webp"
                           onChange={handleFileUpload}
                           className="hidden"
                         />
@@ -1131,7 +1131,8 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
                           try {
                             const url = await generateHeroImageViaProxy(
                               customHeroImagePrompt || prefilledImageSpec.prompt,
-                              prefilledImageSpec.aspectRatio
+                              prefilledImageSpec.aspectRatio,
+                              tenantId
                             );
                             if (url) {
                               let finalSavedUrl = url;
@@ -1517,7 +1518,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
                                   targetAudience: brandDna?.audience?.targetAudiences?.join(', '),
                                   commonObjections: brandDna?.audience?.commonObjections,
                                 },
-                                { apiKey }
+                                { apiKey: apiKey || undefined, tenantId }
                               );
                               if (faqs10.length > 0) {
                                 setGeneratedGeoFaqs(faqs10);

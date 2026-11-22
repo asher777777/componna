@@ -1,5 +1,11 @@
 import { PageCategory, SectionType } from '../types/pageBuilder.types';
 import { BrandDna, KOSUN_CRM_FIELD_KEYS } from '../../../core/contracts';
+import { resolveCurrentTenantId } from '../../../core/tenant/tenantResolver';
+
+function getScopedStorageKey(baseKey: string): string {
+  const tenant = (typeof window !== 'undefined' ? resolveCurrentTenantId() : '_master') || '_master';
+  return `kosun_${tenant}_${baseKey}`;
+}
 
 export type MatrixPageTypeId =
   | 'homepage'
@@ -338,7 +344,7 @@ const DEFAULT_COUNTS_STORAGE_KEY = 'kosweb_page_selection_counts_v1';
 export function getPageSelectionCounts(storageKey: string = DEFAULT_COUNTS_STORAGE_KEY): Record<string, number> {
   if (typeof window === 'undefined') return {};
   try {
-    const raw = window.localStorage?.getItem(storageKey);
+    const raw = window.localStorage?.getItem(getScopedStorageKey(storageKey));
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === 'object' ? parsed : {};
@@ -352,7 +358,7 @@ export function recordPageSelectionCount(id: string, storageKey: string = DEFAUL
   const next = { ...counts, [id]: (counts[id] || 0) + 1 };
   if (typeof window !== 'undefined') {
     try {
-      window.localStorage?.setItem(storageKey, JSON.stringify(next));
+      window.localStorage?.setItem(getScopedStorageKey(storageKey), JSON.stringify(next));
     } catch {
       // ignore storage errors
     }
@@ -433,10 +439,11 @@ export const WIZARD_OPEN_STORAGE_KEY = 'kosweb_ai_wizard_open_v1';
 export function setAiWizardOpenState(isOpen: boolean): void {
   if (typeof window === 'undefined') return;
   try {
+    const key = getScopedStorageKey(WIZARD_OPEN_STORAGE_KEY);
     if (isOpen) {
-      window.localStorage?.setItem(WIZARD_OPEN_STORAGE_KEY, 'true');
+      window.localStorage?.setItem(key, 'true');
     } else {
-      window.localStorage?.removeItem(WIZARD_OPEN_STORAGE_KEY);
+      window.localStorage?.removeItem(key);
     }
   } catch {
     // ignore
@@ -446,7 +453,7 @@ export function setAiWizardOpenState(isOpen: boolean): void {
 export function isAiWizardOpenPersisted(): boolean {
   if (typeof window === 'undefined') return false;
   try {
-    return window.localStorage?.getItem(WIZARD_OPEN_STORAGE_KEY) === 'true' && !!loadAiWizardProgress();
+    return window.localStorage?.getItem(getScopedStorageKey(WIZARD_OPEN_STORAGE_KEY)) === 'true' && !!loadAiWizardProgress();
   } catch {
     return false;
   }
@@ -488,7 +495,7 @@ export interface SavedAiWizardProgress {
 export function saveAiWizardProgress(data: SavedAiWizardProgress): void {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage?.setItem(WIZARD_PROGRESS_STORAGE_KEY, JSON.stringify(data));
+    window.localStorage?.setItem(getScopedStorageKey(WIZARD_PROGRESS_STORAGE_KEY), JSON.stringify(data));
   } catch {
     // ignore quota errors
   }
@@ -497,7 +504,7 @@ export function saveAiWizardProgress(data: SavedAiWizardProgress): void {
 export function loadAiWizardProgress(): SavedAiWizardProgress | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage?.getItem(WIZARD_PROGRESS_STORAGE_KEY);
+    const raw = window.localStorage?.getItem(getScopedStorageKey(WIZARD_PROGRESS_STORAGE_KEY));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === 'object' ? parsed : null;
@@ -509,8 +516,8 @@ export function loadAiWizardProgress(): SavedAiWizardProgress | null {
 export function clearAiWizardProgress(): void {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage?.removeItem(WIZARD_PROGRESS_STORAGE_KEY);
-    window.localStorage?.removeItem(WIZARD_OPEN_STORAGE_KEY);
+    window.localStorage?.removeItem(getScopedStorageKey(WIZARD_PROGRESS_STORAGE_KEY));
+    window.localStorage?.removeItem(getScopedStorageKey(WIZARD_OPEN_STORAGE_KEY));
   } catch {
     // ignore
   }

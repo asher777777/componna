@@ -145,42 +145,48 @@ export const RichContentWysiwygEditor: React.FC<RichContentWysiwygEditorProps> =
     exec('foreColor', color);
   };
 
-  // Deterministic generator if KOSAI network call fails or for immediate offline preview
+  // Deterministic generator aligned with 2026 SEO & GEO protocol (Answer-First + Information Gain + Machine-Readable)
   const generateLocalBrandVisionHtml = (actionType: string): string => {
     const company = brandDna?.identity?.companyName || 'החברה';
     const vision = brandDna?.identity?.companyVision || brandDna?.identity?.shortVision || '';
     const purpose = brandDna?.identity?.organizationPurpose || brandDna?.audience?.mainUvp || '';
     const slogan = brandDna?.identity?.slogan || '';
+    const servicesList = (brandDna?.ecosystem?.services || [])
+      .slice(0, 3)
+      .map((s: any) => (typeof s === 'string' ? s : s?.name || s?.title || ''))
+      .filter(Boolean);
 
     switch (actionType) {
       case 'full_vision':
         return `
-<p class="text-lg font-bold leading-relaxed text-amber-400"><strong>החזון שלנו ב-${company}:</strong></p>
-<p class="leading-relaxed text-slate-200">${vision || `להוביל בסטנדרטים הגבוהים ביותר, לחבר בין אנשים וטכנולוגיה, וליצור השפעה מתמשכת ואיכותית.`}</p>
-<p class="leading-relaxed text-slate-300">${purpose || `אנו פועלים במסירות ובמקצועיות ללא פשרות, תוך הקשבה לצורכי הקהילה והבאת פתרונות פורצי דרך.`}</p>
-${slogan ? `<blockquote class="border-r-4 border-amber-500 pr-4 py-2 italic my-3 text-amber-300/90 bg-amber-500/5 rounded-l-lg">״${slogan}״</blockquote>` : ''}
-<p class="leading-relaxed text-slate-300">אנו מזמינים אתכם לקחת חלק במסע המשותף שלנו לעבר עתיד טוב ומשמעותי יותר.</p>
+<p class="text-lg font-bold leading-relaxed"><strong>מה מייחד את ${company}?</strong> ${vision || purpose || `${company} מספקת פתרונות מקצועיים וממוקדי תוצאה המותאמים לצרכים המדויקים של לקוחותיה, תוך שילוב ידע מעשי מהשטח, שקיפות מלאה ומדידת ביצועים שוטפת.`}</p>
+${purpose && purpose !== vision ? `<p class="leading-relaxed mt-2">${purpose}</p>` : ''}
+<ul class="space-y-2 my-3 list-disc pr-6">
+  <li><strong>מיקוד מקצועי:</strong> ${servicesList.length > 0 ? servicesList.join(' • ') : 'ליווי, אפיון ויישום פתרונות מותאמים אישית.'}</li>
+  <li><strong>עקביות ואמינות:</strong> תהליכי עבודה ברורים, לוחות זמנים שקופים ומדדי הצלחה ברורים.</li>
+</ul>
+${slogan ? `<blockquote class="border-r-4 border-amber-500 pr-4 py-2 italic my-3 bg-amber-500/5 rounded-l-lg">״${slogan}״</blockquote>` : ''}
         `.trim();
 
       case 'pillars':
         return `
-<p class="text-lg font-bold text-amber-400"><strong>עמודי התווך והערכים של ${company}:</strong></p>
-<ul class="space-y-2 my-3 text-slate-200 list-disc pr-6">
-  <li><strong>מצוינות ומקצועיות:</strong> שאיפה בלתי מתפשרת לאיכות הגבוהה ביותר בכל פרט ושלב.</li>
-  <li><strong>אמינות ושקיפות מלאה:</strong> שותפות אמת המבוססת על אמון, יושרה ויחס אישי לכל אדם.</li>
-  <li><strong>חדשנות ויצירתיות:</strong> פיתוח מתמיד של כלים ומענים מותאמים לצרכי המחר.</li>
-  <li><strong>שליחות וקהילה:</strong> ${purpose || 'חיבור עמוק לערכי הקהילה וקידום מטרות משותפות.'}</li>
+<p class="text-lg font-bold"><strong>עמודי התווך של ${company} (מבנה ערך מדיד):</strong> ${purpose || `עקרונות העבודה של ${company} מבוססים על נתונים מהשטח, שקיפות תפעולית ותוצאות מוכחות.`}</p>
+<ul class="space-y-2 my-3 list-disc pr-6">
+  <li><strong>מצוינות מבוססת נתונים:</strong> עמידה ביעדי איכות וביצועים מדידים בכל שלב בתהליך.</li>
+  <li><strong>שקיפות ואמינות ישות:</strong> מידע מדויק, תיעוד מלא ותקשורת ישירה ללא פערי ציפיות.</li>
+  <li><strong>חדשנות יישומית:</strong> התאמה מתמדת לכלים ולסטנדרטים העדכניים ביותר בענף.</li>
+  <li><strong>מחויבות לקהילה וללקוח:</strong> ${servicesList[0] || purpose || 'מענה ממוקד לצרכים האמיתיים של הלקוחות.'}</li>
 </ul>
-${slogan ? `<blockquote class="border-r-4 border-amber-500 pr-4 py-2 italic my-3 text-amber-200">״${slogan}״</blockquote>` : ''}
+${slogan ? `<blockquote class="border-r-4 border-amber-500 pr-4 py-2 italic my-3">״${slogan}״</blockquote>` : ''}
         `.trim();
 
       case 'short_vision':
         return `
-<p class="text-xl font-extrabold leading-snug text-white">
-  ${brandDna?.identity?.shortVision || vision || `${company} - מובילים באיכות, חדשנות ועשייה משמעותית.`}
+<p class="text-xl font-extrabold leading-snug">
+  ${brandDna?.identity?.shortVision || vision || `${company} מתמחה במתן פתרונות איכותיים ומדידים המותאמים ליעדי הלקוח.`}
 </p>
-<p class="leading-relaxed text-slate-300 mt-2">
-  ${purpose || `חיבור אמיתי, מקצועיות חסרת פשרות והשגת יעדים פורצי דרך יחד עם לקוחותינו.`}
+<p class="leading-relaxed mt-2">
+  ${purpose || `אנו משלבים ניסיון מעשי, שקיפות מלאה ותהליכי עבודה ברורים כדי להבטיח תוצאות יציבות לאורך זמן.`}
 </p>
         `.trim();
 
@@ -189,25 +195,25 @@ ${slogan ? `<blockquote class="border-r-4 border-amber-500 pr-4 py-2 italic my-3
           (value || '') +
           `
 <div class="mt-4 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-600/10 to-indigo-500/10 border border-amber-500/30">
-  <p class="text-base font-bold text-amber-300">מוכנים לקחת חלק בהצלחה של ${company}?</p>
-  <p class="text-sm text-slate-200 mt-1">צרו איתנו קשר עוד היום וגלו כיצד החזון שלנו מתחבר ישירות להצלחה שלכם.</p>
+  <p class="text-base font-bold">רוצים לבדוק התאמה מדויקת עבורכם מול ${company}?</p>
+  <p class="text-sm mt-1">השאירו פרטים או תאמו שיחת היכרות קצרה לקבלת מפרט ברור וצעד ראשון מעשי.</p>
 </div>
           `.trim()
         );
 
       default:
         return `
-<p class="text-lg font-semibold leading-relaxed text-white">
-  <strong>השליחות של ${company}:</strong> ${vision || purpose || 'ליצור עולם של הזדמנויות והצלחה משותפת.'}
+<p class="text-lg font-semibold leading-relaxed">
+  <strong>אודות ${company}:</strong> ${vision || purpose || 'גוף מקצועי המוביל פתרונות ממוקדים, שקופים ומדידים.'}
 </p>
-<p class="leading-relaxed text-slate-300 mt-2">
-  ${purpose || 'אנו פועלים מתוך תשוקה אמיתית להוביל, לתמוך ולהעצים כל יוזמה ופרויקט.'}
+<p class="leading-relaxed mt-2">
+  ${purpose || 'העשייה שלנו מתמקדת ביצירת ערך ממשי, עמידה בסטנדרטים גבוהים ובניית אמון ארוך טווח.'}
 </p>
         `.trim();
     }
   };
 
-  // AI execution via KOSAI Monopoly Contract
+  // AI execution via KOSAI Monopoly Contract aligned with 2026 SEO/GEO & Agentic Web Protocol
   const handleExecuteAiRewrite = async (actionType: string, customInstruction?: string) => {
     setAiLoading(true);
     setAiPreviewHtml(null);
@@ -216,41 +222,56 @@ ${slogan ? `<blockquote class="border-r-4 border-amber-500 pr-4 py-2 italic my-3
     const vision = brandDna?.identity?.companyVision || brandDna?.identity?.shortVision || '';
     const purpose = brandDna?.identity?.organizationPurpose || brandDna?.audience?.mainUvp || '';
     const slogan = brandDna?.identity?.slogan || '';
+    const targetAudience = (brandDna?.audience?.targetAudiences || [])
+      .slice(0, 3)
+      .map((a: any) => (typeof a === 'string' ? a : a?.name || a?.label || ''))
+      .filter(Boolean)
+      .join(', ');
+    const servicesList = (brandDna?.ecosystem?.services || [])
+      .slice(0, 5)
+      .map((s: any) => (typeof s === 'string' ? s : s?.name || s?.title || ''))
+      .filter(Boolean)
+      .join(', ');
 
     const instruction =
       customInstruction ||
       (actionType === 'full_vision'
-        ? 'נסח חזון מלא, עשיר ומשכנע המשלב את חזון החברה, מטרת הארגון והסלוגן.'
+        ? 'נסח אזור אודות וחזון מקצועי לפי מבנה Answer-First: פתיחה בת 40–60 מילים עם תשובה ישירה ומבוססת עובדות, ולאחריה רשימת יתרונות/שירותים מובנית וציטוט סמכותי.'
         : actionType === 'pillars'
-        ? 'המר את החזון והערכים לרשימה מעוצבת של 4 עמודי תווך עם תיאור מנומק.'
+        ? 'המר את החזון והערכים לפתיח Answer-First קצר ואחריו רשימה מובנית (<ul>) של 4 עמודי תווך עם עובדות ברורות ויישומיות.'
         : actionType === 'short_vision'
-        ? 'תמצת את החזון לשתי פסקאות מחץ קצרות, מדויקות וסוחפות.'
+        ? 'תמצת את החזון לפסקת Answer-First חדה בת 40–60 מילים המגדירה במדויק מי הארגון, למי הוא מיועד ומה התוצאה המדידה שהוא מספק.'
         : actionType === 'closing_cta'
-        ? 'הוסף פסקת הנעה לפעולה חמה, סוחפת ומקצועית בסיום הטקסט.'
-        : 'שכתב את הטקסט לשפה עשירה, מלוטשת ומעוררת השראה.');
+        ? 'הוסף בסיום הטקסט פסקת הנעה לפעולה ברורה, עניינית ונקייה מקלישאות, המתאימה גם לזיהוי על ידי סוכני AI.'
+        : 'שכתב את הטקסט בהתאם לפרוטוקול SEO/GEO 2026: Answer-First, Information Gain, ועקביות יישות.');
 
     const prompt = `
-אתה קופירייטר מיתוגי בכיר וארכיטקט תוכן ב-KOSUN26.
-משימתך היא לנסח או לשכתב תוכן מעוצב עבור אזור "אודות והחזון שלנו" באתר אינטרנט.
+אתה ארכיטקט תוכן מומחה ב-SEO, GEO (Generative Engine Optimization) ו-Agentic Web לשנת 2026.
+משימתך היא לנסח או לשכתב תוכן עבור אזור "אודות והחזון שלנו" באתר, כך שיוצג מצוין לגולשים וגם יצוטט בקלות על ידי מנועי AI (ChatGPT, Gemini, Perplexity).
 
-מידע מיתוגי מתוך ה-Brand DNA של הטננט:
-- שם החברה/ארגון: "${company}"
+נתוני יישות ו-Brand DNA של הטננט (לשילוב עובדתי ועקבי):
+- שם החברה/ארגון (Entity): "${company}"
 - חזון החברה: "${vision}"
 - חזון מקוצר: "${brandDna?.identity?.shortVision || ''}"
 - מטרת הארגון: "${purpose}"
 - סלוגן: "${slogan}"
 - הצעת ערך ייחודית (UVP): "${brandDna?.audience?.mainUvp || ''}"
+- קהל יעד: "${targetAudience}"
+- שירותים / תחומי ליבה: "${servicesList}"
+- טון ופנייה: "${brandDna?.voice?.genderAddressing || 'plural'}"
 
 טקסט נוכחי באזור:
 "${htmlCode || 'אין טקסט קודם'}"
 
-הנחיית שכתוב:
+הנחיית שכתוב ספציפית:
 "${instruction}"
 
-הנחיות קריטיות:
-1. כתוב בעברית ישראלית טבעית, עשירה, רהוטה ומשכנעת.
-2. פלוט אך ורק קוד HTML תקין ללא שום \`\`\`html או סימוני markdown!
-3. השתמש בתגיות <p>, <strong>, <blockquote>, <ul>, <li>.
+כללי פרוטוקול 2026 SEO & GEO (חובה להקפיד):
+1. מבנה Answer-First: פתח את התוכן (ואת כל סעיף משנה אם יש) בפסקה ישירה, חדה ועובדתית באורך 40–60 מילים שמספקת תשובה מלאה לשאלה "מי זו ${company || 'החברה'} ומה הערך הייחודי שלה".
+2. עקרון Information Gain: הימנע ממליצות וקלישאות AI גנריות. התבסס על הנתונים הספציפיים מה-Brand DNA (שם היישות, תחומי השירות, קהל היעד וה-UVP).
+3. פורמטים קריאים למכונה (Machine-Readable): שלב רשימות מובנות (<ul><li><strong>כותרת:</strong> תוכן</li></ul>) או טבלה קצרה והגדרות ברורות שנוחות לחילוץ על ידי LLMs.
+4. עקביות יישות (Entity Consistency): הזכר את שם החברה המדויק באופן טבעי בפתיחה.
+5. פלט HTML נקי בלבד: החזר אך ורק HTML תקני עם תגיות <p>, <h2>/<h3>, <strong>, <blockquote>, <ul>, <li>, <table> — ללא \`\`\`html וללא Markdown.
 `;
 
     try {

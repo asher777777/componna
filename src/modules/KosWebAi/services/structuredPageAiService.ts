@@ -2,7 +2,7 @@ import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
 import { BrandDna } from '../../../core/contracts';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import { resolveLiveBrandDna } from './brandSectionHydrator';
-import { dispatchStructuredDraftToKosai } from '../kosai/promptToKosai';
+import { dispatchStructuredDraftToKosai, dispatchHeroImageToKosai } from '../kosai/promptToKosai';
 import { resolveApiKey } from '../api/functionsApi';
 import {
   MatrixPageTypeId,
@@ -12,44 +12,25 @@ import {
   mapMatrixIdToPageCategory,
 } from '../config/pageArchitectureMatrix';
 import { applyStylePresetToPage } from './pageStylePresetService';
-import { resolveAiProxyUrl } from '../../../core/ai/cloudAiClient';
-import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
 
 /**
- * Generates a real custom Hero image via the server-side AI image proxy (/api/ai/image).
+ * Generates a real custom Hero image strictly via the KOSAI AI Monopoly contract (Master key).
  */
 export async function generateHeroImageViaProxy(
   prompt: string,
-  aspectRatio: '16:9' | '4:3' | '1:1' | '9:16' = '16:9'
+  aspectRatio: '16:9' | '4:3' | '1:1' | '9:16' = '16:9',
+  tenantId?: string
 ): Promise<string | null> {
   if (!prompt?.trim()) return null;
   try {
-    const tenantId =
-      (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || ROOT_TENANT_ID;
-    const res = await fetch(resolveAiProxyUrl('image'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'image',
-        prompt: prompt.trim(),
-        aspectRatio,
-        model: 'gemini-3.1-flash-image',
-        tenantId,
-      }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.imageUrl) return data.imageUrl;
-      if (data?.base64Data) {
-        const mime = data.mimeType || 'image/jpeg';
-        return `data:${mime};base64,${data.base64Data}`;
-      }
-    }
+    return await dispatchHeroImageToKosai(
+      { prompt: prompt.trim(), aspectRatio },
+      { tenantId }
+    );
   } catch (err) {
-    console.warn('[structuredPageAiService] AI image generation failed:', err);
+    console.warn('[structuredPageAiService] KOSAI image generation failed:', err);
+    return null;
   }
-  return null;
 }
 
 export interface WizardStepOptions {
@@ -196,9 +177,10 @@ export interface StreamStepInfo {
  */
 export function generateHeuristicStructuredDraft(
   options: WizardStepOptions,
-  brandDna?: BrandDna | null
+  brandDna?: BrandDna | null,
+  tenantId?: string
 ): StructuredPageDraft {
-  const liveDna = resolveLiveBrandDna(brandDna);
+  const liveDna = resolveLiveBrandDna(brandDna, tenantId);
   const company = liveDna?.identity?.companyName || 'העסק המוביל';
   const slogan = liveDna?.identity?.slogan || 'חדשנות, איכות וצמיחה מתמדת';
   const uvp = liveDna?.audience?.mainUvp || 'מעטפת שירות מקצועית, אמינה ומותאמת אישית';
@@ -359,9 +341,10 @@ export function generateHeuristicStructuredDraft(
 export async function generateStructuredPageDraft(
   options: WizardStepOptions,
   brandDna?: BrandDna | null,
-  providedApiKey?: string
+  providedApiKey?: string,
+  tenantId?: string
 ): Promise<StructuredPageDraft> {
-  const fallback = generateHeuristicStructuredDraft(options, brandDna);
+  const fallback = generateHeuristicStructuredDraft(options, brandDna, tenantId);
 
   // Merge user-entered hard pricing/campaign tiers into fallback immediately
   if (options.pricingDetails?.plans && options.pricingDetails.plans.length > 0) {
@@ -387,7 +370,7 @@ export async function generateStructuredPageDraft(
     return fallback;
   }
 
-  const liveDna = resolveLiveBrandDna(brandDna);
+  const liveDna = resolveLiveBrandDna(brandDna, tenantId);
   const company = liveDna?.identity?.companyName || 'העסק';
   const slogan = liveDna?.identity?.slogan || '';
   const tone =
@@ -405,7 +388,7 @@ export async function generateStructuredPageDraft(
   const shouldGenerateAiImage =
     options.imageSelection.mode === 'ai' && !options.imageSelection.selectedImageUrl;
   const aiImagePromise = shouldGenerateAiImage
-    ? generateHeroImageViaProxy(options.imageSelection.aiImagePrompt || options.promptTopic, '16:9')
+    ? generateHeroImageViaProxy(options.imageSelection.aiImagePrompt || options.promptTopic, '16:9', tenantId)
     : Promise.resolve(null);
 
   try {
@@ -439,7 +422,7 @@ export async function generateStructuredPageDraft(
           pricingInput: options.pricingDetails?.plans,
           geoDetails: options.geoDetails,
         },
-        { apiKey }
+        { apiKey, tenantId }
       ),
       aiImagePromise,
     ]);

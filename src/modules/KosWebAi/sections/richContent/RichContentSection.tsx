@@ -1,5 +1,8 @@
 import React from 'react';
-import { RichContentSectionConfig, RichContentLayoutPreset, RichContentItem } from '../../types/sectionConfigs';
+import {
+  RichContentSectionConfig,
+  RichContentItem,
+} from '../../types/sectionConfigs';
 import { DynamicIcon } from '../../ui/PageBuilderIconPicker';
 import {
   ArrowLeft,
@@ -8,24 +11,110 @@ import {
   Sun,
   Crosshair,
   Activity,
-  TrendingUp,
   Sparkles,
   Quote,
-  Compass,
-  Milestone,
-  CheckCircle2,
-  Target,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../../../core/contracts';
+import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
+import {
+  resolveSectionTheme,
+  SectionStyleKey,
+  getTitleScaleClass,
+  getDescScaleClass,
+  getButtonShapeClass,
+  getButtonSizeClass,
+} from '../../styles';
+
+const DEFAULT_FALLBACK_BG =
+  'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80';
+
+const CARD_STYLE_MAP: Record<
+  SectionStyleKey,
+  {
+    baseCard: string;
+    iconBox: string;
+    badgeText: string;
+    titleText: string;
+    descText: string;
+    defaultIcon: string;
+  }
+> = {
+  standard: {
+    baseCard:
+      'bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-lg hover:border-indigo-500/40',
+    iconBox:
+      'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-500/30',
+    badgeText: 'text-indigo-600 dark:text-indigo-400',
+    titleText: 'text-slate-900 dark:text-white',
+    descText: 'text-slate-600 dark:text-slate-300',
+    defaultIcon: 'Sparkles',
+  },
+  feminine: {
+    baseCard:
+      'bg-white/85 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-500/30 shadow-xl shadow-rose-500/10 hover:border-rose-400',
+    iconBox:
+      'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-400/30',
+    badgeText: 'text-rose-600 dark:text-rose-300',
+    titleText: 'text-stone-900 dark:text-rose-50',
+    descText: 'text-stone-600 dark:text-rose-100/80',
+    defaultIcon: 'Heart',
+  },
+  masculine: {
+    baseCard:
+      'bg-zinc-900 border border-zinc-800 shadow-2xl hover:border-amber-500/50',
+    iconBox:
+      'bg-zinc-950 text-amber-400 border border-amber-500/40',
+    badgeText: 'text-amber-400',
+    titleText: 'text-white',
+    descText: 'text-zinc-400',
+    defaultIcon: 'Shield',
+  },
+  spiritual: {
+    baseCard:
+      'bg-white/75 dark:bg-teal-950/30 border border-teal-700/20 dark:border-teal-400/25 backdrop-blur-md shadow-lg hover:border-teal-500/50',
+    iconBox:
+      'bg-teal-900/10 dark:bg-teal-400/15 text-teal-700 dark:text-amber-300 border border-teal-700/20 dark:border-teal-400/30',
+    badgeText: 'text-teal-700 dark:text-amber-300',
+    titleText: 'text-teal-950 dark:text-emerald-50',
+    descText: 'text-teal-900/75 dark:text-emerald-100/75',
+    defaultIcon: 'Sun',
+  },
+  sharp: {
+    baseCard:
+      'bg-white dark:bg-zinc-950 border-2 border-slate-950 dark:border-white shadow-[6px_6px_0px_0px_#6366f1] hover:translate-x-[2px] hover:translate-y-[2px]',
+    iconBox:
+      'bg-slate-950 dark:bg-white text-white dark:text-slate-950 border-2 border-slate-950 dark:border-white',
+    badgeText: 'text-indigo-600 dark:text-indigo-400 font-mono',
+    titleText: 'text-slate-950 dark:text-white',
+    descText: 'text-slate-700 dark:text-zinc-300',
+    defaultIcon: 'Crosshair',
+  },
+  analytical: {
+    baseCard:
+      'bg-white/90 dark:bg-slate-900/85 border border-cyan-500/30 shadow-lg shadow-cyan-500/10 hover:border-cyan-400',
+    iconBox:
+      'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30',
+    badgeText: 'text-cyan-600 dark:text-cyan-400 font-mono',
+    titleText: 'text-slate-900 dark:text-white',
+    descText: 'text-slate-600 dark:text-slate-300',
+    defaultIcon: 'Activity',
+  },
+};
 
 export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> = ({ config }) => {
+  const { getCapability } = useHostCapabilities();
+  const rawBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+  const brandDna = resolveLiveBrandDna(rawBrandDna);
+
   const {
     anchorId,
     heading = 'אודות הפרויקט והחזון שלנו',
     subtitle,
     body = '',
     imageSrc,
-    layout = 'standard',
+    layout = 'auto',
     contentLayout,
     objectScale = 'auto',
     buttonShape = 'auto',
@@ -35,6 +124,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
     primaryButton,
     secondaryButton,
     backgroundColor = 'transparent',
+    useBrandColors,
     headingColor,
     bodyColor,
     primaryButtonColor,
@@ -52,350 +142,82 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
     cardStylePresetEffect = 'auto',
   } = config;
 
+  const isLegacyContentLayout =
+    layout === 'split-story' ||
+    layout === 'quote-hero' ||
+    layout === 'timeline-vision' ||
+    layout === 'bento-about' ||
+    layout === 'two-columns' ||
+    layout === 'highlight-box' ||
+    layout === 'cards-grid-3' ||
+    layout === 'cards-grid-2';
+
+  const effectiveContentMode = contentLayout || (isLegacyContentLayout ? layout : 'standard');
+
+  const { styleKey, tokens, resolvedColors, effectiveButtonShape } = resolveSectionTheme(
+    {
+      layout: isLegacyContentLayout ? 'standard' : layout,
+      useBrandColors,
+      backgroundColor,
+      titleColor: headingColor,
+      descriptionColor: bodyColor,
+      primaryButtonColor,
+      secondaryButtonColor,
+      buttonShape,
+    },
+    brandDna
+  );
+
   const hasItems = Array.isArray(items) && items.length > 0;
   const hasButtons = Boolean(buttonsVisible && (primaryButton?.text || secondaryButton?.text));
 
-  // Normalize layout
-  const normalizedLayout: RichContentLayoutPreset =
-    !layout || layout === 'current' ? 'standard' : layout;
-
-  const effectiveContentMode =
-    contentLayout ||
-    (normalizedLayout === 'split-story' ||
-    normalizedLayout === 'quote-hero' ||
-    normalizedLayout === 'timeline-vision' ||
-    normalizedLayout === 'bento-about' ||
-    normalizedLayout === 'two-columns' ||
-    normalizedLayout === 'highlight-box' ||
-    normalizedLayout === 'cards-grid-3' ||
-    normalizedLayout === 'cards-grid-2'
-      ? normalizedLayout
-      : 'standard');
-
-  const isCurrentLayout =
-    normalizedLayout === 'standard' ||
-    normalizedLayout === 'two-columns' ||
-    normalizedLayout === 'highlight-box' ||
-    normalizedLayout === 'cards-grid-3' ||
-    normalizedLayout === 'cards-grid-2' ||
-    normalizedLayout === 'split-story' ||
-    normalizedLayout === 'quote-hero' ||
-    normalizedLayout === 'timeline-vision' ||
-    normalizedLayout === 'bento-about' ||
-    Boolean(contentLayout);
-
-  const effectiveBgImage =
-    textBgImageUrl ||
-    imageSrc ||
-    'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80';
+  const effectiveBgImage = textBgImageUrl || imageSrc || DEFAULT_FALLBACK_BG;
   const overlayAlpha = Math.min(95, Math.max(10, textBgOverlayOpacity ?? 70)) / 100;
+  const effectiveOverlayHex =
+    textBgOverlayColor && textBgOverlayColor !== 'transparent'
+      ? textBgOverlayColor
+      : resolvedColors.overlayHex;
 
-  const defaultOverlayHex = (() => {
-    if (textBgOverlayColor && textBgOverlayColor !== 'transparent') return textBgOverlayColor;
-    switch (normalizedLayout) {
-      case 'feminine':
-        return '#2e101f';
-      case 'masculine':
-        return '#09090b';
-      case 'spiritual':
-        return '#091e1c';
-      case 'sharp':
-        return '#050505';
-      case 'analytical':
-        return '#06101e';
+  const pos = imagePosition === 'auto' ? 'left' : imagePosition;
+  const isStack = pos === 'top' || pos === 'bottom';
+
+  const renderBadgeIcon = () => {
+    switch (tokens.badge.iconType) {
+      case 'heart':
+        return <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-400/40" />;
+      case 'shield':
+        return <Shield className="w-3.5 h-3.5" />;
+      case 'sun':
+        return <Sun className="w-3.5 h-3.5 text-amber-500" />;
+      case 'crosshair':
+        return <Crosshair className="w-3.5 h-3.5" />;
+      case 'activity':
+        return <Activity className="w-3.5 h-3.5" />;
       default:
-        return '#0f172a';
-    }
-  })();
-
-  // Object scale helpers
-  const getHeadingScaleClass = (defaultClass: string) => {
-    if (objectScale === 'compact') return 'text-2xl sm:text-3xl';
-    if (objectScale === 'normal') return 'text-3xl sm:text-4xl';
-    if (objectScale === 'large') return 'text-3xl sm:text-5xl';
-    if (objectScale === 'massive') return 'text-4xl sm:text-5xl md:text-6xl';
-    return defaultClass;
-  };
-
-  const getBodyScaleClass = (defaultClass: string) => {
-    if (objectScale === 'compact') return 'text-sm sm:text-base';
-    if (objectScale === 'normal') return 'text-base sm:text-lg';
-    if (objectScale === 'large') return 'text-lg sm:text-xl';
-    if (objectScale === 'massive') return 'text-xl sm:text-2xl';
-    return defaultClass;
-  };
-
-  // Button shape & size overrides
-  const getButtonShapeClass = (defaultRadius: string) => {
-    if (buttonShape === 'pill') return 'rounded-full';
-    if (buttonShape === 'rounded') return 'rounded-2xl';
-    if (buttonShape === 'sharp') return 'rounded-none';
-    if (buttonShape === 'chiseled') return 'rounded-lg';
-    return defaultRadius;
-  };
-
-  const getButtonSizeClass = (defaultSize: string) => {
-    if (buttonSize === 'sm') return 'px-5 py-2.5 text-xs sm:text-sm';
-    if (buttonSize === 'md') return 'px-7 py-3.5 text-sm sm:text-base';
-    if (buttonSize === 'lg') return 'px-9 py-4 text-base sm:text-lg';
-    if (buttonSize === 'xl') return 'px-11 py-5 text-lg sm:text-xl';
-    return defaultSize;
-  };
-
-  // Card shape styling per selection or brand layout preset
-  const getCardShapeClass = (shape: string = 'auto', preset: RichContentLayoutPreset = 'standard') => {
-    if (shape && shape !== 'auto') {
-      switch (shape) {
-        case 'sharp':
-          return 'rounded-none';
-        case 'pill':
-          return 'rounded-[2.5rem]';
-        case 'arched':
-          return 'rounded-t-[3.5rem] rounded-b-xl';
-        case 'chiseled':
-          return 'rounded-tr-3xl rounded-bl-3xl rounded-tl-sm rounded-br-sm';
-        case 'rounded':
-          return 'rounded-3xl';
-        default:
-          return 'rounded-3xl';
-      }
-    }
-    switch (preset) {
-      case 'feminine':
-        return 'rounded-[2.25rem]';
-      case 'masculine':
-        return 'rounded-xl';
-      case 'sharp':
-        return 'rounded-none';
-      case 'spiritual':
-        return 'rounded-[2rem]';
-      case 'analytical':
-        return 'rounded-2xl';
-      default:
-        return 'rounded-3xl';
+        return <Sparkles className="w-3.5 h-3.5" />;
     }
   };
 
-  // Unified Milestone Cards Renderer with asymmetric stagger, icons above, brand effects & custom shapes
-  const renderMilestoneGrid = (
-    milestoneItems: RichContentItem[],
-    layoutPreset: RichContentLayoutPreset
-  ) => {
-    if (!Array.isArray(milestoneItems) || milestoneItems.length === 0) return null;
-
-    const shapeClass = getCardShapeClass(cardFrameShape, layoutPreset);
-    const is2Cols = normalizedLayout === 'cards-grid-2';
-
-    return (
-      <div
-        className={clsx(
-          'grid gap-6 mt-4 w-full',
-          is2Cols ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
-          isAsymmetricGrid && 'lg:gap-8 items-start'
-        )}
-      >
-        {milestoneItems.map((item, idx) => {
-          const desc = item.text || item.description;
-          const defaultIcon =
-            layoutPreset === 'masculine'
-              ? 'Shield'
-              : layoutPreset === 'spiritual'
-              ? 'Sun'
-              : layoutPreset === 'analytical'
-              ? 'Activity'
-              : 'Sparkles';
-
-          // Asymmetric stagger on larger screens
-          const asymmetricOffset = isAsymmetricGrid
-            ? is2Cols
-              ? idx % 2 === 1
-                ? 'md:translate-y-8 sm:mt-2'
-                : 'md:-translate-y-1'
-              : idx % 3 === 1
-              ? 'lg:translate-y-8 sm:mt-2'
-              : idx % 3 === 2
-              ? 'lg:translate-y-4'
-              : 'lg:-translate-y-2'
-            : '';
-
-          // Visual styles per brand style and effect override
-          let cardContainerStyles = '';
-          let iconWrapperClass = '';
-          let badgeClass = '';
-          let titleClass = '';
-          let descClass = '';
-
-          const eff = cardStylePresetEffect;
-
-          if (layoutPreset === 'feminine') {
-            cardContainerStyles = clsx(
-              'group p-6 text-right transition-all duration-500 backdrop-blur-md flex flex-col',
-              eff === 'glow'
-                ? 'bg-white/90 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-500/50 shadow-[0_12px_36px_-6px_rgba(244,114,182,0.35)] hover:shadow-[0_18px_45px_-4px_rgba(244,114,182,0.5)]'
-                : eff === 'glass'
-                ? 'bg-white/60 dark:bg-rose-950/20 border border-white/40 dark:border-rose-400/20 backdrop-blur-xl shadow-xl hover:border-rose-300'
-                : eff === 'border-beam'
-                ? 'bg-white/90 dark:bg-rose-950/30 border-2 border-rose-300 dark:border-rose-400 shadow-md hover:border-rose-400'
-                : eff === 'heavy-border'
-                ? 'bg-white dark:bg-rose-950/40 border-3 border-rose-400 dark:border-rose-300 shadow-xl'
-                : 'bg-white/85 dark:bg-rose-950/25 border border-rose-200/80 dark:border-rose-800/40 shadow-lg shadow-rose-200/20 dark:shadow-none hover:border-rose-400/60 hover:shadow-rose-400/25 hover:-translate-y-1'
-            );
-            iconWrapperClass =
-              'w-12 h-12 rounded-full bg-gradient-to-tr from-rose-100 to-rose-50 dark:from-rose-500/20 dark:to-rose-400/10 border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-300 shadow-sm flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform';
-            badgeClass =
-              'font-serif text-xs font-bold text-rose-400/80 dark:text-rose-300/60 bg-rose-50 dark:bg-rose-900/40 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-700/40';
-            titleClass = 'text-lg font-bold text-rose-950 dark:text-rose-100 leading-snug';
-            descClass = 'text-sm sm:text-base text-stone-600 dark:text-rose-100/75 leading-relaxed whitespace-pre-line';
-          } else if (layoutPreset === 'masculine') {
-            cardContainerStyles = clsx(
-              'group p-6 text-right transition-all duration-300 flex flex-col',
-              eff === 'glow'
-                ? 'bg-zinc-900/95 border-2 border-amber-500/50 shadow-[0_0_30px_-5px_rgba(245,158,11,0.25)] hover:border-amber-400 hover:shadow-[0_0_40px_-3px_rgba(245,158,11,0.4)]'
-                : eff === 'glass'
-                ? 'bg-zinc-950/80 backdrop-blur-xl border-2 border-zinc-700 shadow-2xl hover:border-amber-500/40'
-                : eff === 'border-beam'
-                ? 'bg-zinc-900 border-2 border-amber-500 shadow-[0_0_20px_-3px_rgba(245,158,11,0.3)]'
-                : eff === 'heavy-border'
-                ? 'bg-zinc-950 border-4 border-amber-500 shadow-2xl'
-                : 'bg-gradient-to-b from-zinc-900/95 to-zinc-950/95 border-2 border-zinc-800 shadow-xl shadow-black/80 hover:border-amber-500/80 hover:shadow-amber-500/10 hover:-translate-y-1'
-            );
-            iconWrapperClass =
-              'w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-400 shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform';
-            badgeClass =
-              'font-mono text-xs font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30';
-            titleClass = 'text-lg font-black text-white leading-snug';
-            descClass = 'text-sm sm:text-base text-zinc-300 leading-relaxed whitespace-pre-line';
-          } else if (layoutPreset === 'spiritual') {
-            cardContainerStyles = clsx(
-              'group p-6 text-right transition-all duration-500 backdrop-blur-md flex flex-col',
-              eff === 'glow'
-                ? 'bg-white/85 dark:bg-teal-950/30 border border-teal-500/40 shadow-[0_12px_36px_-6px_rgba(20,184,166,0.3)] hover:shadow-[0_18px_45px_-4px_rgba(20,184,166,0.45)]'
-                : eff === 'glass'
-                ? 'bg-white/60 dark:bg-teal-950/20 border border-white/40 dark:border-teal-400/20 backdrop-blur-xl shadow-xl hover:border-teal-300'
-                : eff === 'border-beam'
-                ? 'bg-white/85 dark:bg-teal-950/30 border-2 border-teal-400/80 shadow-[0_0_20px_-3px_rgba(20,184,166,0.25)]'
-                : eff === 'heavy-border'
-                ? 'bg-white dark:bg-teal-950/40 border-3 border-teal-500 shadow-xl'
-                : 'bg-white/80 dark:bg-teal-950/25 border border-teal-600/20 dark:border-teal-500/25 shadow-md hover:shadow-xl hover:border-teal-400/60 hover:-translate-y-1'
-            );
-            iconWrapperClass =
-              'w-12 h-12 rounded-full bg-teal-500/10 border border-amber-400/40 text-teal-700 dark:text-teal-300 shadow-[0_0_15px_-3px_rgba(20,184,166,0.2)] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform';
-            badgeClass =
-              'font-serif text-xs font-medium text-amber-500 dark:text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-400/30';
-            titleClass = 'text-lg font-semibold text-stone-800 dark:text-stone-100 leading-snug';
-            descClass = 'text-sm sm:text-base text-stone-600 dark:text-stone-300 leading-relaxed whitespace-pre-line';
-          } else if (layoutPreset === 'sharp') {
-            cardContainerStyles = clsx(
-              'group p-6 text-right transition-all flex flex-col',
-              eff === 'glow'
-                ? 'bg-white dark:bg-slate-950 border-2 border-indigo-500 shadow-[6px_6px_0px_0px_#6366f1,0_0_25px_rgba(99,102,241,0.35)] hover:shadow-[9px_9px_0px_0px_#4f46e5,0_0_35px_rgba(99,102,241,0.5)]'
-                : eff === 'glass'
-                ? 'bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-2 border-slate-950 dark:border-white shadow-[6px_6px_0px_0px_#6366f1]'
-                : eff === 'border-beam'
-                ? 'bg-white dark:bg-slate-950 border-3 border-indigo-500 shadow-[8px_8px_0px_0px_#6366f1]'
-                : eff === 'heavy-border'
-                ? 'bg-white dark:bg-slate-950 border-4 border-slate-950 dark:border-white shadow-[9px_9px_0px_0px_#6366f1]'
-                : 'bg-white dark:bg-slate-950 border-2 border-slate-950 dark:border-white shadow-[6px_6px_0px_0px_#6366f1] hover:shadow-[9px_9px_0px_0px_#4f46e5] hover:-translate-x-0.5 hover:-translate-y-0.5'
-            );
-            iconWrapperClass =
-              'w-10 h-10 rounded-none bg-slate-950 dark:bg-white text-white dark:text-slate-950 flex items-center justify-center shrink-0';
-            badgeClass = 'font-mono text-xs font-black text-indigo-600 dark:text-indigo-400';
-            titleClass = 'text-base font-black text-slate-950 dark:text-white leading-snug';
-            descClass = 'text-sm sm:text-base text-slate-700 dark:text-slate-300 font-medium leading-relaxed whitespace-pre-line';
-          } else if (layoutPreset === 'analytical') {
-            cardContainerStyles = clsx(
-              'group p-6 text-right transition-all backdrop-blur-md flex flex-col',
-              eff === 'glow'
-                ? 'bg-slate-900/90 border border-cyan-400 shadow-[0_0_30px_-4px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_-2px_rgba(6,182,212,0.6)]'
-                : eff === 'glass'
-                ? 'bg-slate-900/65 backdrop-blur-xl border border-cyan-400/40 shadow-2xl hover:border-cyan-300'
-                : eff === 'border-beam'
-                ? 'bg-slate-900/90 border-2 border-cyan-400 shadow-[0_0_20px_-3px_rgba(6,182,212,0.35)]'
-                : eff === 'heavy-border'
-                ? 'bg-slate-950 border-2 border-cyan-400 shadow-xl'
-                : 'bg-white/90 dark:bg-slate-900/85 border border-cyan-500/25 shadow-lg hover:border-cyan-400/60 hover:shadow-cyan-500/20 hover:-translate-y-1'
-            );
-            iconWrapperClass =
-              'w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform';
-            badgeClass =
-              'font-mono text-[10px] font-bold text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20';
-            titleClass = 'text-base font-extrabold text-slate-900 dark:text-white leading-snug';
-            descClass = 'text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line';
-          } else {
-            // Standard / default SaaS style
-            cardContainerStyles = clsx(
-              'group p-6 text-right transition-all duration-300 flex flex-col',
-              eff === 'glow'
-                ? 'bg-white/90 dark:bg-slate-900/90 border border-indigo-400/50 shadow-[0_10px_35px_-5px_rgba(99,102,241,0.35)] hover:shadow-[0_16px_45px_-3px_rgba(99,102,241,0.45)]'
-                : eff === 'glass'
-                ? 'bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/20 shadow-2xl hover:border-indigo-300'
-                : eff === 'border-beam'
-                ? 'bg-white/90 dark:bg-slate-900/90 border-2 border-indigo-500/70 shadow-indigo-500/20'
-                : eff === 'heavy-border'
-                ? 'bg-white dark:bg-slate-950 border-3 border-slate-900 dark:border-slate-100 shadow-xl'
-                : 'bg-white/90 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-lg hover:shadow-xl hover:border-indigo-500/40 hover:-translate-y-1'
-            );
-            iconWrapperClass =
-              'w-11 h-11 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform';
-            badgeClass = 'font-mono text-xs font-bold text-indigo-500/80';
-            titleClass = 'text-lg font-extrabold text-slate-900 dark:text-white leading-snug';
-            descClass = 'text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line';
-          }
-
-          const isTopCenter = cardIconPosition === 'top-center';
-          const isTop = cardIconPosition === 'top' || isTopCenter;
-          const displayBadge = item.metricValue || ('0' + (idx + 1));
-
-          return (
-            <div
-              key={item.id || idx}
-              className={clsx(
-                cardContainerStyles,
-                shapeClass,
-                asymmetricOffset,
-                isTopCenter ? 'items-center text-center gap-3.5' : 'gap-3'
-              )}
-            >
-              {isTop ? (
-                <>
-                  <div
-                    className={clsx(
-                      'w-full flex mb-1',
-                      isTopCenter ? 'justify-center' : 'items-center justify-between'
-                    )}
-                  >
-                    <div className={iconWrapperClass}>
-                      <DynamicIcon name={item.icon || defaultIcon} className="w-5 h-5" />
-                    </div>
-                    {!isTopCenter && (
-                      <span className={badgeClass}>{displayBadge}</span>
-                    )}
-                  </div>
-                  <h3 className={titleClass}>{item.title}</h3>
-                  {desc && <p className={descClass}>{desc}</p>}
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className={iconWrapperClass}>
-                        <DynamicIcon name={item.icon || defaultIcon} className="w-5 h-5" />
-                      </div>
-                      <h3 className={titleClass}>{item.title}</h3>
-                    </div>
-                    <span className={badgeClass}>{displayBadge}</span>
-                  </div>
-                  {desc && <p className={descClass}>{desc}</p>}
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
+  const getCardShapeClass = (shape: string, preset: SectionStyleKey) => {
+    if (shape === 'sharp') return 'rounded-none';
+    if (shape === 'rounded') return 'rounded-3xl';
+    if (shape === 'pill') return 'rounded-[3rem]';
+    if (shape === 'arched') return 'rounded-t-[4rem] rounded-b-2xl';
+    if (shape === 'chiseled') return 'rounded-tr-3xl rounded-bl-3xl rounded-tl-md rounded-br-md';
+    if (preset === 'sharp') return 'rounded-none';
+    if (preset === 'masculine') return 'rounded-2xl';
+    if (preset === 'feminine' || preset === 'spiritual') return 'rounded-3xl';
+    if (preset === 'analytical') return 'rounded-xl';
+    return 'rounded-2xl';
   };
 
-  // Render background image + overlay + hover transition layer ("אפקט עובר")
+  const getEffectExtraClass = () => {
+    if (cardStylePresetEffect === 'glass') return 'backdrop-blur-xl bg-opacity-70';
+    if (cardStylePresetEffect === 'heavy-border') return 'border-2';
+    if (cardStylePresetEffect === 'glow') return 'shadow-2xl';
+    return '';
+  };
+
   const renderTextBgLayer = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 rounded-[inherit]">
       <img
@@ -416,35 +238,18 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
       />
       <div
         className="absolute inset-0 transition-opacity duration-500 group-hover/textbg:opacity-80"
-        style={{
-          backgroundColor: defaultOverlayHex,
-          opacity: overlayAlpha,
-        }}
+        style={{ backgroundColor: effectiveOverlayHex, opacity: overlayAlpha }}
       />
-      {textBgEffect === 'shimmer-sweep' && (
-        <div className="absolute inset-0 -translate-x-full group-hover/textbg:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12" />
-      )}
-      {textBgEffect === 'zoom-glow' && (
-        <div className="absolute inset-0 opacity-0 group-hover/textbg:opacity-100 transition-opacity duration-700 bg-radial from-white/15 via-transparent to-transparent" />
-      )}
-      {textBgEffect === 'gradient-shift' && (
-        <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600/30 via-transparent to-amber-500/30 opacity-40 group-hover/textbg:opacity-80 transition-opacity duration-700" />
-      )}
-      {textBgEffect === 'float-parallax' && (
-        <div className="absolute inset-0 ring-1 ring-inset ring-white/20 group-hover/textbg:ring-white/50 transition-all duration-700" />
-      )}
     </div>
   );
 
-  const wrapTextWithOptionalBg = (content: React.ReactNode, cardRadiusClass = 'rounded-3xl') => {
-    if (!textBgEnabled || textBgScope === 'full-section') {
-      return content;
-    }
+  const wrapTextWithOptionalBg = (content: React.ReactNode) => {
+    if (!textBgEnabled || textBgScope === 'full-section') return content;
     return (
       <div
         className={clsx(
           'relative overflow-hidden p-6 sm:p-10 transition-all duration-500 shadow-2xl border border-white/15 group/textbg w-full',
-          cardRadiusClass
+          tokens.textCardRadiusClass
         )}
       >
         {renderTextBgLayer()}
@@ -453,877 +258,311 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
     );
   };
 
-  // ============================================================================
-  // ג. הפריסה העכשווית (Current / Standard - Exact Existing Design + Enhancements)
-  // ============================================================================
-  if (isCurrentLayout) {
-    const isCardsLayout =
-      normalizedLayout === 'cards-grid-3' || normalizedLayout === 'cards-grid-2' || hasItems;
-    const pos = imagePosition === 'auto' ? 'left' : imagePosition;
-    const isStack = !imageSrc || pos === 'top' || pos === 'bottom';
-
-    const currentImageBlock = imageSrc && (
-      <div className="relative rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl group max-w-lg mx-auto w-full">
-        <img
-          src={imageSrc}
-          alt={heading}
-          className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-700"
-        />
-      </div>
-    );
-
-    const mainContentBody = (
-      <div className="flex flex-col gap-6">
-        {(heading || subtitle) && (
-          <div
-            className={clsx(
-              'flex flex-col gap-2',
-              (hasItems || isStack) && 'text-center items-center max-w-3xl mx-auto'
-            )}
-          >
-            {subtitle && (
-              <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold w-fit">
-                {subtitle}
-              </span>
-            )}
-            {heading && (
-              <h2
-                className={clsx(
-                  getHeadingScaleClass('text-3xl sm:text-4xl'),
-                  'font-extrabold tracking-tight leading-tight',
-                  textBgEnabled ? 'text-white' : 'text-slate-900 dark:text-white'
-                )}
-                style={{ color: headingColor }}
-              >
-                {heading}
-              </h2>
-            )}
-          </div>
-        )}
-
-        {body && body.trim() && (
-          <div
-            className={clsx(
-              getBodyScaleClass('text-base sm:text-lg'),
-              'leading-relaxed space-y-4 font-normal',
-              textBgEnabled ? 'text-slate-200' : 'text-slate-700 dark:text-slate-300',
-              normalizedLayout === 'two-columns' && 'sm:columns-2 sm:gap-8',
-              hasItems && 'max-w-3xl mx-auto text-center'
-            )}
-            style={{ color: bodyColor }}
-            dangerouslySetInnerHTML={{ __html: body }}
-          />
-        )}
-
-        {hasButtons && (
-          <div className={clsx('flex flex-wrap items-center gap-4 pt-2', hasItems && 'justify-center')}>
-            {primaryButton?.text && (
-              <a
-                href={primaryButton.url || '#'}
-                target={primaryButton.target}
-                style={{ backgroundColor: primaryButtonColor || undefined }}
-                className={clsx(
-                  'inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5',
-                  getButtonShapeClass('rounded-2xl'),
-                  getButtonSizeClass('px-7 py-3.5 text-sm sm:text-base')
-                )}
-              >
-                <span>{primaryButton.text}</span>
-                <ArrowLeft className="w-4 h-4" />
-              </a>
-            )}
-            {secondaryButton?.text && (
-              <a
-                href={secondaryButton.url || '#'}
-                target={secondaryButton.target}
-                style={{ backgroundColor: secondaryButtonColor || undefined }}
-                className={clsx(
-                  'inline-flex items-center gap-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold transition-all',
-                  getButtonShapeClass('rounded-2xl'),
-                  getButtonSizeClass('px-7 py-3.5 text-sm sm:text-base')
-                )}
-              >
-                <span>{secondaryButton.text}</span>
-              </a>
-            )}
-          </div>
-        )}
-      </div>
-    );
+  const renderMilestoneGrid = (milestoneItems: RichContentItem[]) => {
+    if (!Array.isArray(milestoneItems) || milestoneItems.length === 0) return null;
+    const shapeClass = getCardShapeClass(cardFrameShape, styleKey);
+    const is2Cols = effectiveContentMode === 'cards-grid-2';
+    const cardTheme = CARD_STYLE_MAP[styleKey];
 
     return (
-      <section
-        id={anchorId || 'richContent'}
-        className="relative w-full py-16 px-4 sm:px-6 lg:px-8 overflow-hidden group/textbg"
-        style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
-        dir="rtl"
+      <div
+        className={clsx(
+          'grid gap-6 mt-8 w-full',
+          is2Cols ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+          isAsymmetricGrid && 'lg:gap-8 items-start'
+        )}
       >
-        {textBgEnabled && textBgScope === 'full-section' && renderTextBgLayer()}
+        {milestoneItems.map((item, idx) => {
+          const desc = item.text || item.description;
+          const asymmetricOffset = isAsymmetricGrid
+            ? is2Cols
+              ? idx % 2 === 1
+                ? 'md:translate-y-6'
+                : ''
+              : idx % 3 === 1
+                ? 'lg:translate-y-6'
+                : idx % 3 === 2
+                  ? 'lg:translate-y-3'
+                  : ''
+            : '';
 
-        <div
-          className={clsx(
-            isCardsLayout ? 'max-w-6xl mx-auto' : 'max-w-4xl mx-auto',
-            'relative z-10 text-right flex flex-col gap-8',
-            normalizedLayout === 'highlight-box' &&
-              'bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 sm:p-12 shadow-2xl backdrop-blur-xl'
-          )}
-        >
-          {effectiveContentMode === 'split-story' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-              <div className="lg:col-span-7 flex flex-col gap-6 text-right">
-                {wrapTextWithOptionalBg(mainContentBody)}
-              </div>
-              <div className="lg:col-span-5 relative">
-                {imageSrc ? (
-                  <div className="relative rounded-[2.5rem] overflow-hidden border border-slate-200 dark:border-white/10 shadow-2xl group">
-                    <img
-                      src={imageSrc}
-                      alt={heading}
-                      className="w-full h-[440px] object-cover group-hover:scale-105 transition-transform duration-700"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    <div className="absolute bottom-6 right-6 left-6 p-4 rounded-2xl bg-black/60 backdrop-blur-md border border-white/15 text-white">
-                      <div className="flex items-center gap-2 text-amber-400 text-xs font-bold mb-1">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>תמצית החזון והשליחות</span>
-                      </div>
-                      <p className="text-xs text-slate-200 line-clamp-2">
-                        {subtitle || heading}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-amber-500/10 via-slate-900/60 to-indigo-500/10 border border-white/10 shadow-2xl flex flex-col justify-center min-h-[350px]">
-                    <Quote className="w-12 h-12 text-amber-400 mb-4 opacity-70" />
-                    <p className="text-xl sm:text-2xl font-bold text-white leading-relaxed italic mb-4">
-                      ״{subtitle || heading}״
-                    </p>
-                    <span className="text-xs text-amber-400 font-bold uppercase tracking-wider">
-                      החזון והשליחות המנחים אותנו
-                    </span>
-                  </div>
+          return (
+            <div
+              key={item.id || idx}
+              className={clsx(
+                'group p-6 text-right transition-all duration-500 flex flex-col',
+                shapeClass,
+                cardTheme.baseCard,
+                getEffectExtraClass(),
+                asymmetricOffset
+              )}
+            >
+              <div
+                className={clsx(
+                  'flex gap-4',
+                  cardIconPosition === 'top' ? 'flex-col items-start' : 'flex-row items-start'
                 )}
-              </div>
-            </div>
-          ) : effectiveContentMode === 'quote-hero' ? (
-            <div className="max-w-4xl mx-auto text-center flex flex-col items-center gap-6">
-              <div className="w-14 h-14 rounded-3xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-xl shadow-amber-500/10">
-                <Quote className="w-7 h-7" />
-              </div>
-              {wrapTextWithOptionalBg(mainContentBody)}
-            </div>
-          ) : effectiveContentMode === 'timeline-vision' ? (
-            <div className="max-w-5xl mx-auto flex flex-col gap-10">
-              <div className="text-center max-w-3xl mx-auto flex flex-col items-center gap-4">
-                {wrapTextWithOptionalBg(mainContentBody)}
-              </div>
-              <div className="relative mt-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                  {(hasItems ? items : [
-                    { id: '1', title: '1. החזון והיסודות', text: 'הגדרת השליחות והערכים המרכזיים המובילים את פעילותנו.', icon: 'Compass' },
-                    { id: '2', title: '2. צמיחה ועשייה', text: 'פיתוח מתמיד, חיבור לקהילה ומתן מענה מקצועי ללא פשרות.', icon: 'Activity' },
-                    { id: '3', title: '3. העתיד והיעדים', text: 'הרחבת ההשפעה, חדשנות פורצת דרך והובלת הסטנדרט קדימה.', icon: 'Sparkles' }
-                  ]).map((it, idx) => (
-                    <div key={it.id || idx} className="p-6 rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-white/10 shadow-xl flex flex-col items-center text-center gap-3 hover:border-amber-500/40 transition-all">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/30 flex items-center justify-center font-bold text-base">
-                        <DynamicIcon name={it.icon || 'Sparkles'} className="w-6 h-6" />
-                      </div>
-                      <h4 className="text-base font-extrabold text-slate-900 dark:text-white">{it.title}</h4>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{it.text || it.description}</p>
-                    </div>
-                  ))}
+              >
+                <div
+                  className={clsx(
+                    'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105',
+                    styleKey === 'sharp' && 'rounded-none',
+                    cardTheme.iconBox
+                  )}
+                >
+                  <DynamicIcon name={item.icon || cardTheme.defaultIcon} className="w-5 h-5" />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <h3 className={clsx('text-base sm:text-lg font-extrabold', cardTheme.titleText)}>
+                    {item.title}
+                  </h3>
+                  {desc && (
+                    <p className={clsx('text-sm leading-relaxed', cardTheme.descText)}>{desc}</p>
+                  )}
                 </div>
               </div>
             </div>
-          ) : effectiveContentMode === 'bento-about' ? (
-            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-              <div className="lg:col-span-7 p-8 sm:p-10 rounded-[2.5rem] bg-gradient-to-br from-white dark:from-slate-900/90 dark:via-slate-900/70 dark:to-slate-950 border border-slate-200 dark:border-white/10 shadow-2xl flex flex-col justify-between gap-6">
-                {wrapTextWithOptionalBg(mainContentBody)}
-              </div>
-              <div className="lg:col-span-5 rounded-[2.5rem] overflow-hidden border border-slate-200 dark:border-white/10 shadow-2xl relative min-h-[300px]">
-                {imageSrc ? (
-                  <img src={imageSrc} alt={heading} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-tr from-amber-500/20 to-indigo-500/20 flex flex-col items-center justify-center p-8 text-center min-h-[300px]">
-                    <Sparkles className="w-12 h-12 text-amber-400 mb-3" />
-                    <p className="text-lg font-bold text-white">מחויבים לאיכות ולחזון</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : isStack ? (
-            <div className="flex flex-col gap-8">
-              {pos === 'top' && currentImageBlock}
-              {wrapTextWithOptionalBg(mainContentBody)}
-              {pos === 'bottom' && currentImageBlock}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-              {pos === 'right' ? (
-                <>
-                  <div className="lg:col-span-5">{currentImageBlock}</div>
-                  <div className="lg:col-span-7">{wrapTextWithOptionalBg(mainContentBody)}</div>
-                </>
-              ) : (
-                <>
-                  <div className="lg:col-span-7">{wrapTextWithOptionalBg(mainContentBody)}</div>
-                  <div className="lg:col-span-5">{currentImageBlock}</div>
-                </>
-              )}
-            </div>
-          )}
-
-          {hasItems && effectiveContentMode !== 'timeline-vision' && (
-            renderMilestoneGrid(items, normalizedLayout)
-          )}
-        </div>
-      </section>
+          );
+        })}
+      </div>
     );
-  }
+  };
 
-  // ============================================================================
-  // א. פריסה בסגנון נשי (Feminine Style - Soft, Rose-Gold, Arched Image & Pill Cards)
-  // ============================================================================
-  if (normalizedLayout === 'feminine') {
-    const pos = imagePosition === 'auto' ? 'left' : imagePosition;
-    const isStack = !imageSrc || pos === 'top' || pos === 'bottom';
+  const mainContentBody = (
+    <div
+      className={clsx(
+        'flex flex-col',
+        (effectiveContentMode === 'quote-hero' || effectiveContentMode === 'timeline-vision') &&
+          'items-center text-center'
+      )}
+    >
+      <div className="inline-flex mb-4">
+        <span className={tokens.badge.className}>
+          {renderBadgeIcon()}
+          <span>אודות / תוכן מעוצב</span>
+        </span>
+      </div>
 
-    const textAndCards = (
-      <div className="flex flex-col gap-8">
-        {wrapTextWithOptionalBg(
-          <div className={clsx('flex flex-col gap-4', isStack ? 'items-center text-center' : 'items-start text-right')}>
-            {subtitle && (
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-100/90 dark:bg-rose-500/15 border border-rose-200 dark:border-rose-400/30 text-rose-800 dark:text-rose-200 text-xs font-medium w-fit">
-                <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-400/40" />
-                <span>{subtitle}</span>
-              </span>
-            )}
-            {heading && (
-              <h2
-                className={clsx(
-                  getHeadingScaleClass('text-3xl sm:text-5xl'),
-                  'font-bold tracking-normal leading-[1.25]',
-                  textBgEnabled ? 'text-white' : 'text-rose-950 dark:text-rose-50'
-                )}
-                style={{ color: headingColor }}
-              >
-                {heading}
-              </h2>
-            )}
-            {body && body.trim() && (
-              <div
-                className={clsx(
-                  getBodyScaleClass('text-base sm:text-lg'),
-                  'leading-[1.85] space-y-4 font-normal',
-                  textBgEnabled ? 'text-rose-100/95' : 'text-stone-600 dark:text-rose-100/80',
-                  isStack && 'max-w-3xl mx-auto'
-                )}
-                style={{ color: bodyColor }}
-                dangerouslySetInnerHTML={{ __html: body }}
-              />
-            )}
-            {hasButtons && (
-              <div className={clsx('flex flex-wrap items-center gap-4 pt-3', isStack && 'justify-center')}>
-                {primaryButton?.text && (
-                  <a
-                    href={primaryButton.url || '#'}
-                    target={primaryButton.target}
-                    style={{ backgroundColor: primaryButtonColor || undefined }}
-                    className={clsx(
-                      'inline-flex items-center gap-2 bg-gradient-to-l from-rose-400 via-pink-500 to-rose-500 hover:from-rose-500 hover:to-pink-600 text-white font-bold shadow-xl shadow-rose-400/30 transition-all duration-500 hover:scale-[1.03]',
-                      getButtonShapeClass('rounded-full'),
-                      getButtonSizeClass('px-8 py-3.5 text-sm sm:text-base')
-                    )}
-                  >
-                    <span>{primaryButton.text}</span>
-                    <ArrowLeft className="w-4 h-4" />
-                  </a>
-                )}
-                {secondaryButton?.text && (
-                  <a
-                    href={secondaryButton.url || '#'}
-                    target={secondaryButton.target}
-                    style={{ backgroundColor: secondaryButtonColor || undefined }}
-                    className={clsx(
-                      'inline-flex items-center gap-2 bg-white/85 dark:bg-rose-950/40 text-rose-900 dark:text-rose-100 border border-rose-200 dark:border-rose-700/50 font-semibold backdrop-blur-md transition-all duration-500',
-                      getButtonShapeClass('rounded-full'),
-                      getButtonSizeClass('px-7 py-3.5 text-sm sm:text-base')
-                    )}
-                  >
-                    <span>{secondaryButton.text}</span>
-                  </a>
-                )}
-              </div>
-            )}
-          </div>,
-          'rounded-[2.75rem]'
+      <h2
+        className={clsx(
+          getTitleScaleClass(undefined, objectScale, 'text-3xl sm:text-4xl md:text-5xl'),
+          tokens.typography.defaultTitleWeight,
+          tokens.typography.titleClass,
+          textBgEnabled && 'text-white'
         )}
-
-        {hasItems && renderMilestoneGrid(items, 'feminine')}
-      </div>
-    );
-
-    const imageBlock = imageSrc && (
-      <div className="relative flex justify-center items-center w-full">
-        <div className="relative w-full max-w-md p-3 rounded-t-[9rem] rounded-b-[2.5rem] bg-white/75 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-800/50 shadow-2xl shadow-rose-300/25 group">
-          <div className="overflow-hidden rounded-t-[8.2rem] rounded-b-[2rem] aspect-[4/5]">
-            <img
-              src={imageSrc}
-              alt={heading}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
-            />
-          </div>
-        </div>
-      </div>
-    );
-
-    return (
-      <section
-        id={anchorId || 'richContent'}
-        className="relative w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gradient-to-br from-[#fff9fb] via-[#fdf2f6] to-[#fcf6f0] dark:from-[#160c12] dark:via-[#1e1018] dark:to-[#120b0f] transition-colors duration-500 group/textbg"
-        style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
-        dir="rtl"
+        style={{ color: resolvedColors.titleColor }}
       >
-        {textBgEnabled && textBgScope === 'full-section' && renderTextBgLayer()}
-        <div className="absolute -top-16 right-12 w-[360px] h-[360px] bg-rose-300/20 dark:bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+        {heading}
+      </h2>
 
-        <div className="max-w-6xl mx-auto relative z-10">
-          {isStack ? (
-            <div className="flex flex-col gap-10">
-              {pos === 'top' && imageBlock}
-              {textAndCards}
-              {pos === 'bottom' && imageBlock}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-              {pos === 'right' ? (
-                <>
-                  <div className="lg:col-span-5">{imageBlock}</div>
-                  <div className="lg:col-span-7">{textAndCards}</div>
-                </>
-              ) : (
-                <>
-                  <div className="lg:col-span-7">{textAndCards}</div>
-                  <div className="lg:col-span-5">{imageBlock}</div>
-                </>
-              )}
-            </div>
+      {subtitle && (
+        <p
+          className={clsx(
+            'text-base sm:text-lg mt-3',
+            tokens.typography.subtitleClass,
+            textBgEnabled && 'text-slate-200'
           )}
-        </div>
-      </section>
-    );
-  }
-
-  // ============================================================================
-  // ב. פריסה בסגנון גברי (Masculine Style - Bold, Charcoal, Amber/Gold & Chiseled)
-  // ============================================================================
-  if (normalizedLayout === 'masculine') {
-    const pos = imagePosition === 'auto' ? 'left' : imagePosition;
-    const isStack = !imageSrc || pos === 'top' || pos === 'bottom';
-
-    const textAndCards = (
-      <div className="flex flex-col gap-8">
-        {wrapTextWithOptionalBg(
-          <div className={clsx('flex flex-col gap-5 text-right', isStack && 'items-center text-center')}>
-            {subtitle && (
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-400 text-xs font-black uppercase tracking-wider w-fit">
-                <Shield className="w-3.5 h-3.5 text-amber-400" />
-                <span>{subtitle}</span>
-              </span>
-            )}
-            {heading && (
-              <h2
-                className={clsx(
-                  getHeadingScaleClass('text-3xl sm:text-5xl lg:text-6xl'),
-                  'font-black tracking-tight text-white leading-[1.08]'
-                )}
-                style={{ color: headingColor }}
-              >
-                {heading}
-              </h2>
-            )}
-            {body && body.trim() && (
-              <div
-                className={clsx(
-                  getBodyScaleClass('text-base sm:text-xl'),
-                  'text-zinc-300 leading-relaxed space-y-4 font-medium',
-                  isStack ? 'max-w-3xl mx-auto border-t-2 border-amber-500/40 pt-4' : 'border-r-4 border-amber-500 pr-4'
-                )}
-                style={{ color: bodyColor }}
-                dangerouslySetInnerHTML={{ __html: body }}
-              />
-            )}
-            {hasButtons && (
-              <div className={clsx('flex flex-wrap items-center gap-4 pt-3', isStack && 'justify-center')}>
-                {primaryButton?.text && (
-                  <a
-                    href={primaryButton.url || '#'}
-                    target={primaryButton.target}
-                    style={{ backgroundColor: primaryButtonColor || undefined }}
-                    className={clsx(
-                      'inline-flex items-center gap-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black border-2 border-amber-400 shadow-[0_12px_32px_-6px_rgba(245,158,11,0.45)] transition-all hover:-translate-y-0.5',
-                      getButtonShapeClass('rounded-lg'),
-                      getButtonSizeClass('px-9 py-4 text-base')
-                    )}
-                  >
-                    <span>{primaryButton.text}</span>
-                    <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
-                  </a>
-                )}
-                {secondaryButton?.text && (
-                  <a
-                    href={secondaryButton.url || '#'}
-                    target={secondaryButton.target}
-                    style={{ backgroundColor: secondaryButtonColor || undefined }}
-                    className={clsx(
-                      'inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white border-2 border-zinc-700 hover:border-amber-500/60 font-extrabold transition-all',
-                      getButtonShapeClass('rounded-lg'),
-                      getButtonSizeClass('px-8 py-4 text-base')
-                    )}
-                  >
-                    <span>{secondaryButton.text}</span>
-                  </a>
-                )}
-              </div>
-            )}
-          </div>,
-          'rounded-xl'
-        )}
-
-        {hasItems && renderMilestoneGrid(items, 'masculine')}
-      </div>
-    );
-
-    const imageBlock = imageSrc && (
-      <div className="relative w-full">
-        <div className="absolute -top-2 -right-2 w-7 h-7 border-t-4 border-r-4 border-amber-500 z-20 pointer-events-none" />
-        <div className="absolute -bottom-2 -left-2 w-7 h-7 border-b-4 border-l-4 border-amber-500 z-20 pointer-events-none" />
-        <div className="rounded-xl overflow-hidden border-2 border-zinc-700 bg-zinc-900 shadow-2xl group">
-          <img
-            src={imageSrc}
-            alt={heading}
-            className="w-full h-auto max-h-[480px] object-cover contrast-110 group-hover:scale-105 transition-transform duration-700"
-          />
-        </div>
-      </div>
-    );
-
-    return (
-      <section
-        id={anchorId || 'richContent'}
-        className="relative w-full py-18 md:py-26 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gradient-to-b from-[#090a0f] via-[#12141c] to-[#090a0f] text-white transition-colors duration-300 group/textbg"
-        style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
-        dir="rtl"
-      >
-        {textBgEnabled && textBgScope === 'full-section' && renderTextBgLayer()}
-        <div className="max-w-6xl mx-auto relative z-10">
-          {isStack ? (
-            <div className="flex flex-col gap-10">
-              {pos === 'top' && imageBlock}
-              {textAndCards}
-              {pos === 'bottom' && imageBlock}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-              {pos === 'right' ? (
-                <>
-                  <div className="lg:col-span-5">{imageBlock}</div>
-                  <div className="lg:col-span-7">{textAndCards}</div>
-                </>
-              ) : (
-                <>
-                  <div className="lg:col-span-7">{textAndCards}</div>
-                  <div className="lg:col-span-5">{imageBlock}</div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
-    );
-  }
-
-  // ============================================================================
-  // ד. פריסה רוחנית (Spiritual Style - Zen, Sage/Teal, Sacred Halo & Breathing Room)
-  // ============================================================================
-  if (normalizedLayout === 'spiritual') {
-    const pos = imagePosition === 'auto' ? 'top' : imagePosition;
-    const isSplit = Boolean(imageSrc && (pos === 'left' || pos === 'right'));
-
-    const imagePortal = imageSrc && (
-      <div className="relative flex items-center justify-center my-2">
-        <div className="absolute w-60 h-60 sm:w-72 sm:h-72 rounded-full border border-teal-500/20 animate-pulse pointer-events-none" />
-        <div className="relative w-48 h-48 sm:w-60 sm:h-60 rounded-full p-2 bg-gradient-to-b from-amber-200/60 via-teal-200/50 to-emerald-200/50 dark:from-amber-500/30 dark:to-teal-900/40 shadow-xl">
-          <div className="w-full h-full rounded-full overflow-hidden border-2 border-white/80 dark:border-teal-300/30">
-            <img src={imageSrc} alt={heading} className="w-full h-full object-cover" />
-          </div>
-        </div>
-      </div>
-    );
-
-    const textAndCards = (
-      <div className="flex flex-col gap-8">
-        {wrapTextWithOptionalBg(
-          <div className={clsx('flex flex-col gap-4', !isSplit ? 'items-center text-center' : 'items-start text-right')}>
-            {subtitle && (
-              <span className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full bg-teal-50/90 dark:bg-teal-950/60 border border-teal-300/60 dark:border-teal-600/40 text-teal-800 dark:text-teal-200 text-xs font-medium tracking-widest">
-                <Sun className="w-3.5 h-3.5 text-amber-500" />
-                <span>{subtitle}</span>
-              </span>
-            )}
-            {heading && (
-              <h2
-                className={clsx(
-                  getHeadingScaleClass('text-3xl sm:text-5xl'),
-                  'font-semibold tracking-wide leading-[1.3]',
-                  textBgEnabled ? 'text-white' : 'text-stone-800 dark:text-stone-100'
-                )}
-                style={{ color: headingColor }}
-              >
-                {heading}
-              </h2>
-            )}
-            {body && body.trim() && (
-              <div
-                className={clsx(
-                  getBodyScaleClass('text-base sm:text-lg'),
-                  'leading-[1.95] space-y-4 font-normal max-w-3xl',
-                  textBgEnabled ? 'text-stone-200' : 'text-stone-600 dark:text-stone-300'
-                )}
-                style={{ color: bodyColor }}
-                dangerouslySetInnerHTML={{ __html: body }}
-              />
-            )}
-            {hasButtons && (
-              <div className={clsx('flex flex-wrap items-center gap-4 pt-3', !isSplit && 'justify-center')}>
-                {primaryButton?.text && (
-                  <a
-                    href={primaryButton.url || '#'}
-                    target={primaryButton.target}
-                    style={{ backgroundColor: primaryButtonColor || undefined }}
-                    className={clsx(
-                      'inline-flex items-center gap-2.5 bg-gradient-to-l from-teal-700 via-emerald-600 to-teal-700 text-white font-medium tracking-wide shadow-xl shadow-teal-700/20 ring-1 ring-amber-300/40 transition-all duration-700',
-                      getButtonShapeClass('rounded-full'),
-                      getButtonSizeClass('px-8 py-3.5 text-sm sm:text-base')
-                    )}
-                  >
-                    <span>{primaryButton.text}</span>
-                    <ArrowLeft className="w-4 h-4" />
-                  </a>
-                )}
-                {secondaryButton?.text && (
-                  <a
-                    href={secondaryButton.url || '#'}
-                    target={secondaryButton.target}
-                    style={{ backgroundColor: secondaryButtonColor || undefined }}
-                    className={clsx(
-                      'inline-flex items-center gap-2 bg-white/75 dark:bg-teal-950/40 text-stone-800 dark:text-teal-100 border border-teal-600/30 font-medium backdrop-blur-md transition-all duration-700',
-                      getButtonShapeClass('rounded-full'),
-                      getButtonSizeClass('px-8 py-3.5 text-sm sm:text-base')
-                    )}
-                  >
-                    <span>{secondaryButton.text}</span>
-                  </a>
-                )}
-              </div>
-            )}
-          </div>,
-          'rounded-[3rem]'
-        )}
-
-        {hasItems && renderMilestoneGrid(items, 'spiritual')}
-      </div>
-    );
-
-    return (
-      <section
-        id={anchorId || 'richContent'}
-        className="relative w-full py-20 md:py-28 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gradient-to-b from-[#faf8f5] via-[#f2f7f5] to-[#f8f5ee] dark:from-[#071110] dark:via-[#0b1c1a] dark:to-[#071110] transition-colors duration-700 group/textbg"
-        style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
-        dir="rtl"
-      >
-        {textBgEnabled && textBgScope === 'full-section' && renderTextBgLayer()}
-        <div className="max-w-6xl mx-auto relative z-10">
-          {isSplit ? (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-              {pos === 'right' ? (
-                <>
-                  <div className="lg:col-span-4">{imagePortal}</div>
-                  <div className="lg:col-span-8">{textAndCards}</div>
-                </>
-              ) : (
-                <>
-                  <div className="lg:col-span-8">{textAndCards}</div>
-                  <div className="lg:col-span-4">{imagePortal}</div>
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-8">
-              {pos === 'top' && imagePortal}
-              <div className="w-full">{textAndCards}</div>
-              {pos === 'bottom' && imagePortal}
-            </div>
-          )}
-        </div>
-      </section>
-    );
-  }
-
-  // ============================================================================
-  // ה. פריסה חדה (Sharp Style - Brutalist 90°, Solid 2px Borders & Offset Shadows)
-  // ============================================================================
-  if (normalizedLayout === 'sharp') {
-    const pos = imagePosition === 'auto' ? 'right' : imagePosition;
-    const isStack = !imageSrc || pos === 'top' || pos === 'bottom';
-
-    const textAndCards = (
-      <div className="flex flex-col gap-8">
-        {wrapTextWithOptionalBg(
-          <div className={clsx('flex flex-col gap-4 text-right', isStack && 'items-center text-center')}>
-            {subtitle && (
-              <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-none bg-indigo-600 text-white border-2 border-slate-950 dark:border-white text-xs font-mono font-bold uppercase tracking-widest w-fit shadow-[3px_3px_0px_0px_#0f172a] dark:shadow-[3px_3px_0px_0px_#ffffff]">
-                <Crosshair className="w-3.5 h-3.5" />
-                <span>{subtitle}</span>
-              </span>
-            )}
-            {heading && (
-              <h2
-                className={clsx(
-                  getHeadingScaleClass('text-3xl sm:text-5xl lg:text-6xl'),
-                  'font-black tracking-tighter leading-[1.06] uppercase',
-                  textBgEnabled ? 'text-white' : 'text-slate-950 dark:text-white'
-                )}
-                style={{ color: headingColor }}
-              >
-                {heading}
-              </h2>
-            )}
-            {body && body.trim() && (
-              <div
-                className={clsx(
-                  getBodyScaleClass('text-base sm:text-lg'),
-                  'leading-snug space-y-4 font-medium',
-                  textBgEnabled ? 'text-slate-200' : 'text-slate-800 dark:text-slate-200',
-                  isStack && 'max-w-3xl mx-auto'
-                )}
-                style={{ color: bodyColor }}
-                dangerouslySetInnerHTML={{ __html: body }}
-              />
-            )}
-            {hasButtons && (
-              <div className={clsx('flex flex-wrap items-center gap-4 pt-3', isStack && 'justify-center')}>
-                {primaryButton?.text && (
-                  <a
-                    href={primaryButton.url || '#'}
-                    target={primaryButton.target}
-                    style={{ backgroundColor: primaryButtonColor || undefined }}
-                    className={clsx(
-                      'inline-flex items-center gap-3 bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-black border-2 border-slate-950 dark:border-white shadow-[5px_5px_0px_0px_#6366f1] hover:translate-x-[2px] hover:translate-y-[2px] transition-all',
-                      getButtonShapeClass('rounded-none'),
-                      getButtonSizeClass('px-8 py-3.5 text-sm sm:text-base')
-                    )}
-                  >
-                    <span>{primaryButton.text}</span>
-                    <ArrowLeft className="w-4 h-4 stroke-[3]" />
-                  </a>
-                )}
-                {secondaryButton?.text && (
-                  <a
-                    href={secondaryButton.url || '#'}
-                    target={secondaryButton.target}
-                    style={{ backgroundColor: secondaryButtonColor || undefined }}
-                    className={clsx(
-                      'inline-flex items-center gap-2 bg-white dark:bg-slate-950 text-slate-950 dark:text-white font-black border-2 border-slate-950 dark:border-white shadow-[5px_5px_0px_0px_rgba(15,23,42,0.25)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all',
-                      getButtonShapeClass('rounded-none'),
-                      getButtonSizeClass('px-8 py-3.5 text-sm sm:text-base')
-                    )}
-                  >
-                    <span>{secondaryButton.text}</span>
-                  </a>
-                )}
-              </div>
-            )}
-          </div>,
-          'rounded-none'
-        )}
-
-        {hasItems && renderMilestoneGrid(items, 'sharp')}
-      </div>
-    );
-
-    const imageBlock = imageSrc && (
-      <div className="rounded-none border-2 border-slate-950 dark:border-white bg-white dark:bg-slate-950 shadow-[8px_8px_0px_0px_#6366f1] overflow-hidden">
-        <div className="px-3 py-1.5 border-b-2 border-slate-950 dark:border-white bg-slate-100 dark:bg-slate-900 font-mono text-[10px] font-bold flex justify-between">
-          <span>CONTENT // FIG. 01</span>
-          <span>[90°]</span>
-        </div>
-        <img src={imageSrc} alt={heading} className="w-full h-auto max-h-[460px] object-cover" />
-      </div>
-    );
-
-    return (
-      <section
-        id={anchorId || 'richContent'}
-        className="relative w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-white dark:bg-[#060608] border-b-2 border-slate-950 dark:border-white/20 group/textbg"
-        style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
-        dir="rtl"
-      >
-        {textBgEnabled && textBgScope === 'full-section' && renderTextBgLayer()}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808015_1px,transparent_1px),linear-gradient(to_bottom,#80808015_1px,transparent_1px)] bg-[size:36px_36px] pointer-events-none" />
-        <div className="max-w-6xl mx-auto relative z-10">
-          {isStack ? (
-            <div className="flex flex-col gap-10">
-              {pos === 'top' && imageBlock}
-              {textAndCards}
-              {pos === 'bottom' && imageBlock}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-              {pos === 'right' ? (
-                <>
-                  <div className="lg:col-span-5">{imageBlock}</div>
-                  <div className="lg:col-span-7">{textAndCards}</div>
-                </>
-              ) : (
-                <>
-                  <div className="lg:col-span-7">{textAndCards}</div>
-                  <div className="lg:col-span-5">{imageBlock}</div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
-    );
-  }
-
-  // ============================================================================
-  // ו. פריסה אנליטית (Analytical Style - Data Bento, Monospace & Cyan/Blue HUD)
-  // ============================================================================
-  const pos = imagePosition === 'auto' ? 'left' : imagePosition;
-  const isStack = !imageSrc || pos === 'top' || pos === 'bottom';
-
-  const analyticalTextAndCards = (
-    <div className="flex flex-col gap-8">
-      {wrapTextWithOptionalBg(
-        <div className={clsx('flex flex-col gap-4 text-right', isStack && 'items-center text-center')}>
-          {subtitle && (
-            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 text-xs font-mono font-bold w-fit">
-              <span className="w-2 h-2 rounded-full bg-cyan-500 animate-ping" />
-              <Activity className="w-3.5 h-3.5 text-cyan-500" />
-              <span>{subtitle}</span>
-            </span>
-          )}
-          {heading && (
-            <h2
-              className={clsx(
-                getHeadingScaleClass('text-3xl sm:text-5xl'),
-                'font-extrabold tracking-tight leading-[1.15]',
-                textBgEnabled ? 'text-white' : 'text-slate-900 dark:text-white'
-              )}
-              style={{ color: headingColor }}
-            >
-              {heading}
-            </h2>
-          )}
-          {body && body.trim() && (
-            <div
-              className={clsx(
-                getBodyScaleClass('text-base sm:text-lg'),
-                'leading-relaxed space-y-4 font-normal',
-                textBgEnabled ? 'text-slate-200' : 'text-slate-600 dark:text-slate-300',
-                isStack && 'max-w-3xl mx-auto'
-              )}
-              style={{ color: bodyColor }}
-              dangerouslySetInnerHTML={{ __html: body }}
-            />
-          )}
-          {hasButtons && (
-            <div className={clsx('flex flex-wrap items-center gap-3.5 pt-2', isStack && 'justify-center')}>
-              {primaryButton?.text && (
-                <a
-                  href={primaryButton.url || '#'}
-                  target={primaryButton.target}
-                  style={{ backgroundColor: primaryButtonColor || undefined }}
-                  className={clsx(
-                    'inline-flex items-center gap-2 bg-gradient-to-l from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold shadow-lg shadow-cyan-500/20 border border-cyan-400/30 transition-all',
-                    getButtonShapeClass('rounded-xl'),
-                    getButtonSizeClass('px-7 py-3.5 text-xs sm:text-sm')
-                  )}
-                >
-                  <TrendingUp className="w-4 h-4" />
-                  <span>{primaryButton.text}</span>
-                  <ArrowLeft className="w-4 h-4" />
-                </a>
-              )}
-              {secondaryButton?.text && (
-                <a
-                  href={secondaryButton.url || '#'}
-                  target={secondaryButton.target}
-                  style={{ backgroundColor: secondaryButtonColor || undefined }}
-                  className={clsx(
-                    'inline-flex items-center gap-2 bg-slate-900/5 dark:bg-slate-900/90 text-slate-800 dark:text-cyan-300 border border-cyan-500/30 font-bold transition-all',
-                    getButtonShapeClass('rounded-xl'),
-                    getButtonSizeClass('px-7 py-3.5 text-xs sm:text-sm')
-                  )}
-                >
-                  <span>{secondaryButton.text}</span>
-                </a>
-              )}
-            </div>
-          )}
-        </div>,
-        'rounded-2xl'
+          style={{ color: resolvedColors.subtitleColor }}
+        >
+          {subtitle}
+        </p>
       )}
 
-      {hasItems && renderMilestoneGrid(items, 'analytical')}
+      {body && (
+        <div
+          className={clsx(
+            getDescScaleClass(undefined, objectScale, 'text-base sm:text-lg'),
+            'mt-5 leading-relaxed space-y-3',
+            effectiveContentMode === 'two-columns' && 'sm:columns-2 sm:gap-8',
+            effectiveContentMode === 'highlight-box' &&
+              clsx('p-6 sm:p-8', tokens.cardClass, getCardShapeClass(cardFrameShape, styleKey)),
+            tokens.typography.descClass,
+            textBgEnabled && 'text-slate-100'
+          )}
+          style={{ color: resolvedColors.descriptionColor }}
+          dangerouslySetInnerHTML={{ __html: body }}
+        />
+      )}
+
+      {hasButtons && (
+        <div
+          className={clsx(
+            'flex flex-wrap items-center gap-4 mt-8',
+            (effectiveContentMode === 'quote-hero' || effectiveContentMode === 'timeline-vision') &&
+              'justify-center'
+          )}
+        >
+          {primaryButton?.text && (
+            <a
+              href={primaryButton.url || '#'}
+              target={primaryButton.target}
+              style={{
+                backgroundColor: resolvedColors.primaryButtonColor,
+                color: resolvedColors.primaryButtonTextColor,
+              }}
+              className={clsx(
+                tokens.button.primaryClass,
+                getButtonShapeClass(effectiveButtonShape, tokens.button.defaultShapeRadius),
+                getButtonSizeClass(buttonSize, tokens.button.defaultSizeClass)
+              )}
+            >
+              <span>{primaryButton.text}</span>
+              <ArrowLeft className="w-4 h-4" />
+            </a>
+          )}
+          {secondaryButton?.text && (
+            <a
+              href={secondaryButton.url || '#'}
+              target={secondaryButton.target}
+              style={{ backgroundColor: resolvedColors.secondaryButtonColor }}
+              className={clsx(
+                tokens.button.secondaryClass,
+                getButtonShapeClass(effectiveButtonShape, tokens.button.defaultShapeRadius),
+                getButtonSizeClass(buttonSize, tokens.button.defaultSizeClass)
+              )}
+            >
+              <span>{secondaryButton.text}</span>
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 
-  const analyticalImageBlock = imageSrc && (
-    <div className="p-3 rounded-2xl bg-slate-900/90 border border-cyan-500/30 shadow-2xl">
-      <div className="flex items-center justify-between px-3 py-1.5 mb-2 rounded-xl bg-slate-950 border border-slate-800 text-[10px] font-mono text-cyan-400">
-        <span>DATA INSIGHT // VERIFIED</span>
-        <span className="text-emerald-400">● ACTIVE</span>
-      </div>
-      <div className="rounded-xl overflow-hidden border border-slate-800">
-        <img src={imageSrc} alt={heading} className="w-full h-auto max-h-[440px] object-cover" />
-      </div>
+  const imageBlock = imageSrc ? (
+    <div
+      className={clsx(
+        'overflow-hidden shadow-2xl group relative',
+        getCardShapeClass(cardFrameShape, styleKey),
+        styleKey === 'sharp' && 'border-2 border-slate-950 dark:border-white shadow-[8px_8px_0px_0px_#6366f1]',
+        styleKey === 'feminine' && 'border-4 border-white dark:border-rose-950/60',
+        styleKey === 'masculine' && 'border-2 border-zinc-800',
+        styleKey === 'analytical' && 'border border-cyan-500/30',
+        styleKey === 'standard' && 'border border-slate-200 dark:border-white/10'
+      )}
+    >
+      <img
+        src={imageSrc}
+        alt={heading}
+        className="w-full h-auto max-h-[460px] object-cover group-hover:scale-[1.02] transition-transform duration-700"
+      />
     </div>
-  );
+  ) : null;
 
   return (
     <section
       id={anchorId || 'richContent'}
-      className="relative w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gradient-to-b from-slate-50 via-cyan-50/20 to-white dark:from-[#050b14] dark:via-[#081526] dark:to-[#050b14] group/textbg"
-      style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
+      className={clsx(
+        'relative w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden transition-colors duration-300 group/textbg',
+        tokens.sectionClass
+      )}
+      style={{ backgroundColor: resolvedColors.backgroundColor }}
       dir="rtl"
     >
       {textBgEnabled && textBgScope === 'full-section' && renderTextBgLayer()}
-      <div className="absolute inset-0 bg-[radial-gradient(#06b6d422_1px,transparent_1px)] [background-size:22px_22px] pointer-events-none" />
-      <div className="max-w-6xl mx-auto relative z-10">
-        {isStack ? (
-          <div className="flex flex-col gap-10">
-            {pos === 'top' && analyticalImageBlock}
-            {analyticalTextAndCards}
-            {pos === 'bottom' && analyticalImageBlock}
+
+      <div className="max-w-7xl mx-auto relative z-10">
+        {effectiveContentMode === 'split-story' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            <div className="lg:col-span-7">{wrapTextWithOptionalBg(mainContentBody)}</div>
+            <div className="lg:col-span-5 relative">
+              {imageSrc ? (
+                <div className="relative rounded-[2.5rem] overflow-hidden border border-slate-200 dark:border-white/10 shadow-2xl group">
+                  <img
+                    src={imageSrc}
+                    alt={heading}
+                    className="w-full h-[440px] object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute bottom-6 right-6 left-6 p-4 rounded-2xl bg-black/60 backdrop-blur-md border border-white/15 text-white">
+                    <div className="flex items-center gap-2 text-amber-400 text-xs font-bold mb-1">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>תמצית החזון והשליחות</span>
+                    </div>
+                    <p className="text-xs text-slate-200 line-clamp-2">{subtitle || heading}</p>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className={clsx(
+                    'p-8 rounded-[2.5rem] flex flex-col justify-center min-h-[340px]',
+                    tokens.cardClass
+                  )}
+                >
+                  <Quote className="w-10 h-10 text-amber-400 mb-4 opacity-80" />
+                  <p className={clsx('text-xl sm:text-2xl font-bold leading-relaxed italic mb-4', tokens.typography.titleClass)}>
+                    ״{subtitle || heading}״
+                  </p>
+                  <span className={clsx('text-xs font-bold uppercase tracking-wider', tokens.typography.subtitleClass)}>
+                    החזון והשליחות המנחים אותנו
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : effectiveContentMode === 'quote-hero' ? (
+          <div className="max-w-4xl mx-auto text-center flex flex-col items-center gap-6">
+            <div className="w-14 h-14 rounded-3xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-xl">
+              <Quote className="w-7 h-7" />
+            </div>
+            {wrapTextWithOptionalBg(mainContentBody)}
+          </div>
+        ) : effectiveContentMode === 'timeline-vision' ? (
+          <div className="max-w-5xl mx-auto flex flex-col gap-8">
+            <div className="text-center max-w-3xl mx-auto flex flex-col items-center gap-4">
+              {wrapTextWithOptionalBg(mainContentBody)}
+            </div>
+            {renderMilestoneGrid(
+              hasItems
+                ? items
+                : [
+                    { id: '1', title: '1. החזון והיסודות', text: 'הגדרת השליחות והערכים המרכזיים המובילים את פעילותנו.', icon: 'Compass' },
+                    { id: '2', title: '2. צמיחה ועשייה', text: 'פיתוח מתמיד, חיבור לקהילה ומתן מענה מקצועי ללא פשרות.', icon: 'Activity' },
+                    { id: '3', title: '3. העתיד והיעדים', text: 'הרחבת ההשפעה, חדשנות פורצת דרך והובלת הסטנדרט קדימה.', icon: 'Sparkles' },
+                  ]
+            )}
+          </div>
+        ) : effectiveContentMode === 'bento-about' ? (
+          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            <div className={clsx('lg:col-span-7 p-8 sm:p-10 rounded-[2.5rem] flex flex-col justify-between gap-6', tokens.cardClass)}>
+              {wrapTextWithOptionalBg(mainContentBody)}
+            </div>
+            <div className={clsx('lg:col-span-5 rounded-[2.5rem] overflow-hidden relative min-h-[300px]', tokens.cardClass)}>
+              {imageSrc ? (
+                <img src={imageSrc} alt={heading} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center min-h-[300px]">
+                  <Sparkles className="w-12 h-12 text-amber-400 mb-3" />
+                  <p className={clsx('text-lg font-bold', tokens.typography.titleClass)}>
+                    מחויבים לאיכות ולחזון
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : isStack || !imageBlock ? (
+          <div className="flex flex-col gap-8">
+            {pos === 'top' && imageBlock}
+            {wrapTextWithOptionalBg(mainContentBody)}
+            {pos === 'bottom' && imageBlock}
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             {pos === 'right' ? (
               <>
-                <div className="lg:col-span-5">{analyticalImageBlock}</div>
-                <div className="lg:col-span-7">{analyticalTextAndCards}</div>
+                <div className="lg:col-span-5">{imageBlock}</div>
+                <div className="lg:col-span-7">{wrapTextWithOptionalBg(mainContentBody)}</div>
               </>
             ) : (
               <>
-                <div className="lg:col-span-7">{analyticalTextAndCards}</div>
-                <div className="lg:col-span-5">{analyticalImageBlock}</div>
+                <div className="lg:col-span-7">{wrapTextWithOptionalBg(mainContentBody)}</div>
+                <div className="lg:col-span-5">{imageBlock}</div>
               </>
             )}
           </div>
         )}
+
+        {hasItems && effectiveContentMode !== 'timeline-vision' && renderMilestoneGrid(items)}
       </div>
     </section>
   );

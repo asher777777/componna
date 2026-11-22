@@ -504,3 +504,20 @@ ${params.groundingFacts ? `- מקורות מידע וחומרי גלם:\n"""\n${
     answer: String(item.answer || item.a || '').trim(),
   })).filter((x: any) => x.question && x.answer);
 }
+
+export async function dispatchImageTextExtractionToKosai(
+  imageBase64: string,
+  imageMimeType: string,
+  options?: { apiKey?: string; tenantId?: string }
+): Promise<string> {
+  const res = await kosaiWebAiContract.extractTextFromImage(imageBase64, imageMimeType, options);
+  return typeof res.data === 'string' ? res.data.trim() : '';
+}
+
+export async function dispatchHeroImageToKosai(
+  params: { prompt: string; aspectRatio?: '16:9' | '4:3' | '1:1' | '9:16' },
+  options?: { tenantId?: string }
+): Promise<string | null> {
+  const res = await kosaiWebAiContract.generateHeroImage(params, options);
+  return res.data || null;
+}

@@ -13,6 +13,12 @@ import { PageBuilderIconPicker, DynamicIcon } from '../../ui/PageBuilderIconPick
 import { RichContentWysiwygEditor } from './RichContentWysiwygEditor';
 import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
 import { loadBrandDna } from '../../../KosBranding/services/brandDnaFirestore';
+import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
+import { AiTextAssistantContract } from '../../../../core/contracts';
+import {
+  STYLE_PRESET_DEFINITIONS,
+  normalizeStylePreset,
+} from '../../styles';
 import { BrandDna } from '../../../../core/contracts';
 import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
@@ -51,6 +57,7 @@ import {
   Sliders,
   Square,
   Circle,
+  Loader2,
 } from 'lucide-react';
 
 interface RichContentEditorProps {
@@ -60,65 +67,7 @@ interface RichContentEditorProps {
   isDarkMode?: boolean;
 }
 
-interface PresetDefinition {
-  id: RichContentLayoutPreset;
-  letter: string;
-  name: string;
-  subtitle: string;
-  icon: React.FC<{ className?: string }>;
-  accentColor: string;
-}
-
-const PRESET_DEFINITIONS: PresetDefinition[] = [
-  {
-    id: 'feminine',
-    letter: 'א',
-    name: 'סגנון נשי',
-    subtitle: 'קווים מעוגלים, רוז-גולד, קשתות אלגנטיות ורוך ויזואלי',
-    icon: Heart,
-    accentColor: '#f43f5e',
-  },
-  {
-    id: 'masculine',
-    letter: 'ב',
-    name: 'סגנון גברי',
-    subtitle: 'כותרות ענק דרמטיות, שחור-פחם, זהב מתכתי וכרטיסי פלדה',
-    icon: Shield,
-    accentColor: '#f59e0b',
-  },
-  {
-    id: 'standard',
-    letter: 'ג',
-    name: 'סגנון עכשווי',
-    subtitle: 'עיצוב SaaS 2026 נקי, אינדיגו וסלייט, מאוזן ואיכותי',
-    icon: LayoutTemplate,
-    accentColor: '#6366f1',
-  },
-  {
-    id: 'spiritual',
-    letter: 'ד',
-    name: 'סגנון רוחני',
-    subtitle: 'ירוק מרווה וטורקיז עמוק, זהב חם ואווירת עומק והשראה',
-    icon: Sun,
-    accentColor: '#0d9488',
-  },
-  {
-    id: 'sharp',
-    letter: 'ה',
-    name: 'סגנון חד (הייטק)',
-    subtitle: 'טיפוגרפיה חדה, פינות ישרות, ניגודיות שחור-לבן מינימליסטית',
-    icon: Crosshair,
-    accentColor: '#ffffff',
-  },
-  {
-    id: 'analytical',
-    letter: 'ו',
-    name: 'סגנון אנליטי',
-    subtitle: 'אלמנטים עתידניים, ניאון ציאן, מסגרות HUD ודגש על נתונים',
-    icon: BarChart3,
-    accentColor: '#06b6d4',
-  },
-];
+const PRESET_DEFINITIONS = STYLE_PRESET_DEFINITIONS;
 
 interface ContentLayoutOption {
   id: RichContentDisplayMode;
@@ -188,8 +137,25 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
   config,
   onChange,
   onClose,
-  isDarkMode = true,
 }) => {
+  const { getCapability } = useHostCapabilities();
+  const aiAssistant = getCapability<AiTextAssistantContract>('ai-assistant');
+
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const syncDark = () => setIsDarkMode(document.documentElement.classList.contains('dark'));
+    syncDark();
+    const obs = new MutationObserver(syncDark);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
   // Local state draft to prevent jumping
   const [localConfig, setLocalConfig] = useState<RichContentSectionConfig>(() => ({
     ...config,
@@ -214,6 +180,17 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const [hoveredPreset, setHoveredPreset] = useState<string | null>(null);
   const [hoveredLayout, setHoveredLayout] = useState<string | null>(null);
+
+  // Targeted SEO/GEO 2026 AI Assistant state
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const [pageGoal, setPageGoal] = useState('היכרות, בניית סמכות והנעה לפעולה');
+  const [aiTargetedLoading, setAiTargetedLoading] = useState(false);
+  const [aiFieldLoading, setAiFieldLoading] = useState<'heading' | 'subtitle' | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<{
+    heading: string;
+    subtitle: string;
+    bodyHtml: string;
+  } | null>(null);
 
   // Firestore & Brand DNA Sync
   const { db } = useSystemConnection();
@@ -339,6 +316,137 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
     showToast('התוכן, הכותרת והחזון סונכרנו בהצלחה עם ה-Brand DNA!');
   };
 
+  // Collect full visible page content for targeted SEO/GEO 2026 prompt
+  const collectFullPageContext = (): string => {
+    if (typeof document === 'undefined') return '';
+    const snippets: string[] = [];
+    document.querySelectorAll('section h1, section h2, section h3, section p').forEach((el) => {
+      const txt = (el.textContent || '').trim();
+      if (txt && txt.length > 8 && snippets.length < 18) {
+        snippets.push(txt);
+      }
+    });
+    return snippets.join(' | ').slice(0, 1800);
+  };
+
+  const handleTargetedSeoGeoAi = async () => {
+    if (!aiAssistant?.generateJson && !aiAssistant?.generateReply) {
+      showToast('סוכן ה-AI אינו זמין כעת');
+      return;
+    }
+    setAiTargetedLoading(true);
+    setAiSuggestion(null);
+
+    const company = liveBrand?.identity?.companyName || '';
+    const vision = liveBrand?.identity?.companyVision || liveBrand?.identity?.shortVision || '';
+    const purpose = liveBrand?.identity?.organizationPurpose || liveBrand?.audience?.mainUvp || '';
+    const slogan = liveBrand?.identity?.slogan || '';
+    const powerWords = (liveBrand?.voice?.powerWords || []).slice(0, 5).join(', ');
+    const forbiddenWords = (liveBrand?.voice?.forbiddenWords || []).slice(0, 5).join(', ');
+    const servicesList = (liveBrand?.ecosystem?.services || [])
+      .slice(0, 5)
+      .map((s: any) => (typeof s === 'string' ? s : s?.name || s?.title || ''))
+      .filter(Boolean)
+      .join(', ');
+    const pageContent = collectFullPageContext();
+
+    const targetedPrompt = `
+מטרת העמוד והאזור: "${pageGoal}"
+
+תוכן כל העמוד הנוכחי (לשמירה על רצף, עקביות והקשר מלא):
+"${pageContent || localConfig.heading || 'אין תוכן קודם בעמוד'}"
+
+תוכן נוכחי באזור אודות/תוכן:
+- כותרת: "${localConfig.heading || ''}"
+- תת כותרת: "${localConfig.subtitle || ''}"
+- גוף: "${(localConfig.body || '').replace(/<[^>]+>/g, ' ').trim()}"
+
+הקו המיתוגי של העסק (Brand DNA):
+- שם היישות/מותג: "${company}"
+- חזון: "${vision}"
+- מטרת הארגון / UVP: "${purpose}"
+- סלוגן: "${slogan}"
+- שירותים עיקריים: "${servicesList}"
+- מילות כוח: "${powerWords}"
+- מילים אסורות לשימוש: "${forbiddenWords}"
+- פנייה מגדרית: "${liveBrand?.voice?.genderAddressing || 'plural'}"
+
+דרישות חובה לפי פרוטוקול 2026 SEO, GEO & Agentic Web:
+1. מבנה Answer-First: פתיחת התוכן בתשובה ישירה, חדה ועובדתית באורך 40–60 מילים לשאיבה קלה ע"י LLMs (ChatGPT, Gemini, Perplexity).
+2. עקרון Information Gain: ללא מליצות AI ריקות! לשלב עובדות קונקרטיות מתוך ה-Brand DNA ותוכן העמוד.
+3. פורמטים קריאים למכונה: לכלול רשימה מובנית (<ul><li><strong>כותרת:</strong> תוכן</li></ul>) לצד פסקת פתיחה ברורה.
+4. עקביות יישות (Entity): להזכיר את שם העסק המדויק באופן טבעי.
+
+החזר JSON תקני בלבד במבנה:
+{
+  "heading": "כותרת H2 חדה וממוקדת",
+  "subtitle": "תת-כותרת קצרה ותמציתית",
+  "bodyHtml": "<p>פסקת Answer-First בת 40-60 מילים...</p><ul><li><strong>יתרון/עקרון:</strong> פירוט עובדתי</li></ul>"
+}
+`.trim();
+
+    try {
+      if (aiAssistant.generateJson) {
+        const res = await aiAssistant.generateJson<{
+          heading?: string;
+          subtitle?: string;
+          bodyHtml?: string;
+          message?: string;
+        }>({
+          prompt: targetedPrompt,
+          systemPrompt:
+            'You are a senior Hebrew Brand Copywriter & 2026 SEO/GEO Architect. Return ONLY valid JSON with keys: heading, subtitle, bodyHtml.',
+          brandDna: liveBrand,
+        });
+        if (res?.data && (res.data.bodyHtml || res.data.heading)) {
+          setAiSuggestion({
+            heading: res.data.heading || localConfig.heading || '',
+            subtitle: res.data.subtitle || localConfig.subtitle || '',
+            bodyHtml: res.data.bodyHtml || localConfig.body || '',
+          });
+          showToast('הצעת AI מותאמת פרוטוקול 2026 SEO/GEO מוכנה!');
+          return;
+        }
+      }
+      showToast('לא התקבלה תשובה תקינה מה-AI — נסה שוב בעוד רגע');
+    } catch (err) {
+      console.warn('[RichContentEditor] Targeted SEO/GEO AI failed:', err);
+      showToast('שגיאה בהפקת תוכן עם AI');
+    } finally {
+      setAiTargetedLoading(false);
+    }
+  };
+
+  const handleEnhanceHeadingOrSubtitle = async (field: 'heading' | 'subtitle') => {
+    if (!aiAssistant?.enhanceText) {
+      showToast('סוכן ה-AI אינו זמין כעת');
+      return;
+    }
+    setAiFieldLoading(field);
+    try {
+      const currentVal = (localConfig[field] || '') as string;
+      const res = await aiAssistant.enhanceText({
+        originalText: currentVal || localConfig.heading || liveBrand?.identity?.companyName || '',
+        instruction:
+          field === 'heading'
+            ? `נסח כותרת H2 חדה וברורה בהתאם לפרוטוקול SEO/GEO 2026 ומטרת העמוד "${pageGoal}". החזר טקסט בלבד.`
+            : `נסח תת-כותרת תמציתית וממוקדת ערך למטרת העמוד "${pageGoal}". החזר טקסט בלבד.`,
+        brandDna: liveBrand,
+      });
+      if (res?.error || res?.isFallback) {
+        showToast(res.error || 'שגיאה בשיפור הטקסט עם AI');
+        return;
+      }
+      const cleaned = (res?.text || '').replace(/^["'«]+|["'»]+$/g, '').trim();
+      if (cleaned) {
+        handleUpdate(field, cleaned);
+        showToast('השדה שופר בהצלחה עם סוכן ה-AI');
+      }
+    } finally {
+      setAiFieldLoading(null);
+    }
+  };
+
   const toggleAccordion = (id: string) => {
     setOpenAccordion((prev) => (prev === id ? null : id));
   };
@@ -367,18 +475,23 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
     );
   };
 
-  const activePreset = localConfig.layout || 'standard';
+  const activePreset = normalizeStylePreset(
+    localConfig.layout,
+    liveBrand?.designTokens?.defaultStylePreset
+  );
+  const isFollowingBrandPreset = !localConfig.layout || (localConfig.layout as string) === 'auto';
+  const rawLayout = localConfig.layout;
   const activeContentMode: RichContentDisplayMode =
     localConfig.contentLayout ||
-    (activePreset === 'split-story' ||
-    activePreset === 'quote-hero' ||
-    activePreset === 'timeline-vision' ||
-    activePreset === 'bento-about' ||
-    activePreset === 'two-columns' ||
-    activePreset === 'highlight-box' ||
-    activePreset === 'cards-grid-3' ||
-    activePreset === 'cards-grid-2'
-      ? activePreset
+    (rawLayout === 'split-story' ||
+    rawLayout === 'quote-hero' ||
+    rawLayout === 'timeline-vision' ||
+    rawLayout === 'bento-about' ||
+    rawLayout === 'two-columns' ||
+    rawLayout === 'highlight-box' ||
+    rawLayout === 'cards-grid-3' ||
+    rawLayout === 'cards-grid-2'
+      ? rawLayout
       : 'standard');
 
   const hoveredPresetDef = PRESET_DEFINITIONS.find((p) => p.id === hoveredPreset);
@@ -386,10 +499,14 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200"
+      className={`w-full rounded-3xl sm:rounded-[2.5rem] p-3.5 sm:p-5 relative shadow-2xl flex flex-col no-scrollbar border transition-colors font-sans text-right ${
+        isDarkMode
+          ? 'bg-[#0a0a0a] border-white/10 text-white'
+          : 'bg-white border-slate-200 text-slate-900 shadow-xl'
+      }`}
+      style={{ fontFamily: "'Heebo', sans-serif" }}
       dir="rtl"
     >
-      <div className="w-full max-w-4xl max-h-[92vh] rounded-[2.5rem] bg-[#0a0a0a] border border-[#262626] shadow-2xl flex flex-col overflow-hidden text-right font-sans">
         {/* Toast Notification */}
         {toastMessage && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-amber-500 text-slate-950 font-bold text-xs shadow-xl animate-in slide-in-from-top duration-200">
@@ -397,89 +514,317 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
           </div>
         )}
 
-        {/* Modal Header */}
-        <div className="p-4 sm:p-6 border-b border-[#262626] bg-[#141414] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-600 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20">
-              <Quote className="w-5 h-5" />
+        {/* 1. Compact Header matching HeroEditor */}
+        <div
+          className={`flex items-center justify-between pb-2.5 mb-2.5 border-b shrink-0 ${
+            isDarkMode ? 'border-white/10' : 'border-slate-100'
+          }`}
+        >
+          <div className="flex items-center gap-2 max-w-[70%]">
+            <div
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[11px] sm:text-xs font-black shrink-0 shadow-sm border select-none ${
+                isDarkMode
+                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                  : 'bg-amber-100 text-amber-800 border-amber-300'
+              }`}
+              title="Rich Content Section Editor"
+            >
+              RC
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-black text-white">
-                  הגדרות אודות והחזון שלנו
-                </h2>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono">
-                  richContent
-                </span>
-                {liveBrand?.identity?.companyName && (
-                  <span className="hidden md:inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <Check className="w-3 h-3" />
-                    מסונכרן עם חזון {liveBrand.identity.companyName}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                עורך תוכן עשיר WYSIWYG, פריסות תוכן מתקדמות ושכתוב AI מחובר לחזון
+            <div className="truncate">
+              <h2 className={`text-xs sm:text-sm font-extrabold truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                עיצוב והגדרות אודות ותוכן (RichContent)
+              </h2>
+              <p className={`text-[10px] truncate ${isDarkMode ? 'text-zinc-400' : 'text-slate-500'}`}>
+                {PRESET_DEFINITIONS.find((p) => p.id === activePreset)?.title || 'סגנון עכשווי'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Quick Restore from Brand DNA Button */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowAiPanel((prev) => !prev)}
+              className={`px-2.5 h-8 rounded-full border text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                showAiPanel
+                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+                  : isDarkMode
+                    ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/25'
+                    : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+              }`}
+              title="עזרה חכמה עם AI לפי כל העמוד, המותג ופרוטוקול SEO/GEO 2026"
+            >
+              <Wand2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">עזרת AI</span>
+            </button>
+
             <button
               type="button"
               onClick={handleSyncFromBrandDna}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer"
+              className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
+                isDarkMode
+                  ? 'bg-white/5 border-white/10 text-indigo-300 hover:bg-indigo-500/20'
+                  : 'bg-slate-50 border-slate-200 text-indigo-600 hover:bg-indigo-50'
+              }`}
               title="סנכרן את הכותרות, החזון והסגנון מתוך ה-Brand DNA"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>שחזר מחזון המותג</span>
             </button>
 
-            {/* Save Button */}
             <button
               type="button"
               onClick={handleSave}
-              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+              className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
                 saveSuccess
-                  ? 'bg-emerald-500 text-slate-950'
+                  ? 'bg-emerald-500 text-white border-emerald-500'
                   : isDirty
-                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/25 animate-pulse'
-                  : 'bg-white/10 hover:bg-white/15 text-white'
+                    ? 'bg-amber-500 text-slate-950 border-amber-500 animate-pulse'
+                    : isDarkMode
+                      ? 'bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
               }`}
+              title="שמירה"
             >
-              {saveSuccess ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-              <span>{saveSuccess ? 'נשמר בהצלחה!' : 'שמירה'}</span>
+              {saveSuccess ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
             </button>
 
-            {/* Close Button */}
-            <button
-              type="button"
-              onClick={handleRequestClose}
-              className="p-2 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-              title="סגור"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {onClose && (
+              <button
+                type="button"
+                onClick={handleRequestClose}
+                className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${
+                  isDarkMode
+                    ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-white hover:bg-white/10'
+                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+                title="סגור"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Targeted SEO/GEO 2026 AI Assistant Panel */}
+        {showAiPanel && (
+          <div
+            className={`p-3 mb-2.5 rounded-2xl border space-y-2.5 animate-fadeIn ${
+              isDarkMode ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-indigo-50/70 border-indigo-200'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-extrabold text-indigo-500">
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>סוכן AI מטורגט (כל תוכן העמוד + מיתוג + פרוטוקול 2026 SEO/GEO)</span>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className={`text-[11px] font-bold block ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                מטרת העמוד / האזור (ה-AI ישלב את כל תוכן העמוד והקו המיתוגי של העסק):
+              </label>
+              <input
+                type="text"
+                value={pageGoal}
+                onChange={(e) => setPageGoal(e.target.value)}
+                placeholder="למשל: דף אודות שממיר לידים ומציג סמכות מקצועית..."
+                className={`w-full border rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                  isDarkMode
+                    ? 'bg-black/40 border-indigo-500/30 text-white'
+                    : 'bg-white border-indigo-300 text-slate-900'
+                }`}
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  'היכרות, סמכות והמרה ללידים',
+                  'פתיחת Answer-First לציטוטי AI (GEO)',
+                  'סיפור המותג, ערכים ויתרון תחרותי',
+                ].map((presetGoal) => (
+                  <button
+                    key={presetGoal}
+                    type="button"
+                    onClick={() => setPageGoal(presetGoal)}
+                    className={`text-[10px] px-2 py-0.5 rounded-full border cursor-pointer transition ${
+                      isDarkMode
+                        ? 'bg-white/5 border-white/10 text-zinc-300 hover:border-indigo-400'
+                        : 'bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                    }`}
+                  >
+                    {presetGoal}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleTargetedSeoGeoAi}
+              disabled={aiTargetedLoading}
+              className="w-full py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+            >
+              {aiTargetedLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              <span>
+                {aiTargetedLoading
+                  ? 'מנתח את העמוד, המותג ופרוטוקול 2026 SEO/GEO...'
+                  : 'נסח כותרת, תת-כותרת ותוכן מותאם SEO/GEO 2026'}
+              </span>
+            </button>
+
+            {aiSuggestion && (
+              <div
+                className={`p-2.5 rounded-xl border space-y-2 text-xs ${
+                  isDarkMode ? 'bg-black/40 border-white/10 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                }`}
+              >
+                <div className="font-extrabold text-sm">{aiSuggestion.heading}</div>
+                {aiSuggestion.subtitle && (
+                  <div className="text-xs text-indigo-500 font-bold">{aiSuggestion.subtitle}</div>
+                )}
+                <div
+                  className="text-xs leading-relaxed max-h-36 overflow-y-auto border-t pt-2 border-slate-200/20"
+                  dangerouslySetInnerHTML={{ __html: aiSuggestion.bodyHtml }}
+                />
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setAiSuggestion(null)}
+                    className="px-2.5 py-1 rounded-lg text-[11px] text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    בטל
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handlePatch({
+                        heading: aiSuggestion.heading,
+                        subtitle: aiSuggestion.subtitle,
+                        body: aiSuggestion.bodyHtml,
+                      });
+                      setAiSuggestion(null);
+                      showToast('תוכן האזור עודכן לפי המותג ופרוטוקול 2026 SEO/GEO');
+                    }}
+                    className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold cursor-pointer"
+                  >
+                    החל על האזור
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 2. Always-Visible 6-Style Icon Bar matching HeroEditor */}
+        <div
+          className={`p-2.5 mb-2.5 rounded-2xl border relative transition-all ${
+            isDarkMode ? 'bg-[#141414] border-white/5' : 'bg-slate-50/80 border-slate-200'
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5 px-1">
+            <span className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
+              <Wand2 className="w-3 h-3" />
+              <span>תפריט אייקונים לבחירת סגנון פריסה</span>
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleUpdate('layout', 'auto' as any)}
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                  isFollowingBrandPreset
+                    ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50'
+                    : isDarkMode
+                      ? 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400'
+                }`}
+              >
+                {isFollowingBrandPreset ? 'סגנון מהמותג (פעיל)' : 'עקוב אחרי המותג'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdate('useBrandColors', !localConfig.useBrandColors)}
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                  localConfig.useBrandColors
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
+                    : isDarkMode
+                      ? 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400'
+                }`}
+              >
+                {localConfig.useBrandColors ? 'צבעי מותג: פעיל' : 'החל צבעי מותג'}
+              </button>
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  isDarkMode
+                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                    : 'bg-amber-100 text-amber-800 border-amber-300'
+                }`}
+              >
+                פעיל: {PRESET_DEFINITIONS.find((p) => p.id === activePreset)?.letter}.{' '}
+                {PRESET_DEFINITIONS.find((p) => p.id === activePreset)?.shortLabel}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-6 gap-1.5">
+            {PRESET_DEFINITIONS.map((def) => {
+              const IconComp = def.icon;
+              const isSelected = activePreset === def.id;
+              return (
+                <button
+                  key={def.id}
+                  type="button"
+                  onClick={() => handleUpdate('layout', def.id as any)}
+                  onMouseEnter={() => setHoveredPreset(def.id)}
+                  onMouseLeave={() => setHoveredPreset(null)}
+                  className={`w-full py-2 px-1 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-500 shadow-md ring-1 ring-amber-500/40'
+                      : isDarkMode
+                        ? 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                        : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-amber-400'
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-black opacity-75">{def.letter}.</span>
+                    <IconComp className="w-4 h-4 shrink-0" />
+                  </div>
+                  <span className="text-[10px] font-bold truncate max-w-full">
+                    {def.shortLabel}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {hoveredPresetDef && (
+            <p className="text-[11px] text-amber-500 font-semibold mt-1.5 px-1">
+              {hoveredPresetDef.shortLabel} — {hoveredPresetDef.subtitle}
+            </p>
+          )}
+        </div>
+
         {/* Scrollable Accordions Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 no-scrollbar">
+        <div className="flex-1 overflow-y-auto space-y-2.5 no-scrollbar">
           {/* ACCORDION 1: Layouts & Display Modes */}
-          <div className="rounded-2xl border border-[#262626] bg-[#141414] overflow-hidden transition-all">
+          <div className={`rounded-2xl border overflow-hidden transition-all ${
+            isDarkMode ? 'border-white/10 bg-[#141414]' : 'border-slate-200 bg-slate-50/70'
+          }`}>
             <button
               type="button"
               onClick={() => toggleAccordion('layouts')}
-              className="w-full p-4 flex items-center justify-between text-right hover:bg-white/5 transition-colors cursor-pointer"
+              className={`w-full p-3.5 flex items-center justify-between text-right transition-colors cursor-pointer ${
+                isDarkMode ? 'hover:bg-white/5 text-white' : 'hover:bg-slate-100 text-slate-900'
+              }`}
             >
               <div className="flex items-center gap-2.5">
-                <LayoutTemplate className="w-4 h-4 text-amber-400" />
-                <span className="text-sm font-bold text-white">
+                <LayoutTemplate className="w-4 h-4 text-amber-500" />
+                <span className="text-sm font-bold">
                   סגנונות פריסה, אופן תצוגת תוכן וגדלים
                 </span>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">
-                  {PRESET_DEFINITIONS.find((p) => p.id === activePreset)?.name || 'סטנדרטי'} •{' '}
+                <span className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                  isDarkMode ? 'bg-white/5 text-slate-300 border-white/10' : 'bg-white text-slate-700 border-slate-200'
+                }`}>
+                  {PRESET_DEFINITIONS.find((p) => p.id === activePreset)?.shortLabel || 'סטנדרטי'} •{' '}
                   {CONTENT_LAYOUT_OPTIONS.find((l) => l.id === activeContentMode)?.name || 'קלאסי'}
                 </span>
               </div>
@@ -491,19 +836,49 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
             </button>
 
             {openAccordion === 'layouts' && (
-              <div className="p-4 sm:p-6 border-t border-[#262626] space-y-6 bg-[#0f0f0f]">
+              <div className={`p-4 border-t space-y-5 ${
+                isDarkMode ? 'border-white/10 bg-[#0f0f0f]' : 'border-slate-200 bg-white'
+              }`}>
                 {/* 1.1 Brand Style Presets (6 Presets) */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-300">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <label className={`text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                       סגנון מיתוג עיצובי (Brand Presets):
                     </label>
-                    {hoveredPresetDef && (
-                      <span className="text-[11px] text-amber-400 font-semibold animate-in fade-in duration-150">
-                        {hoveredPresetDef.name} — {hoveredPresetDef.subtitle}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleUpdate('layout', 'auto' as any)}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                          isFollowingBrandPreset
+                            ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50'
+                            : isDarkMode
+                              ? 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400'
+                        }`}
+                      >
+                        {isFollowingBrandPreset ? 'סגנון מהמותג (פעיל)' : 'עקוב אחרי המותג'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdate('useBrandColors', !localConfig.useBrandColors)}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                          localConfig.useBrandColors
+                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
+                            : isDarkMode
+                              ? 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400'
+                        }`}
+                      >
+                        {localConfig.useBrandColors ? 'צבעי מותג: פעיל' : 'החל צבעי מותג'}
+                      </button>
+                    </div>
                   </div>
+                  {hoveredPresetDef && (
+                    <p className="text-[11px] text-amber-500 font-semibold mb-2 animate-in fade-in duration-150">
+                      {hoveredPresetDef.shortLabel} — {hoveredPresetDef.subtitle}
+                    </p>
+                  )}
                   <div className="grid grid-cols-6 gap-2">
                     {PRESET_DEFINITIONS.map((preset) => {
                       const Icon = preset.icon;
@@ -512,21 +887,25 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
                         <button
                           key={preset.id}
                           type="button"
-                          onClick={() => handleUpdate('layout', preset.id)}
+                          onClick={() => handleUpdate('layout', preset.id as any)}
                           onMouseEnter={() => setHoveredPreset(preset.id)}
                           onMouseLeave={() => setHoveredPreset(null)}
-                          className={`relative p-3 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer group ${
+                          className={`relative p-2.5 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer group ${
                             isSelected
-                              ? 'bg-amber-500/15 border-amber-500 text-amber-300 shadow-md shadow-amber-500/10'
-                              : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/25 hover:bg-white/10'
+                              ? 'bg-amber-500/15 border-amber-500 text-amber-500 shadow-md shadow-amber-500/10'
+                              : isDarkMode
+                                ? 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/25 hover:bg-white/10'
+                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:border-amber-400'
                           }`}
                         >
-                          <div className="w-6 h-6 rounded-lg bg-black/40 flex items-center justify-center font-bold text-xs">
+                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
+                            isDarkMode ? 'bg-black/40' : 'bg-white border border-slate-200'
+                          }`}>
                             {preset.letter}
                           </div>
                           <Icon className="w-4 h-4" />
                           <span className="text-[10px] font-bold text-center leading-tight">
-                            {preset.name.replace('סגנון ', '')}
+                            {preset.shortLabel.replace('סגנון ', '').replace('פריסה ', '')}
                           </span>
                         </button>
                       );
@@ -582,7 +961,7 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
                     <select
                       value={localConfig.objectScale || 'normal'}
                       onChange={(e) => handleUpdate('objectScale', e.target.value as any)}
-                      className="w-full bg-[#161619] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full bg-transparent border border-amber-500/50 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
                     >
                       <option value="compact">קומפקטי (Compact)</option>
                       <option value="normal">רגיל (Normal)</option>
@@ -598,7 +977,7 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
                     <select
                       value={localConfig.buttonShape || 'auto'}
                       onChange={(e) => handleUpdate('buttonShape', e.target.value as any)}
-                      className="w-full bg-[#161619] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full bg-transparent border border-amber-500/50 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
                     >
                       <option value="auto">אוטומטי (לפי המיתוג)</option>
                       <option value="pill">קפסולה עגולה (Pill)</option>
@@ -615,7 +994,7 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
                     <select
                       value={localConfig.imagePosition || 'auto'}
                       onChange={(e) => handleUpdate('imagePosition', e.target.value as any)}
-                      className="w-full bg-[#161619] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full bg-transparent border border-amber-500/50 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
                     >
                       <option value="auto">אוטומטי (לפי הפריסה)</option>
                       <option value="left">משמאל לטקסט</option>
@@ -630,15 +1009,15 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
           </div>
 
           {/* ACCORDION 2: Headings, WYSIWYG & AI Rewrite */}
-          <div className="rounded-2xl border border-[#262626] bg-[#141414] overflow-hidden transition-all">
+          <div className={`rounded-2xl border overflow-hidden transition-all ${isDarkMode ? "border-white/10 bg-[#141414]" : "border-slate-200 bg-slate-50/70"}`}>
             <button
               type="button"
               onClick={() => toggleAccordion('content')}
-              className="w-full p-4 flex items-center justify-between text-right hover:bg-white/5 transition-colors cursor-pointer"
+              className={`w-full p-3.5 flex items-center justify-between text-right transition-colors cursor-pointer ${isDarkMode ? "hover:bg-white/5 text-white" : "hover:bg-slate-100 text-slate-900"}`}
             >
               <div className="flex items-center gap-2.5">
                 <Type className="w-4 h-4 text-cyan-400" />
-                <span className="text-sm font-bold text-white">
+                <span className="text-sm font-bold">
                   כותרות, עורך תוכן WYSIWYG ושכתוב AI
                 </span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
@@ -653,32 +1032,68 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
             </button>
 
             {openAccordion === 'content' && (
-              <div className="p-4 sm:p-6 border-t border-[#262626] space-y-5 bg-[#0f0f0f]">
+              <div className={`p-4 sm:p-6 border-t space-y-5 ${isDarkMode ? "border-white/10 bg-[#0f0f0f]" : "border-slate-200 bg-white"}`}>
                 {/* Heading & Subtitle */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                      כותרת ראשית:
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className={`text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                        כותרת ראשית:
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleEnhanceHeadingOrSubtitle('heading')}
+                        className="p-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 cursor-pointer transition"
+                        title="שפר כותרת עם AI לפי פרוטוקול 2026 SEO/GEO"
+                      >
+                        {aiFieldLoading === 'heading' ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
                     <input
                       type="text"
                       value={localConfig.heading || ''}
                       onChange={(e) => handleUpdate('heading', e.target.value)}
                       placeholder="אודות והחזון שלנו"
-                      className="w-full bg-[#161619] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                        isDarkMode
+                          ? 'bg-[#161619] border-white/10 text-white'
+                          : 'bg-white border-slate-200 text-slate-900'
+                      }`}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                      תת כותרת (תגית עליונה):
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className={`text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                        תת כותרת (תגית עליונה):
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleEnhanceHeadingOrSubtitle('subtitle')}
+                        className="p-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 cursor-pointer transition"
+                        title="שפר תת-כותרת עם AI לפי פרוטוקול 2026 SEO/GEO"
+                      >
+                        {aiFieldLoading === 'subtitle' ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
                     <input
                       type="text"
                       value={localConfig.subtitle || ''}
                       onChange={(e) => handleUpdate('subtitle', e.target.value)}
                       placeholder="השליחות, הערכים והשאיפה למצוינות"
-                      className="w-full bg-[#161619] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                        isDarkMode
+                          ? 'bg-[#161619] border-white/10 text-white'
+                          : 'bg-white border-slate-200 text-slate-900'
+                      }`}
                     />
                   </div>
                 </div>
@@ -711,15 +1126,15 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
           </div>
 
           {/* ACCORDION 3: Pillars & Timeline Items */}
-          <div className="rounded-2xl border border-[#262626] bg-[#141414] overflow-hidden transition-all">
+          <div className={`rounded-2xl border overflow-hidden transition-all ${isDarkMode ? "border-white/10 bg-[#141414]" : "border-slate-200 bg-slate-50/70"}`}>
             <button
               type="button"
               onClick={() => toggleAccordion('items')}
-              className="w-full p-4 flex items-center justify-between text-right hover:bg-white/5 transition-colors cursor-pointer"
+              className={`w-full p-3.5 flex items-center justify-between text-right transition-colors cursor-pointer ${isDarkMode ? "hover:bg-white/5 text-white" : "hover:bg-slate-100 text-slate-900"}`}
             >
               <div className="flex items-center gap-2.5">
                 <Compass className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm font-bold text-white">
+                <span className="text-sm font-bold">
                   עמודי תווך, ערכים ואבני דרך
                 </span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">
@@ -734,7 +1149,7 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
             </button>
 
             {openAccordion === 'items' && (
-              <div className="p-4 sm:p-6 border-t border-[#262626] space-y-4 bg-[#0f0f0f]">
+              <div className={`p-4 sm:p-6 border-t space-y-4 ${isDarkMode ? "border-white/10 bg-[#0f0f0f]" : "border-slate-200 bg-white"}`}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-400">
                     פריטים אלו מוצגים ככרטיסי ערכים ברשת, שלבים בציר הזמן או קוביות בנטו:
@@ -940,15 +1355,15 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
           </div>
 
           {/* ACCORDION 4: Text Background Overlay & Hover Effects */}
-          <div className="rounded-2xl border border-[#262626] bg-[#141414] overflow-hidden transition-all">
+          <div className={`rounded-2xl border overflow-hidden transition-all ${isDarkMode ? "border-white/10 bg-[#141414]" : "border-slate-200 bg-slate-50/70"}`}>
             <button
               type="button"
               onClick={() => toggleAccordion('text_bg')}
-              className="w-full p-4 flex items-center justify-between text-right hover:bg-white/5 transition-colors cursor-pointer"
+              className={`w-full p-3.5 flex items-center justify-between text-right transition-colors cursor-pointer ${isDarkMode ? "hover:bg-white/5 text-white" : "hover:bg-slate-100 text-slate-900"}`}
             >
               <div className="flex items-center gap-2.5">
                 <ImageIcon className="w-4 h-4 text-rose-400" />
-                <span className="text-sm font-bold text-white">
+                <span className="text-sm font-bold">
                   רקע תמונה מאחורי הטקסט ואפקטי מעבר
                 </span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">
@@ -963,7 +1378,7 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
             </button>
 
             {openAccordion === 'text_bg' && (
-              <div className="p-4 sm:p-6 border-t border-[#262626] space-y-4 bg-[#0f0f0f]">
+              <div className={`p-4 sm:p-6 border-t space-y-4 ${isDarkMode ? "border-white/10 bg-[#0f0f0f]" : "border-slate-200 bg-white"}`}>
                 <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10">
                   <div>
                     <span className="text-xs font-bold text-white block">
@@ -1001,7 +1416,7 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
                         <select
                           value={localConfig.textBgEffect || 'zoom-glow'}
                           onChange={(e) => handleUpdate('textBgEffect', e.target.value as HeroTextBgEffect)}
-                          className="w-full bg-[#161619] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          className="w-full bg-transparent border border-amber-500/50 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
                         >
                           <option value="zoom-glow">זום עדין וזוהר (Zoom Glow)</option>
                           <option value="shimmer-sweep">ברק מתכתי (Shimmer Sweep)</option>
@@ -1018,7 +1433,7 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
                         <select
                           value={localConfig.textBgScope || 'text-card'}
                           onChange={(e) => handleUpdate('textBgScope', e.target.value as any)}
-                          className="w-full bg-[#161619] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          className="w-full bg-transparent border border-amber-500/50 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
                         >
                           <option value="text-card">רק סביב כרטיס הטקסט</option>
                           <option value="full-section">על פני כל שטח האזור</option>
@@ -1047,15 +1462,15 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
           </div>
 
           {/* ACCORDION 5: CTA Buttons */}
-          <div className="rounded-2xl border border-[#262626] bg-[#141414] overflow-hidden transition-all">
+          <div className={`rounded-2xl border overflow-hidden transition-all ${isDarkMode ? "border-white/10 bg-[#141414]" : "border-slate-200 bg-slate-50/70"}`}>
             <button
               type="button"
               onClick={() => toggleAccordion('buttons')}
-              className="w-full p-4 flex items-center justify-between text-right hover:bg-white/5 transition-colors cursor-pointer"
+              className={`w-full p-3.5 flex items-center justify-between text-right transition-colors cursor-pointer ${isDarkMode ? "hover:bg-white/5 text-white" : "hover:bg-slate-100 text-slate-900"}`}
             >
               <div className="flex items-center gap-2.5">
                 <MousePointerClick className="w-4 h-4 text-indigo-400" />
-                <span className="text-sm font-bold text-white">כפתורי הנעה לפעולה (CTA)</span>
+                <span className="text-sm font-bold">כפתורי הנעה לפעולה (CTA)</span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">
                   {localConfig.buttonsVisible ? 'פעיל' : 'כבוי'}
                 </span>
@@ -1068,7 +1483,7 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
             </button>
 
             {openAccordion === 'buttons' && (
-              <div className="p-4 sm:p-6 border-t border-[#262626] space-y-4 bg-[#0f0f0f]">
+              <div className={`p-4 sm:p-6 border-t space-y-4 ${isDarkMode ? "border-white/10 bg-[#0f0f0f]" : "border-slate-200 bg-white"}`}>
                 <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10">
                   <div>
                     <span className="text-xs font-bold text-white block">
@@ -1164,15 +1579,15 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
           </div>
 
           {/* ACCORDION 6: Colors & Branding */}
-          <div className="rounded-2xl border border-[#262626] bg-[#141414] overflow-hidden transition-all">
+          <div className={`rounded-2xl border overflow-hidden transition-all ${isDarkMode ? "border-white/10 bg-[#141414]" : "border-slate-200 bg-slate-50/70"}`}>
             <button
               type="button"
               onClick={() => toggleAccordion('colors')}
-              className="w-full p-4 flex items-center justify-between text-right hover:bg-white/5 transition-colors cursor-pointer"
+              className={`w-full p-3.5 flex items-center justify-between text-right transition-colors cursor-pointer ${isDarkMode ? "hover:bg-white/5 text-white" : "hover:bg-slate-100 text-slate-900"}`}
             >
               <div className="flex items-center gap-2.5">
                 <Palette className="w-4 h-4 text-amber-400" />
-                <span className="text-sm font-bold text-white">צבעי מיתוג וכרטיסים</span>
+                <span className="text-sm font-bold">צבעי מיתוג וכרטיסים</span>
               </div>
               <ChevronDown
                 className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
@@ -1182,7 +1597,7 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
             </button>
 
             {openAccordion === 'colors' && (
-              <div className="p-4 sm:p-6 border-t border-[#262626] space-y-4 bg-[#0f0f0f]">
+              <div className={`p-4 sm:p-6 border-t space-y-4 ${isDarkMode ? "border-white/10 bg-[#0f0f0f]" : "border-slate-200 bg-white"}`}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <PageBuilderColorPicker
                     label="צבע רקע האזור"
@@ -1211,7 +1626,7 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t border-[#262626] bg-[#141414] flex items-center justify-between shrink-0">
+        <div className={`p-3.5 mt-3 border-t flex items-center justify-between shrink-0 ${isDarkMode ? "border-white/10 bg-[#141414] text-white" : "border-slate-200 bg-slate-50/70 text-slate-900"}`}>
           <div className="flex items-center gap-2">
             {isDirty && (
               <span className="inline-flex items-center gap-1.5 text-xs text-amber-400 font-bold">
@@ -1242,9 +1657,11 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
         {/* Unsaved Changes Confirmation Dialog */}
         {showUnsavedConfirm && (
           <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="w-full max-w-sm rounded-3xl bg-[#1a1a1e] border border-amber-500/30 p-6 text-right space-y-4 shadow-2xl">
-              <h3 className="text-base font-extrabold text-white">שינויים לא נשמרו</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
+            <div className={`w-full max-w-sm rounded-3xl border p-6 text-right space-y-4 shadow-2xl ${
+              isDarkMode ? 'bg-[#1a1a1e] border-amber-500/30 text-white' : 'bg-white border-amber-500/40 text-slate-900'
+            }`}>
+              <h3 className="text-base font-extrabold">שינויים לא נשמרו</h3>
+              <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                 ביצעת שינויים באזור האודות והחזון. האם ברצונך לשמור את השינויים לפני סגירת העורך?
               </p>
               <div className="flex justify-end gap-2 pt-2">
@@ -1273,7 +1690,6 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 };

@@ -1,3 +1,5 @@
+import { dispatchImageTextExtractionToKosai } from '../kosai/promptToKosai';
+
 export interface IngestedSourceItem {
   id: string;
   type: 'file' | 'url' | 'text';
@@ -25,14 +27,55 @@ export function stripHtmlToText(html: string): string {
 }
 
 /**
- * Extracts readable text from an uploaded file (TXT, MD, HTML, CSV, PDF, DOCX).
- * Zero external dependencies — handles binary PDF/DOCX gracefully without crashing.
+ * Extracts readable text from an uploaded file (TXT, MD, HTML, CSV, PDF, DOCX, PNG, JPG, JPEG, WEBP).
+ * Images are processed via KOSAI Vision Monopoly (Master key) without direct API calls.
  */
-export async function extractTextFromUploadedFile(file: File): Promise<IngestedSourceItem> {
+export async function extractTextFromUploadedFile(
+  file: File,
+  options?: { tenantId?: string }
+): Promise<IngestedSourceItem> {
   const id = `src_file_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
   const ext = (file.name.split('.').pop() || '').toLowerCase();
 
   try {
+    if (['png', 'jpg', 'jpeg', 'webp'].includes(ext) || file.type.startsWith('image/')) {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+        reader.onerror = () => reject(new Error('Failed to read image'));
+        reader.readAsDataURL(file);
+      });
+      const [, base64] = dataUrl.split(',');
+      const mimeType = file.type || (ext === 'png' ? 'image/png' : 'image/jpeg');
+      if (base64) {
+        try {
+          const extracted = await dispatchImageTextExtractionToKosai(base64, mimeType, {
+            tenantId: options?.tenantId,
+          });
+          const cleaned = extracted.trim().slice(0, MAX_SOURCE_CHARS);
+          if (cleaned) {
+            return {
+              id,
+              type: 'file',
+              label: `${file.name} (תמונה)`,
+              extractedText: cleaned,
+              charCount: cleaned.length,
+            };
+          }
+        } catch (visionErr) {
+          console.warn('[sourceIngestionService] Vision extraction notice:', visionErr);
+        }
+      }
+      return {
+        id,
+        type: 'file',
+        label: `${file.name} (תמונה)`,
+        extractedText: `[קובץ תמונה מצורף: ${file.name}]`,
+        charCount: 0,
+        warning: 'התמונה צורפה, אך לא ניתן היה לחלץ ממנה טקסט אוטומטית.',
+      };
+    }
+
     if (['txt', 'md', 'csv', 'json', 'log'].includes(ext)) {
       const raw = await file.text();
       const cleaned = raw.trim().slice(0, MAX_SOURCE_CHARS);
