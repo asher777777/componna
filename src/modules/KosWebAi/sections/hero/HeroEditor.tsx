@@ -15,6 +15,7 @@ import { useTenantScope } from '../../../../core/tenant';
 import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
 import { PageBuilderConfig } from '../../types/pageBuilder.types';
 import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
+import { FirebaseStorageMediaService } from '../../../KosCloudStore/services/firebaseStorageMediaService';
 import {
   STYLE_PRESET_DEFINITIONS,
   StylePresetDefinition,
@@ -68,7 +69,7 @@ export const HeroEditor: React.FC<{
   const brandDna = resolveLiveBrandDna(rawBrandDna);
   const aiAssistant = getCapability<AiTextAssistantContract>('ai-assistant');
   const kosaiAgent = getCapability<KosaiAgentContract>('kosai-agent');
-  const { db } = useSystemConnection();
+  const { db, firebaseApp } = useSystemConnection();
   const { tenantId } = useTenantScope();
 
   // Local state mirroring CRM Contact360Modal & PageSettingsDrawer
@@ -267,6 +268,30 @@ export const HeroEditor: React.FC<{
     }
   };
 
+  const buildEnglishImageFilename = (
+    promptText: string,
+    styleKey: string,
+    mimeType: string = 'image/png'
+  ): string => {
+    const stopWords = new Set([
+      'a', 'an', 'the', 'for', 'with', 'and', 'or', 'of', 'in', 'on', 'to', 'at', 'by', 'from',
+      'editorial', 'commercial', 'photography', 'photo', 'image', 'ultra', 'high', 'resolution',
+      'clean', 'composition', 'lighting', 'subtle', 'accents', 'text', 'overlays', 'no', 'brand',
+      'modern', 'illustrating', 'hero', '16', '9',
+    ]);
+    const words = (promptText.toLowerCase().match(/[a-z]{3,}/g) || [])
+      .filter((w) => !stopWords.has(w))
+      .slice(0, 5);
+    const slug = words.length > 0 ? words.join('-') : `${styleKey}-showcase`;
+    const ext = mimeType.includes('jpeg') || mimeType.includes('jpg')
+      ? 'jpg'
+      : mimeType.includes('webp')
+        ? 'webp'
+        : 'png';
+    const suffix = Date.now().toString().slice(-5);
+    return `hero-${slug}-${suffix}.${ext}`;
+  };
+
   const handleGenerateImageFromPrompt = async () => {
     if (!imagePrompt.trim()) return;
     if (!kosaiAgent?.generateBrandVibeImage) {
@@ -281,12 +306,51 @@ export const HeroEditor: React.FC<{
         brandDna,
         aspectRatio: '16:9',
       });
-      if (res?.imageUrl) {
-        updateField('imageSrc', res.imageUrl);
-        showNotification('תמונת ההירו נוצרה והוחלה בהצלחה');
-      } else {
+      if (!res?.imageUrl) {
         showNotification('לא התקבלה תמונה מסוכן ה-AI');
+        return;
       }
+
+      // Apply immediate preview
+      updateField('imageSrc', res.imageUrl);
+
+      // Persist automatically to KOSCLOUD under the active tenant with an English content-based filename
+      if (firebaseApp) {
+        try {
+          const response = await fetch(res.imageUrl);
+          const blob = await response.blob();
+          const mimeType = blob.type || 'image/png';
+          const englishFileName = buildEnglishImageFilename(
+            imagePrompt,
+            normalizedActiveLayout,
+            mimeType
+          );
+          const permanentUrl = await FirebaseStorageMediaService.uploadFileToStorage(
+            firebaseApp,
+            blob,
+            englishFileName,
+            undefined,
+            {
+              sourceModule: 'KosWebAi',
+              sourceModuleLabel: 'בונה דפים ו-SEO',
+              type: 'image',
+              mimeType,
+            },
+            tenantId
+          );
+          if (permanentUrl) {
+            updateField('imageSrc', permanentUrl);
+            showNotification(`התמונה נוצרה ונשמרה ב-KOSCLOUD (${englishFileName})`);
+            return;
+          }
+        } catch (uploadErr) {
+          console.warn('[HeroEditor] Failed to persist AI image to KOSCLOUD:', uploadErr);
+          showNotification('התמונה נוצרה, אך שמירתה ב-KOSCLOUD נכשלה');
+          return;
+        }
+      }
+
+      showNotification('תמונת ההירו נוצרה והוחלה (KOSCLOUD לא מחובר)');
     } catch (err) {
       console.warn('[HeroEditor] Generate image failed:', err);
       showNotification('שגיאה ביצירת תמונה עם AI');

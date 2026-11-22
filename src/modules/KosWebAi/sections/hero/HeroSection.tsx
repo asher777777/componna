@@ -27,6 +27,14 @@ import {
 const DEFAULT_FALLBACK_BG =
   'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80';
 
+const isVideoMedia = (url?: string): boolean => {
+  if (!url) return false;
+  if (url.startsWith('data:video/')) return true;
+  if (url.startsWith('data:image/')) return false;
+  const clean = decodeURIComponent(url.split('?')[0].split('#')[0]).toLowerCase();
+  return /\.(mp4|webm|ogg|mov|mkv|m4v)$/i.test(clean);
+};
+
 export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config }) => {
   const { getCapability } = useHostCapabilities();
   const rawBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
@@ -38,12 +46,13 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
     subtitle,
     description,
     imageSrc,
+    videoBgUrl,
     layout = 'auto',
     heroStyle = 'mesh-glow',
-    objectScale = 'auto',
+    objectScale = 'massive',
     buttonShape = 'auto',
     buttonSize = 'auto',
-    imagePosition = 'auto',
+    imagePosition = 'bottom',
     buttonsVisible = true,
     primaryButton,
     secondaryButton,
@@ -54,12 +63,12 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
     primaryButtonColor,
     secondaryButtonColor,
     accentColor,
-    textBgEnabled = false,
+    textBgEnabled = true,
     textBgImageUrl,
     textBgOverlayColor,
     textBgOverlayOpacity = 70,
     textBgEffect = 'zoom-glow',
-    textBgScope = 'text-card',
+    textBgScope = 'full-section',
     analyticalMetrics,
     announcementBadge,
     imageBadge,
@@ -86,8 +95,11 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
   );
 
   const safeImageSrc = imageSrc ? resolveSafeMediaUrl(imageSrc) : '';
+  const safeVideoBgUrl = videoBgUrl ? resolveSafeMediaUrl(videoBgUrl) : '';
   const safeTextBgImageUrl = textBgImageUrl ? resolveSafeMediaUrl(textBgImageUrl) : '';
-  const effectiveBgImage = safeTextBgImageUrl || safeImageSrc || DEFAULT_FALLBACK_BG;
+  const effectiveBgMedia = safeVideoBgUrl || safeTextBgImageUrl || safeImageSrc || DEFAULT_FALLBACK_BG;
+  const isBgVideo = Boolean(safeVideoBgUrl) || isVideoMedia(effectiveBgMedia);
+  const effectiveObjectScale = objectScale === 'auto' ? 'massive' : objectScale;
   const overlayAlpha = Math.min(95, Math.max(10, textBgOverlayOpacity ?? 70)) / 100;
   const effectiveOverlayHex =
     textBgOverlayColor && textBgOverlayColor !== 'transparent'
@@ -116,42 +128,58 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
     }
   };
 
-  const renderTextBgLayer = () => (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 rounded-[inherit]">
-      <img
-        src={effectiveBgImage}
-        alt=""
-        aria-hidden="true"
-        className={clsx(
-          'w-full h-full object-cover transition-all ease-out',
-          textBgEffect === 'zoom-glow' && 'duration-1000 group-hover/textbg:scale-110',
-          textBgEffect === 'shimmer-sweep' && 'duration-700 group-hover/textbg:scale-105',
-          textBgEffect === 'float-parallax' &&
-            'duration-700 scale-105 group-hover/textbg:scale-110 group-hover/textbg:-translate-y-2',
-          textBgEffect === 'blur-reveal' &&
-            'duration-700 blur-[3px] scale-105 group-hover/textbg:blur-0 group-hover/textbg:scale-100',
-          textBgEffect === 'gradient-shift' &&
-            'duration-1000 group-hover/textbg:scale-105 group-hover/textbg:rotate-1'
+  const renderTextBgLayer = () => {
+    const mediaEffectClass = clsx(
+      'w-full h-full object-cover transition-all ease-out',
+      textBgEffect === 'zoom-glow' && 'duration-1000 group-hover/textbg:scale-110',
+      textBgEffect === 'shimmer-sweep' && 'duration-700 group-hover/textbg:scale-105',
+      textBgEffect === 'float-parallax' &&
+        'duration-700 scale-105 group-hover/textbg:scale-110 group-hover/textbg:-translate-y-2',
+      textBgEffect === 'blur-reveal' &&
+        'duration-700 blur-[3px] scale-105 group-hover/textbg:blur-0 group-hover/textbg:scale-100',
+      textBgEffect === 'gradient-shift' &&
+        'duration-1000 group-hover/textbg:scale-105 group-hover/textbg:rotate-1'
+    );
+
+    return (
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 rounded-[inherit]">
+        {isBgVideo ? (
+          <video
+            src={effectiveBgMedia}
+            autoPlay
+            loop
+            muted
+            playsInline
+            aria-hidden="true"
+            className={mediaEffectClass}
+          />
+        ) : (
+          <img
+            src={effectiveBgMedia}
+            alt=""
+            aria-hidden="true"
+            className={mediaEffectClass}
+          />
         )}
-      />
-      <div
-        className="absolute inset-0 transition-opacity duration-500 group-hover/textbg:opacity-80"
-        style={{ backgroundColor: effectiveOverlayHex, opacity: overlayAlpha }}
-      />
-      {textBgEffect === 'shimmer-sweep' && (
-        <div className="absolute inset-0 -translate-x-full group-hover/textbg:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12" />
-      )}
-      {textBgEffect === 'zoom-glow' && (
-        <div className="absolute inset-0 opacity-0 group-hover/textbg:opacity-100 transition-opacity duration-700 bg-radial from-white/15 via-transparent to-transparent" />
-      )}
-      {textBgEffect === 'gradient-shift' && (
-        <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600/30 via-transparent to-amber-500/30 opacity-40 group-hover/textbg:opacity-80 transition-opacity duration-700" />
-      )}
-      {textBgEffect === 'float-parallax' && (
-        <div className="absolute inset-0 ring-1 ring-inset ring-white/20 group-hover/textbg:ring-white/50 transition-all duration-700" />
-      )}
-    </div>
-  );
+        <div
+          className="absolute inset-0 transition-opacity duration-500 group-hover/textbg:opacity-80"
+          style={{ backgroundColor: effectiveOverlayHex, opacity: overlayAlpha }}
+        />
+        {textBgEffect === 'shimmer-sweep' && (
+          <div className="absolute inset-0 -translate-x-full group-hover/textbg:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12" />
+        )}
+        {textBgEffect === 'zoom-glow' && (
+          <div className="absolute inset-0 opacity-0 group-hover/textbg:opacity-100 transition-opacity duration-700 bg-radial from-white/15 via-transparent to-transparent" />
+        )}
+        {textBgEffect === 'gradient-shift' && (
+          <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600/30 via-transparent to-amber-500/30 opacity-40 group-hover/textbg:opacity-80 transition-opacity duration-700" />
+        )}
+        {textBgEffect === 'float-parallax' && (
+          <div className="absolute inset-0 ring-1 ring-inset ring-white/20 group-hover/textbg:ring-white/50 transition-all duration-700" />
+        )}
+      </div>
+    );
+  };
 
   const wrapTextWithOptionalBg = (content: React.ReactNode) => {
     if (!textBgEnabled || textBgScope === 'full-section') return content;
@@ -201,7 +229,7 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
 
       <h1
         className={clsx(
-          getTitleScaleClass(titleFontSize, objectScale, tokens.typography.defaultTitleScale),
+          getTitleScaleClass(titleFontSize, effectiveObjectScale, tokens.typography.defaultTitleScale),
           getTitleWeightClass(titleFontWeight, tokens.typography.defaultTitleWeight),
           alignClass,
           'max-w-4xl',
@@ -231,7 +259,7 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
       {description && (
         <p
           className={clsx(
-            getDescScaleClass(descriptionFontSize, objectScale, tokens.typography.defaultDescScale),
+            getDescScaleClass(descriptionFontSize, effectiveObjectScale, tokens.typography.defaultDescScale),
             alignClass,
             'mt-6',
             tokens.typography.descClass,
@@ -422,7 +450,7 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
     );
   };
 
-  const mediaBlock = renderMediaBlock();
+  const mediaBlock = textBgEnabled ? null : renderMediaBlock();
 
   return (
     <section

@@ -142,7 +142,7 @@ export const SECTION_THEMES: Record<SectionStyleKey, SectionThemeTokens> = {
       'bg-white/75 dark:bg-rose-950/30 border border-rose-200/70 dark:border-rose-500/20 shadow-xl shadow-rose-500/5',
     textCardRadiusClass: 'rounded-[2.5rem]',
     defaultOverlayHex: '#2e101f',
-    defaultImagePosition: 'left',
+    defaultImagePosition: 'bottom',
     defaultImageBadgeText: 'עיצוב בוטיק מותאם אישית',
     mediaVariant: 'arch',
     typography: {
@@ -180,7 +180,7 @@ export const SECTION_THEMES: Record<SectionStyleKey, SectionThemeTokens> = {
     cardClass: 'bg-zinc-900/90 border border-zinc-800 shadow-2xl',
     textCardRadiusClass: 'rounded-2xl',
     defaultOverlayHex: '#09090b',
-    defaultImagePosition: 'left',
+    defaultImagePosition: 'bottom',
     defaultImageBadgeText: 'ביצועים ועוצמה ללא פשרות',
     mediaVariant: 'charcoal-frame',
     typography: {
@@ -220,7 +220,7 @@ export const SECTION_THEMES: Record<SectionStyleKey, SectionThemeTokens> = {
       'bg-white/70 dark:bg-teal-950/30 border border-teal-700/15 dark:border-teal-400/20 backdrop-blur-md shadow-xl',
     textCardRadiusClass: 'rounded-[2.5rem]',
     defaultOverlayHex: '#091e1c',
-    defaultImagePosition: 'top',
+    defaultImagePosition: 'bottom',
     defaultImageBadgeText: 'הרמוניה, איזון ונוכחות',
     mediaVariant: 'portal',
     typography: {
@@ -259,7 +259,7 @@ export const SECTION_THEMES: Record<SectionStyleKey, SectionThemeTokens> = {
       'bg-white dark:bg-zinc-950 border-2 border-slate-950 dark:border-white shadow-[6px_6px_0px_0px_#0f172a] dark:shadow-[6px_6px_0px_0px_#6366f1]',
     textCardRadiusClass: 'rounded-none',
     defaultOverlayHex: '#050505',
-    defaultImagePosition: 'right',
+    defaultImagePosition: 'bottom',
     defaultImageBadgeText: 'דיוק אדריכלי',
     mediaVariant: 'brutalist',
     typography: {
@@ -300,7 +300,7 @@ export const SECTION_THEMES: Record<SectionStyleKey, SectionThemeTokens> = {
       'bg-white/90 dark:bg-slate-900/80 border border-cyan-500/25 shadow-xl shadow-cyan-500/5',
     textCardRadiusClass: 'rounded-3xl',
     defaultOverlayHex: '#06101e',
-    defaultImagePosition: 'left',
+    defaultImagePosition: 'bottom',
     defaultImageBadgeText: '100% VERIFIED',
     mediaVariant: 'hud',
     typography: {
