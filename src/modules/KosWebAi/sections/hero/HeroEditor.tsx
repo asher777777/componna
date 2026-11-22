@@ -285,7 +285,7 @@ export const HeroEditor: React.FC<{
         updateField('imageSrc', res.imageUrl);
         showNotification('תמונת ההירו נוצרה והוחלה בהצלחה');
       } else {
-        showNotification(res?.error || 'לא התקבלה תמונה מסוכן ה-AI');
+        showNotification('לא התקבלה תמונה מסוכן ה-AI');
       }
     } catch (err) {
       console.warn('[HeroEditor] Generate image failed:', err);
