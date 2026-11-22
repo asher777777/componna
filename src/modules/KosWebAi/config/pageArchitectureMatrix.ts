@@ -401,6 +401,32 @@ export function mapPageCategoryToMatrixId(category: PageCategory): MatrixPageTyp
   }
 }
 
+export function mapMatrixIdToPageCategory(id: MatrixPageTypeId): {
+  pageCategory: PageCategory;
+  slugPrefixLower: string;
+} {
+  switch (id) {
+    case 'homepage':
+      return { pageCategory: 'home', slugPrefixLower: 'home' };
+    case 'pillar_article':
+    case 'blog_hub':
+      return { pageCategory: 'info_content', slugPrefixLower: 'kosinfo' };
+    case 'event_webinar':
+      return { pageCategory: 'event', slugPrefixLower: 'kosevent' };
+    case 'pricing_plans':
+      return { pageCategory: 'checkout', slugPrefixLower: 'koscheckout' };
+    case 'crowdfunding_campaign':
+      return { pageCategory: 'fundraising', slugPrefixLower: 'kosfunrise' };
+    case 'course_academy':
+      return { pageCategory: 'course', slugPrefixLower: 'koscourse' };
+    case 'about_contact':
+    case 'service_solution':
+    case 'landing':
+    default:
+      return { pageCategory: 'general', slugPrefixLower: 'p' };
+  }
+}
+
 export const WIZARD_PROGRESS_STORAGE_KEY = 'kosweb_ai_wizard_progress_v1';
 export const WIZARD_OPEN_STORAGE_KEY = 'kosweb_ai_wizard_open_v1';
 

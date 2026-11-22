@@ -299,10 +299,12 @@ ${ctx.geoDetails?.targetCity ? `- Local SEO City: ${ctx.geoDetails.targetCity}, 
 2. Answer-First Structure: In "richContent.body", start the first paragraph and each <h2> section with a sharp, direct, data-backed 40-60 word answer for LLM extraction, followed by structured <ul><li> lists or a comparison block.
 3. No Placeholder Clichés: NEVER use generic names like "ישראל ישראלי", "דניאל כהן", or "רעות מזרחי" if real context is available; craft authentic, realistic Israeli testimonials tailored to this exact niche.
 4. SEO/GEO Metadata: Provide "seoGeo" with meta title (50-60 chars), meta description (140-160 chars), "aiKnowledgeSummary" (2-3 factual sentences), and 3 "aiTargetQuestions"${ctx.targetQuestion ? ` (must include: "${ctx.targetQuestion}")` : ''}.
+5. Clean English URL Slug: Provide "slugSuffix" in clean lowercase English kebab-case (2 to 5 descriptive words matching the Core Topic, e.g. "enterprise-project-management" or "digital-marketing-guide"). English letters, numbers, and hyphens ONLY.
 
 Return ONLY valid JSON (no markdown ticks) matching this exact schema:
 {
   "pageTitle": "כותרת עמוד ממירה ומדויקת",
+  "slugSuffix": "english-seo-slug-matching-topic",
   "hero": {
     "title": "כותרת H1 חדה וממוקדת תועלת",
     "subtitle": "תת-כותרת משכנעת (Answer-First) באורך 1-2 משפטים",

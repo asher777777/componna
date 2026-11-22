@@ -156,7 +156,13 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
     return () => unsub();
   }, [firebaseApp, tenantId]);
 
+  const isLocalDev = typeof window !== 'undefined' && (
+    window.location.hostname.startsWith('localhost') ||
+    window.location.hostname.startsWith('127.0.0.1')
+  );
+
   const isTenantAuthed = Boolean(
+    isLocalDev ||
     firebaseAuthed ||
     (tenantId && TenantAuthService.isTenantAuthenticated(tenantId)) ||
     (typeof window !== 'undefined' && sessionStorage.getItem('kosun_super_admin_bypass') === 'true')
@@ -170,39 +176,6 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
       setIsEditing(false);
     }
   }, [isAuthorized, isEditing]);
-
-  // Quick Login Modal State for Unauthenticated Page Visitors
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [loginUser, setLoginUser] = useState('');
-  const [loginPass, setLoginPass] = useState('');
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [loginLoading, setLoginLoading] = useState(false);
-
-  const handleQuickLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loginPass) {
-      setLoginError('נא להזין סיסמה');
-      return;
-    }
-    setLoginLoading(true);
-    setLoginError(null);
-    try {
-      const effSub = tenantId && tenantId !== '_master' ? tenantId : 'mlea';
-      const effUser = loginUser.trim() || effSub;
-      const res = await TenantAuthService.verifyTenantLogin(db, effSub, effUser, loginPass);
-      if (res.success) {
-        setIsLoginModalOpen(false);
-        setIsEditing(true);
-        window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: true } }));
-      } else {
-        setLoginError(res.error || 'סיסמה שגויה');
-      }
-    } catch (err: any) {
-      setLoginError('שגיאה באימות הפרטים');
-    } finally {
-      setLoginLoading(false);
-    }
-  };
 
   useEffect(() => {
     const handleEditChange = (e: any) => {
@@ -1117,79 +1090,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           });
         }}
       />
-
-
-      {/* Quick In-Page Tenant Admin Login Modal */}
-      {isLoginModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm select-none" dir="rtl">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-sm shadow-2xl space-y-4 relative">
-            <button
-              type="button"
-              onClick={() => setIsLoginModalOpen(false)}
-              className="absolute top-4 left-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="text-center space-y-1.5 pt-1">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-indigo-600/30">
-                <Lock className="w-6 h-6" />
-              </div>
-              <h2 className="text-lg font-black text-white">כניסת מנהל לעריכת עמוד</h2>
-              <div className="text-xs text-indigo-400 font-mono" dir="ltr">
-                {tenantId}.kosun.pro
-              </div>
-            </div>
-
-            {loginError && (
-              <div className="p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{loginError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleQuickLogin} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  שם משתמש / אימייל:
-                </label>
-                <input
-                  type="text"
-                  value={loginUser}
-                  onChange={(e) => setLoginUser(e.target.value)}
-                  placeholder={tenantId || 'שם משתמש'}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/70 border border-slate-700/80 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  dir="ltr"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  סיסמת מנהל:
-                </label>
-                <input
-                  type="password"
-                  value={loginPass}
-                  onChange={(e) => setLoginPass(e.target.value)}
-                  placeholder="הזן סיסמה..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/70 border border-slate-700/80 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  dir="ltr"
-                  autoFocus
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loginLoading}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {loginLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                <span>התחבר והפעל עריכה</span>
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -5,12 +5,22 @@ import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { SectionDesignLibraryModal } from '../../components/SectionDesignLibraryModal';
 import { safeJsonStringify } from '../../utils/sanitizeConfig';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
-import { BrandDnaContract, AiTextAssistantContract } from '../../../../core/contracts';
+import {
+  BrandDnaContract,
+  AiTextAssistantContract,
+  KosaiAgentContract,
+} from '../../../../core/contracts';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../../core/tenant';
 import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
 import { PageBuilderConfig } from '../../types/pageBuilder.types';
 import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
+import {
+  STYLE_PRESET_DEFINITIONS,
+  StylePresetDefinition,
+  SectionStyleKey,
+  normalizeStylePreset,
+} from '../../styles';
 import {
   Save,
   X,
@@ -22,11 +32,6 @@ import {
   Image as ImageIcon,
   MousePointerClick,
   CheckCircle2,
-  Heart,
-  Shield,
-  Sun,
-  Crosshair,
-  BarChart3,
   Layers,
   Wand2,
   Loader2,
@@ -39,6 +44,7 @@ import {
   Link as LinkIcon,
   Globe,
   FileText,
+  Copy,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -50,100 +56,7 @@ export type HeroEditorAccordionSection =
   | 'media_metrics'
   | 'colors';
 
-interface HeroLayoutDefinition {
-  id: HeroLayoutPreset;
-  letter: string;
-  shortLabel: string;
-  title: string;
-  subtitle: string;
-  icon: React.FC<{ className?: string }>;
-  objectSizingDesc: string;
-  buttonStyleDesc: string;
-  colorPaletteDesc: string;
-  imagePlacementDesc: string;
-  swatches: string[];
-}
-
-export const HERO_LAYOUT_DEFINITIONS: HeroLayoutDefinition[] = [
-  {
-    id: 'feminine',
-    letter: 'א',
-    shortLabel: 'סגנון נשי',
-    title: 'א. פריסה בסגנון נשי (רכה ואלגנטית)',
-    subtitle: 'קווים עגולים וזורמים, פלטת רוז-גולד ושמנת, מסגרת קשתית',
-    icon: Heart,
-    objectSizingDesc: 'טיפוגרפיה אוורירית ומעודנת עם מרווחי שורות רחבים ומסגרת תמונה קשתית (Arch)',
-    buttonStyleDesc: 'כפתורי קפסולה עגולים (Rounded Full) בגרדיאנט ורוד-רוז עדין וזכוכית חלבית',
-    colorPaletteDesc: 'ורוד פודרה, שמנת חמה, רוז-גולד ושמפניה',
-    imagePlacementDesc: 'חלוקה אסימטרית – תמונת בוטיק קשתית משמאל וטקסט אלגנטי מימין',
-    swatches: ['#f43f5e', '#fb7185', '#fde68a', '#fff1f2'],
-  },
-  {
-    id: 'masculine',
-    letter: 'ב',
-    shortLabel: 'סגנון גברי',
-    title: 'ב. פריסה בסגנון גברי (עוצמתית ודומיננטית)',
-    subtitle: 'כותרות ענק מודגשות, פחם וזהב מתכתי, מבנה סמכותי ורחב',
-    icon: Shield,
-    objectSizingDesc: 'כותרות ענק דרמטיות (Font Black), קווי הדגשה אנכיים עבים ומסגרת קולנועית מסיבית',
-    buttonStyleDesc: 'כפתורים רחבים וגדולים בזוויות מסותתות (Rounded LG) עם גבול כפול ונוכחות חזקה',
-    colorPaletteDesc: 'שחור-אוניקס, אפור פחם, זהב-אמבר מתכתי וכחול פלדה',
-    imagePlacementDesc: 'חלוקת כוח דו-עמודתית – מסגרת פלדה רחבה עם עיטורי זווית לצד הטקסט',
-    swatches: ['#090a0f', '#f59e0b', '#27272a', '#3b82f6'],
-  },
-  {
-    id: 'bento-hero',
-    letter: 'ג',
-    shortLabel: 'פריסה עכשווית',
-    title: 'ג. הפריסה העכשווית (מה שכרגע נמצא)',
-    subtitle: 'ממורכזת ומאוזנת בסגנון SaaS 2026 עם תאורת Mesh Glow',
-    icon: LayoutTemplate,
-    objectSizingDesc: 'כותרת ממורכזת גדולה, באדג׳ הכרזה עליון, שורת אווטארים ומסגרת דפדפן רחבה',
-    buttonStyleDesc: 'כפתורים מעוגלים מודרניים (Rounded 2XL) באינדיגו עמוק ולבן נקי',
-    colorPaletteDesc: 'אינדיגו, סגול עדין, לבן וניגודיות סלייט מודרנית',
-    imagePlacementDesc: 'ממורכזת מתחת לטקסט בתוך מסגרת Showcase דמוית דפדפן',
-    swatches: ['#6366f1', '#a855f7', '#0f172a', '#f8fafc'],
-  },
-  {
-    id: 'spiritual',
-    letter: 'ד',
-    shortLabel: 'פריסה רוחנית',
-    title: 'ד. פריסה רוחנית (הרמונית ושלווה)',
-    subtitle: 'סימטריה מדיטטיבית, גיאומטריה מקודשת, ירוק מרווה וזהב הילה',
-    icon: Sun,
-    objectSizingDesc: 'מרווחי נשימה עמוקים, טיפוגרפיה רגועה ופורטל תמונה עגול מוקף טבעות הילה',
-    buttonStyleDesc: 'כפתורי לוטוס עגולים עם שקיפות זכוכית ומעבר איטי והרמוני',
-    colorPaletteDesc: 'ירוק מרווה (Sage), טורקיז עמוק, חול מדברי וזהב הילה',
-    imagePlacementDesc: 'פורטל עגול מקודש בחלק העליון המרכזי מעל הכותרת הראשית',
-    swatches: ['#0f766e', '#10b981', '#fbbf24', '#faf8f5'],
-  },
-  {
-    id: 'sharp',
-    letter: 'ה',
-    shortLabel: 'פריסה חדה',
-    title: 'ה. פריסה חדה (ברוטליסטית ומדויקת)',
-    subtitle: 'זוויות ישרות 90° ללא עיגול, מסגרות 2px וצללים קשים מוסטים',
-    icon: Crosshair,
-    objectSizingDesc: 'אובייקטים גיאומטריים חדים (0px Radius), רשת אדריכלית ברקע וטיפוגרפיה חותכת',
-    buttonStyleDesc: 'כפתורים מלבניים חדים (Rounded None) עם צל מוסט קשיח ואפקט הזזה בלחיצה',
-    colorPaletteDesc: 'שחור ולבן בניגודיות מקסימלית עם הדגשות אינדיגו חשמלי',
-    imagePlacementDesc: 'פריסה אדריכלית חדה – תמונה ממוסגרת ב-90° בימין ומניפסט טקסט בשמאל',
-    swatches: ['#050505', '#ffffff', '#6366f1', '#e2e8f0'],
-  },
-  {
-    id: 'analytical',
-    letter: 'ו',
-    shortLabel: 'פריסה אנליטית',
-    title: 'ו. פריסה אנליטית (מבוססת נתונים ודיוק)',
-    subtitle: 'גריד Bento טכנולוגי, מדדי KPI בזמן אמת ומסוף נתונים חי',
-    icon: BarChart3,
-    objectSizingDesc: 'קומפוזיציית דשבורד מדויקת המשלבת כרטיסי מדדים (KPIs) ותגיות מונוספייס',
-    buttonStyleDesc: 'כפתורים טכנולוגיים מהודקים (Rounded XL) בגרדיאנט ציאן-כחול עם אייקון מגמה',
-    colorPaletteDesc: 'כחול-צי עמוק, ציאן טלמטריה, ירוק אמרלד ורשת נקודות טכנית',
-    imagePlacementDesc: 'מסוף נתונים (Analytics HUD) משמאל לטקסט עם סרגל חיווי חי',
-    swatches: ['#06b6d4', '#2563eb', '#10b981', '#050b14'],
-  },
-];
+export const HERO_LAYOUT_DEFINITIONS = STYLE_PRESET_DEFINITIONS;
 
 export const HeroEditor: React.FC<{
   config: HeroSectionConfig;
@@ -154,6 +67,7 @@ export const HeroEditor: React.FC<{
   const rawBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
   const brandDna = resolveLiveBrandDna(rawBrandDna);
   const aiAssistant = getCapability<AiTextAssistantContract>('ai-assistant');
+  const kosaiAgent = getCapability<KosaiAgentContract>('kosai-agent');
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
 
@@ -164,13 +78,17 @@ export const HeroEditor: React.FC<{
   // Exclusive Accordion state: closed by default, only 1 open at a time
   const [openSection, setOpenSection] = useState<HeroEditorAccordionSection | null>(null);
   const [openNestedSection, setOpenNestedSection] = useState<string | null>(null);
-  const [hoveredLayoutId, setHoveredLayoutId] = useState<HeroLayoutPreset | null>(null);
+  const [hoveredLayoutId, setHoveredLayoutId] = useState<SectionStyleKey | null>(null);
 
   // Tenant Pages list for CTA button destination selector
   const [tenantPages, setTenantPages] = useState<PageBuilderConfig[]>([]);
 
   // AI loading per field
   const [aiLoadingField, setAiLoadingField] = useState<string | null>(null);
+  const [imagePrompt, setImagePrompt] = useState('');
+  const [imagePromptExplanation, setImagePromptExplanation] = useState<string | null>(null);
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
@@ -252,7 +170,7 @@ export const HeroEditor: React.FC<{
     if (fieldKey === 'announcementBadge') {
       currentText = formData.announcementBadge?.text || '';
     } else if (fieldKey === 'imageBadge') {
-      currentText = formData.imageBadge?.text || '';
+      currentText = formData.imageBadge?.text || 'עיצוב בוטיק מותאם אישית';
     } else {
       currentText = (formData as any)[fieldKey] || '';
     }
@@ -261,26 +179,119 @@ export const HeroEditor: React.FC<{
     try {
       const voiceHint = brandDna.voice?.powerWords?.slice(0, 3).join(', ') || '';
       const brandSummary = brandDna.identity?.slogan || brandDna.audience?.mainUvp || '';
+      const heroContext = [formData.title, formData.subtitle].filter(Boolean).join(' — ');
       const res = await aiAssistant.enhanceText({
-        originalText: currentText,
-        instruction: `${instruction}. מילות כוח מותגיות: ${voiceHint}. תמצית מותג: ${brandSummary}. פנייה: ${brandDna.voice?.genderAddressing || 'direct'}.`,
+        originalText: currentText || heroContext,
+        instruction: `${instruction}. הקשר האזור: "${heroContext}". מילות כוח מותגיות: ${voiceHint}. תמצית מותג: ${brandSummary}. פנייה: ${brandDna.voice?.genderAddressing || 'direct'}. החזר טקסט חדש ומשופר בעברית בלבד.`,
         brandDna,
       });
-      if (res && res.text) {
+      if (res?.error || res?.isFallback) {
+        showNotification(res.error || 'סוכן ה-AI לא הצליח לשפר את הטקסט כעת');
+        return;
+      }
+      const cleanedText = (res?.text || '').replace(/^["'«]+|["'»]+$/g, '').trim();
+      if (cleanedText) {
         if (fieldKey === 'announcementBadge') {
-          updateField('announcementBadge', { ...(formData.announcementBadge || {}), text: res.text });
+          updateField('announcementBadge', {
+            ...(formData.announcementBadge || {}),
+            text: cleanedText,
+          });
         } else if (fieldKey === 'imageBadge') {
-          updateField('imageBadge', { ...(formData.imageBadge || {}), text: res.text });
+          updateField('imageBadge', {
+            ...(formData.imageBadge || {}),
+            visible: formData.imageBadge?.visible ?? true,
+            text: cleanedText,
+          });
         } else {
-          updateField(fieldKey, res.text);
+          updateField(fieldKey, cleanedText);
         }
         showNotification('הטקסט שופר בהצלחה באמצעות סוכן ה-AI של המותג');
+      } else {
+        showNotification('לא התקבל טקסט מה-AI');
       }
     } catch (err) {
       console.warn('[HeroEditor] AI Enhance failed:', err);
       showNotification('שגיאה בשיפור הטקסט עם AI');
     } finally {
       setAiLoadingField(null);
+    }
+  };
+
+  // Generate AI Image Prompt from Hero Content + Tenant Brand DNA
+  const handleGenerateImagePrompt = async () => {
+    setIsGeneratingPrompt(true);
+    setImagePromptExplanation(null);
+
+    const companyName = brandDna?.identity?.companyName || '';
+    const slogan = brandDna?.identity?.slogan || '';
+    const uvp = brandDna?.audience?.mainUvp || '';
+    const primaryColor = brandDna?.designTokens?.primaryColor || '#6366f1';
+    const secondaryColor = brandDna?.designTokens?.secondaryColor || '#0ea5e9';
+    const brandStyle = activeLayoutDef?.shortLabel || brandDna?.designTokens?.defaultStylePreset || 'modern';
+    const powerWords = brandDna?.voice?.powerWords?.slice(0, 4).join(', ') || '';
+
+    const rawContext = [
+      `Hero image for brand "${companyName || 'Premium Business'}"`,
+      formData.title ? `Main headline: "${formData.title}"` : '',
+      formData.subtitle ? `Subtitle: "${formData.subtitle}"` : '',
+      formData.description ? `Topic: "${formData.description.slice(0, 140)}"` : '',
+      slogan ? `Brand slogan: "${slogan}"` : '',
+      uvp ? `Value proposition: "${uvp}"` : '',
+      `Visual style: ${brandStyle}, brand palette ${primaryColor} and ${secondaryColor}`,
+      powerWords ? `Mood keywords: ${powerWords}` : '',
+    ]
+      .filter(Boolean)
+      .join('. ');
+
+    try {
+      if (kosaiAgent?.enhancePromptWithBrandContext) {
+        const res = await kosaiAgent.enhancePromptWithBrandContext(rawContext, 'vibe', brandDna);
+        if (res?.enhancedPromptEn) {
+          setImagePrompt(res.enhancedPromptEn);
+          setImagePromptExplanation(res.explanationHe || 'פרומפט מותאם אישית נבנה מתוכן ההירו והמיתוג של הטננט');
+          showNotification('נוצר פרומפט תמונה מותאם למותג ולאזור');
+          return;
+        }
+      }
+
+      // Deterministic fallback prompt when AI agent is offline
+      const fallbackPrompt = `Editorial commercial photography for ${companyName || 'a modern brand'}, illustrating "${formData.title || slogan || 'innovation and trust'}". ${brandStyle} aesthetic, harmonious lighting with subtle ${primaryColor} and ${secondaryColor} accents, clean composition, ultra-high resolution, 16:9, no text overlays.`;
+      setImagePrompt(fallbackPrompt);
+      setImagePromptExplanation('פרומפט נבנה ישירות מתוכן ההירו ומאפייני המיתוג (Brand DNA)');
+      showNotification('נוצר פרומפט תמונה מתוכן האזור והמותג');
+    } catch (err) {
+      console.warn('[HeroEditor] Generate image prompt failed:', err);
+      showNotification('שגיאה ביצירת פרומפט לתמונה');
+    } finally {
+      setIsGeneratingPrompt(false);
+    }
+  };
+
+  const handleGenerateImageFromPrompt = async () => {
+    if (!imagePrompt.trim()) return;
+    if (!kosaiAgent?.generateBrandVibeImage) {
+      showNotification('סוכן יצירת התמונות אינו זמין כעת');
+      return;
+    }
+    setIsGeneratingImage(true);
+    try {
+      const res = await kosaiAgent.generateBrandVibeImage({
+        prompt: imagePrompt,
+        vibeStyle: normalizedActiveLayout,
+        brandDna,
+        aspectRatio: '16:9',
+      });
+      if (res?.imageUrl) {
+        updateField('imageSrc', res.imageUrl);
+        showNotification('תמונת ההירו נוצרה והוחלה בהצלחה');
+      } else {
+        showNotification(res?.error || 'לא התקבלה תמונה מסוכן ה-AI');
+      }
+    } catch (err) {
+      console.warn('[HeroEditor] Generate image failed:', err);
+      showNotification('שגיאה ביצירת תמונה עם AI');
+    } finally {
+      setIsGeneratingImage(false);
     }
   };
 
@@ -297,9 +308,9 @@ export const HeroEditor: React.FC<{
     onChange(updated);
   };
 
-  const handleSelectLayout = (layoutDef: HeroLayoutDefinition) => {
+  const handleSelectLayout = (layoutDef: StylePresetDefinition) => {
     updatePatch({
-      layout: layoutDef.id,
+      layout: layoutDef.heroLayoutId,
       objectScale: 'auto',
       buttonShape: 'auto',
       buttonSize: 'auto',
@@ -353,10 +364,11 @@ export const HeroEditor: React.FC<{
     setTimeout(() => setIsBrandSynced(false), 2500);
   };
 
-  const normalizedActiveLayout: HeroLayoutPreset =
-    !formData.layout || formData.layout === 'current' || formData.layout === 'fz' || formData.layout === 'spatial' || formData.layout === 'centered' || formData.layout === 'split'
-      ? 'bento-hero'
-      : formData.layout;
+  const isFollowingBrandPreset = !formData.layout || formData.layout === 'auto';
+  const normalizedActiveLayout: SectionStyleKey = normalizeStylePreset(
+    formData.layout,
+    brandDna?.designTokens?.defaultStylePreset
+  );
 
   const activeLayoutDef =
     HERO_LAYOUT_DEFINITIONS.find((d) => d.id === normalizedActiveLayout) || HERO_LAYOUT_DEFINITIONS[2];
@@ -510,20 +522,50 @@ export const HeroEditor: React.FC<{
           isDarkMode ? 'bg-[#141414] border-white/5' : 'bg-slate-50/80 border-slate-200'
         }`}
       >
-        <div className="flex items-center justify-between mb-1.5 px-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5 px-1">
           <span className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
             <Wand2 className="w-3 h-3" />
             <span>תפריט אייקונים לבחירת סגנון פריסה (רחף מעל אייקון לפירוט העיצוב)</span>
           </span>
-          <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-              isDarkMode
-                ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                : 'bg-amber-100 text-amber-800 border-amber-300'
-            }`}
-          >
-            פעיל: {activeLayoutDef.letter}. {activeLayoutDef.shortLabel}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => updatePatch({ layout: 'auto' })}
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                isFollowingBrandPreset
+                  ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
+                  : isDarkMode
+                    ? 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400'
+              }`}
+              title="מעקב אוטומטי אחר הסגנון המוגדר ברכיב המיתוג (Brand DNA)"
+            >
+              {isFollowingBrandPreset ? 'סגנון מהמותג (פעיל)' : 'עקוב אחרי המותג'}
+            </button>
+            <button
+              type="button"
+              onClick={() => updatePatch({ useBrandColors: !formData.useBrandColors })}
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                formData.useBrandColors
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+                  : isDarkMode
+                    ? 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400'
+              }`}
+              title="דרוס את צבעי הסגנון עם צבעי המותג מרכיב המיתוג"
+            >
+              {formData.useBrandColors ? 'צבעי מותג: פעיל' : 'החל צבעי מותג'}
+            </button>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                isDarkMode
+                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                  : 'bg-amber-100 text-amber-800 border-amber-300'
+              }`}
+            >
+              פעיל: {activeLayoutDef.letter}. {activeLayoutDef.shortLabel}
+            </span>
+          </div>
         </div>
 
         {/* 6 Icons Row */}
@@ -1565,6 +1607,84 @@ export const HeroEditor: React.FC<{
                 value={formData.imageSrc}
                 onChange={(url) => updateField('imageSrc', url)}
               />
+
+              {/* AI Image Prompt Generator based on Section Content & Tenant Brand DNA */}
+              <div
+                className={`p-2.5 rounded-xl border space-y-2 ${
+                  isDarkMode ? 'bg-indigo-500/5 border-indigo-500/25' : 'bg-indigo-50/60 border-indigo-200'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold flex items-center gap-1.5 text-indigo-400">
+                    <Wand2 className="w-3.5 h-3.5" />
+                    <span>מחולל פרומפט לתמונה מתוכן האזור והמיתוג</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleGenerateImagePrompt}
+                    disabled={isGeneratingPrompt}
+                    className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+                  >
+                    {isGeneratingPrompt ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3" />
+                    )}
+                    <span>{isGeneratingPrompt ? 'מנסח פרומפט...' : 'צור פרומפט מהתוכן והמותג'}</span>
+                  </button>
+                </div>
+
+                {imagePrompt && (
+                  <div className="space-y-1.5 pt-1">
+                    {imagePromptExplanation && (
+                      <p className="text-[11px] text-indigo-300/90 leading-snug">
+                        {imagePromptExplanation}
+                      </p>
+                    )}
+                    <textarea
+                      rows={3}
+                      value={imagePrompt}
+                      onChange={(e) => setImagePrompt(e.target.value)}
+                      dir="ltr"
+                      className={`w-full border rounded-xl px-2.5 py-1.5 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                        isDarkMode
+                          ? 'bg-black/40 border-indigo-500/30 text-indigo-100'
+                          : 'bg-white border-indigo-300 text-slate-900'
+                      }`}
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(imagePrompt);
+                          showNotification('הפרומפט הועתק ללוח');
+                        }}
+                        className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 cursor-pointer transition ${
+                          isDarkMode
+                            ? 'border-white/10 text-zinc-300 hover:bg-white/10'
+                            : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>העתק פרומפט</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGenerateImageFromPrompt}
+                        disabled={isGeneratingImage}
+                        className="px-3 py-1 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+                      >
+                        {isGeneratingImage ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <ImageIcon className="w-3 h-3" />
+                        )}
+                        <span>{isGeneratingImage ? 'יוצר תמונה...' : 'צור תמונה עם AI'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Floating Image Badge (pill on top/bottom of image frame) with AI */}
               <div

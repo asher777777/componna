@@ -263,6 +263,10 @@ export const TenantSettingsHubModal: React.FC<TenantSettingsHubModalProps> = ({
 
   // Keys form state
   const [keysForm, setKeysForm] = useState({
+    googleAiApiKey: '',
+    geminiModel: 'gemini-3.8-flash',
+    geminiImageModel: 'gemini-3.1-flash-image',
+    geminiVideoModel: 'veo-3.1-generate-preview',
     kesherUserName: '',
     kesherApiKey: '',
     kesherPaymentPageId: '',
@@ -294,6 +298,10 @@ export const TenantSettingsHubModal: React.FC<TenantSettingsHubModalProps> = ({
       try {
         // Hydrate keys from context immediately
         setKeysForm({
+          googleAiApiKey: String(tenantApiKeys.googleAiApiKey || ''),
+          geminiModel: String(tenantApiKeys.geminiModel || 'gemini-3.8-flash'),
+          geminiImageModel: String(tenantApiKeys.geminiImageModel || 'gemini-3.1-flash-image'),
+          geminiVideoModel: String(tenantApiKeys.geminiVideoModel || 'veo-3.1-generate-preview'),
           kesherUserName: String(tenantApiKeys.kesherUserName || ''),
           kesherApiKey: String(tenantApiKeys.kesherApiKey || ''),
           kesherPaymentPageId: String(tenantApiKeys.kesherPaymentPageId || ''),
@@ -320,6 +328,10 @@ export const TenantSettingsHubModal: React.FC<TenantSettingsHubModalProps> = ({
           if (kSnap && kSnap.exists()) {
             const kd = kSnap.data() || {};
             setKeysForm((prev) => ({
+              googleAiApiKey: String(kd.googleAiApiKey ?? prev.googleAiApiKey),
+              geminiModel: String(kd.geminiModel ?? prev.geminiModel),
+              geminiImageModel: String(kd.geminiImageModel ?? prev.geminiImageModel),
+              geminiVideoModel: String(kd.geminiVideoModel ?? prev.geminiVideoModel),
               kesherUserName: String(kd.kesherUserName ?? prev.kesherUserName),
               kesherApiKey: String(kd.kesherApiKey ?? prev.kesherApiKey),
               kesherPaymentPageId: String(kd.kesherPaymentPageId ?? prev.kesherPaymentPageId),
@@ -389,7 +401,7 @@ export const TenantSettingsHubModal: React.FC<TenantSettingsHubModalProps> = ({
     e.preventDefault();
     setSavingKeys(true);
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         kesherUserName: keysForm.kesherUserName.trim(),
         kesherApiKey: keysForm.kesherApiKey.trim(),
         kesherPaymentPageId: keysForm.kesherPaymentPageId.trim(),
@@ -401,6 +413,12 @@ export const TenantSettingsHubModal: React.FC<TenantSettingsHubModalProps> = ({
         heygenApiKey: keysForm.heygenApiKey.trim(),
         elevenLabsApiKey: keysForm.elevenLabsApiKey.trim(),
       };
+      if (isMaster) {
+        payload.googleAiApiKey = keysForm.googleAiApiKey.trim();
+        payload.geminiModel = keysForm.geminiModel.trim() || 'gemini-3.8-flash';
+        payload.geminiImageModel = keysForm.geminiImageModel.trim() || 'gemini-3.1-flash-image';
+        payload.geminiVideoModel = keysForm.geminiVideoModel.trim() || 'veo-3.1-generate-preview';
+      }
       await updateApiKeys(payload, activeTenantId);
       if (db) {
         await setDoc(
@@ -704,6 +722,75 @@ export const TenantSettingsHubModal: React.FC<TenantSettingsHubModalProps> = ({
           {/* TAB 3: API KEYS */}
           {activeTab === 'keys' && (
             <form onSubmit={handleSaveKeys} className="space-y-4">
+              {/* Master-only Google AI / Gemini API Key Card */}
+              {isMaster && (
+                <div className="p-4 rounded-2xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/50 dark:bg-indigo-950/30 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm font-black text-indigo-900 dark:text-indigo-200">
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span>מפתח Google AI / Gemini (מאסטר ראשי)</span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-600/15 text-indigo-700 dark:text-indigo-300">
+                      משרת את כלל הטננטים
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">
+                        Google AI / Gemini API Key
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showSecrets.gemini ? 'text' : 'password'}
+                          value={keysForm.googleAiApiKey}
+                          onChange={(e) => setKeysForm((p) => ({ ...p, googleAiApiKey: e.target.value }))}
+                          placeholder="AIzaSy..."
+                          dir="ltr"
+                          className="w-full pl-9 pr-3 py-2 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-900 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSecrets((s) => ({ ...s, gemini: !s.gemini }))}
+                          className="absolute left-2.5 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          title={showSecrets.gemini ? 'הסתר מפתח' : 'הצג מפתח'}
+                        >
+                          {showSecrets.gemini ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">
+                        מודל טקסט (Gemini Model)
+                      </label>
+                      <input
+                        type="text"
+                        value={keysForm.geminiModel}
+                        onChange={(e) => setKeysForm((p) => ({ ...p, geminiModel: e.target.value }))}
+                        placeholder="gemini-3.8-flash"
+                        dir="ltr"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">
+                        מודל תמונות (Image Model)
+                      </label>
+                      <input
+                        type="text"
+                        value={keysForm.geminiImageModel}
+                        onChange={(e) => setKeysForm((p) => ({ ...p, geminiImageModel: e.target.value }))}
+                        placeholder="gemini-3.1-flash-image"
+                        dir="ltr"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {useMasterBilling && (
                 <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-xs text-indigo-800 dark:text-indigo-200 flex items-start gap-2.5">
                   <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-indigo-600 dark:text-indigo-400" />

@@ -180,6 +180,7 @@ export interface BaseSectionConfig {
   containerWidth?: string;
   anchorId?: string;
   backgroundColor?: string;
+  useBrandColors?: boolean;
   customClasses?: string;
 }
 

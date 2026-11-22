@@ -9,6 +9,7 @@ import {
   CrmFormFieldSpec,
   STANDARD_CRM_FORM_FIELDS,
   getMatrixPageType,
+  mapMatrixIdToPageCategory,
 } from '../config/pageArchitectureMatrix';
 import { applyStylePresetToPage } from './pageStylePresetService';
 import { resolveAiProxyUrl } from '../../../core/ai/cloudAiClient';
@@ -492,9 +493,26 @@ export async function generateStructuredPageDraft(
               }))
             : fallback.pricing?.plans || [];
 
+        const { slugPrefixLower } = mapMatrixIdToPageCategory(options.pageTypeId || 'landing');
+        const rawSuffix = String(parsed.slugSuffix || parsed.slug || '')
+          .toLowerCase()
+          .replace(/[^a-z0-9-]+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+        const cleanSuffix = rawSuffix
+          .replace(new RegExp(`^${slugPrefixLower}-`), '')
+          .slice(0, 48);
+        const resolvedSlug =
+          options.pageTypeId === 'homepage'
+            ? 'home'
+            : cleanSuffix
+            ? `${slugPrefixLower}-${cleanSuffix}`
+            : `${slugPrefixLower}-${Date.now().toString(36)}`;
+
         return {
           ...fallback,
           pageTitle: parsed.pageTitle || fallback.pageTitle,
+          slug: resolvedSlug,
           hero: {
             ...fallback.hero,
             title: parsed.hero?.title || fallback.hero.title,
@@ -594,6 +612,18 @@ export function buildPageConfigFromStructuredDraft(
   const pageId = `page_${Date.now()}`;
   const matrixDef = options.pageTypeId ? getMatrixPageType(options.pageTypeId) : null;
   const shouldShowHeader = matrixDef ? matrixDef.hasHeader : true;
+  const { pageCategory, slugPrefixLower } = mapMatrixIdToPageCategory(options.pageTypeId || 'landing');
+  const cleanDraftSlug = (draft.slug || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  const finalSlug =
+    options.pageTypeId === 'homepage'
+      ? 'home'
+      : cleanDraftSlug.startsWith(`${slugPrefixLower}-`)
+      ? cleanDraftSlug
+      : `${slugPrefixLower}-${cleanDraftSlug || Date.now().toString(36)}`;
 
   const crmFields =
     options.crmFormFields && options.crmFormFields.length > 0
@@ -603,7 +633,8 @@ export function buildPageConfigFromStructuredDraft(
   const config: PageBuilderConfig = {
     pageId,
     pageTitle: draft.pageTitle,
-    slug: draft.slug,
+    slug: finalSlug,
+    pageCategory,
     published: false,
     isHomePage: options.pageTypeId === 'homepage',
     viewsCount: 0,

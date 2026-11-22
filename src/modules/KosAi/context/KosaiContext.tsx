@@ -200,9 +200,26 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         try {
           const res = await callGeminiApi({
             prompt: `Original: "${originalText}"\nInstruction: "${instruction}"`,
-            systemInstruction: 'You are an expert AI copywriting assistant. Return the enhanced text directly.',
+            systemInstruction:
+              'You are an expert AI copywriting assistant. Return ONLY a valid JSON object with a single key "message" containing the enhanced text string (no markdown, no extra keys). Example: {"message": "..."}',
           });
-          const text = typeof res.data === 'string' ? res.data : res.data?.message || originalText;
+          const rawCandidate =
+            typeof res.data === 'string'
+              ? res.data
+              : res.data?.message ||
+                res.data?.text ||
+                res.data?.enhancedText ||
+                res.data?.result ||
+                res.data?.content ||
+                '';
+          const text = typeof rawCandidate === 'string' ? rawCandidate.trim() : '';
+          if (!text) {
+            return {
+              text: originalText,
+              error: 'לא התקבל טקסט משופר משרת ה-AI.',
+              isFallback: true,
+            };
+          }
           return { text, isFallback: false };
         } catch (err: any) {
           return {

@@ -38,6 +38,8 @@ export interface HeroAvatarItem {
 }
 
 export type HeroLayoutPreset =
+  | 'auto'
+  | 'standard'
   | 'feminine'
   | 'masculine'
   | 'bento-hero'

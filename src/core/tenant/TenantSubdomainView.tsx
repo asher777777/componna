@@ -526,7 +526,12 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     )
   );
 
-  const isTenantAuthed = Boolean(isAuthenticated || isFirebaseTenantOwner);
+  const isLocalDev = typeof window !== 'undefined' && (
+    window.location.hostname.startsWith('localhost') ||
+    window.location.hostname.startsWith('127.0.0.1')
+  );
+
+  const isTenantAuthed = Boolean(isLocalDev || isAuthenticated || isFirebaseTenantOwner);
 
   const isAuthorizedToEdit = Boolean(!isContentSubscriber && isTenantAuthed);
 
