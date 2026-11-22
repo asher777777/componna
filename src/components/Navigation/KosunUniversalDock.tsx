@@ -7,6 +7,7 @@ import {
   Globe, 
   Edit3, 
   Settings2, 
+  Settings,
   X, 
   LogOut,
   Sliders,
@@ -23,6 +24,7 @@ import { TenantCoreService } from '../../core/tenant/tenantService';
 import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
 import { useKosai } from '../../modules/KosAi';
 import { KosNevModal } from './KosNevModal';
+import { TenantSettingsHubModal } from './TenantSettingsHubModal';
 
 export type DockMode = 'backoffice' | 'front';
 
@@ -137,6 +139,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   // Dock UI State
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [isKosNevOpen, setIsKosNevOpen] = useState<boolean>(false);
+  const [isSettingsHubOpen, setIsSettingsHubOpen] = useState<boolean>(false);
   const [isNavModalOpen, setIsNavModalOpen] = useState<boolean>(false);
   const [internalIsEditing, setInternalIsEditing] = useState<boolean>(false);
   const isEditing = controlledIsEditing !== undefined ? controlledIsEditing : internalIsEditing;
@@ -233,13 +236,16 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
       }
     };
     const handleOpenModules = () => setIsKosNevOpen(true);
+    const handleOpenTenantSettings = () => setIsSettingsHubOpen(true);
     window.addEventListener('kosun_edit_mode_changed', handleEditChange);
     window.addEventListener('kos_des_builder_edit_mode_changed', handleDashEdit);
     window.addEventListener('kosun_open_modules_menu', handleOpenModules);
+    window.addEventListener('kosun:open-tenant-settings', handleOpenTenantSettings);
     return () => {
       window.removeEventListener('kosun_edit_mode_changed', handleEditChange);
       window.removeEventListener('kos_des_builder_edit_mode_changed', handleDashEdit);
       window.removeEventListener('kosun_open_modules_menu', handleOpenModules);
+      window.removeEventListener('kosun:open-tenant-settings', handleOpenTenantSettings);
     };
   }, []);
 
@@ -450,6 +456,18 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
             >
               <LayoutGrid className="w-4 h-4 text-indigo-500" />
               <span>רכיבים</span>
+            </button>
+
+            {/* 2b. Tenant Account, Keys, Active Modules & Upsells Hub */}
+            <button
+              type="button"
+              onClick={() => setIsSettingsHubOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-slate-100 hover:bg-indigo-100 dark:bg-slate-800 dark:hover:bg-indigo-950/70 text-slate-800 dark:text-slate-100 hover:text-indigo-700 dark:hover:text-indigo-300 transition text-xs font-bold cursor-pointer"
+              title="הגדרות חשבון, מפתחות שירותים, תשלומים, רכיבים פעילים ושדרוגים"
+              aria-label="הגדרות וחשבון"
+            >
+              <Settings className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+              <span>הגדרות</span>
             </button>
 
             {/* 3. MODE B: Live Edit Mode Button (Pencil Icon) */}
@@ -682,6 +700,11 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
         isSubdomain={isSubdomain}
         tenantId={effectiveTenantId}
         activeModuleId={currentSlug}
+      />
+
+      <TenantSettingsHubModal
+        isOpen={isSettingsHubOpen}
+        onClose={() => setIsSettingsHubOpen(false)}
       />
     </>
   );

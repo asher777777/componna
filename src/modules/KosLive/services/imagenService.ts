@@ -1,4 +1,4 @@
-import { GEMINI_API_BASE_URL, TenantTokenTracker } from '../../../core/ai';
+import { resolveAiProxyUrl, TenantTokenTracker } from '../../../core/ai';
 import { ROOT_TENANT_ID, resolveCurrentTenantId } from '../../../core/tenant/tenantResolver';
 
 export interface ImagenGenerateParams {
@@ -49,77 +49,35 @@ export async function generateImagen3Image(
     height = 1024;
   }
 
-  if (apiKey && apiKey.trim()) {
-    const trimmedKey = apiKey.trim();
-    const geminiImageModels = ['gemini-3.1-flash-image', 'gemini-3-pro-image', 'gemini-2.0-flash-exp'];
-    for (const modelName of geminiImageModels) {
-      try {
-        const parts: any[] = [];
-        if (params.referenceImageBase64) {
-          const cleanRef = params.referenceImageBase64.replace(/^data:image\/\w+;base64,/, '');
-          parts.push({ inlineData: { mimeType: 'image/jpeg', data: cleanRef } });
-        }
-        parts.push({ text: cleanPrompt });
+  // Server-side Gemini / Imagen proxy (/api/ai/image) — ZERO browser API key exposure
+  try {
+    const activeTenant = (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || ROOT_TENANT_ID;
+    const res = await fetch(resolveAiProxyUrl('image'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'image',
+        prompt: cleanPrompt,
+        aspectRatio,
+        model: 'gemini-3.1-flash-image',
+        referenceImageBase64: params.referenceImageBase64,
+        tenantId: activeTenant,
+      }),
+    });
 
-        const geminiEndpoint = `${GEMINI_API_BASE_URL}/models/${modelName}:generateContent?key=${trimmedKey}`;
-        const res = await fetch(geminiEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            model: modelName,
-            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
-          })
-        }).catch(() => null);
-
-        if (res && res.ok) {
-          const data = await res.json();
-          const candidateParts = data?.candidates?.[0]?.content?.parts || [];
-          const imagePart = candidateParts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
-          if (imagePart?.inlineData?.data) {
-            const mime = imagePart.inlineData.mimeType || 'image/jpeg';
-            recordVideoImageTokens();
-            return {
-              imageUrl: `data:${mime};base64,${imagePart.inlineData.data}`,
-              base64Data: imagePart.inlineData.data,
-              mimeType: mime
-            };
-          }
-        }
-      } catch {}
-    }
-
-    try {
-      const endpoint = `${GEMINI_API_BASE_URL}/models/imagen-3.0-generate-002:predict?key=${trimmedKey}`;
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          instances: [{ prompt: cleanPrompt }],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio,
-            personGeneration: 'ALLOW_ADULT',
-            outputMimeType: 'image/jpeg'
-          }
-        })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
-        const mime = data?.predictions?.[0]?.mimeType || 'image/jpeg';
-        if (b64) {
-          recordVideoImageTokens();
-          return {
-            imageUrl: `data:${mime};base64,${b64}`,
-            base64Data: b64,
-            mimeType: mime
-          };
-        }
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.success && data?.base64Data) {
+        const mime = data.mimeType || 'image/jpeg';
+        recordVideoImageTokens();
+        return {
+          imageUrl: data.imageUrl || `data:${mime};base64,${data.base64Data}`,
+          base64Data: data.base64Data,
+          mimeType: mime,
+        };
       }
-    } catch {}
-  }
+    }
+  } catch {}
 
   try {
     const seed = Math.floor(Math.random() * 10000000);

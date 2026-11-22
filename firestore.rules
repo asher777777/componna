@@ -1,155 +1,959 @@
 rules_version = '2';
 
+// ===============================================================
+// Assumed Data Model — KOSUN26 Multi-Tenant SaaS (glowmanage)
+// ===============================================================
+//
+// Collection: /users/{userId}
+// Document ID: Firebase Auth UID
+// Fields:
+//   - email: string (optional, <= 254 chars)
+//   - displayName / name: string (optional, <= 120 chars)
+//   - photoURL: string (optional, <= 2048 chars)
+//   - role: string (optional, enum: 'admin' | 'editor' | 'viewer' | 'user' | 'client'; immutable for non-masters)
+//   - isAdmin: bool (optional; immutable for non-masters)
+//   - createdAt: timestamp | string (optional; immutable on update)
+//
+// Collection: /tenants/{tenantId}
+// Document ID: Lowercase subdomain slug (e.g. 'mlea', 'kesem', '_master')
+// Fields:
+//   - subdomain: string (optional, <= 100 chars)
+//   - name / displayName: string (optional, <= 200 chars)
+//   - parentTenantId: string (optional, <= 100 chars; immutable for non-masters)
+//   - canProvisionSubTenants: bool (optional; immutable for non-masters)
+//   - adminEmail: string (optional, <= 254 chars)
+//   - status: string (optional, <= 50 chars)
+//
+// Subcollection: /tenants/{tenantId}/contacts/{contactId}
+// Document ID: Contact ID or Firebase Auth UID or 'tenant_admin_<tenantId>'
+// Fields:
+//   - name / fullName / firstName / lastName: string (optional, <= 200 chars)
+//   - email: string (optional, <= 254 chars)
+//   - phone: string (optional, <= 50 chars)
+//   - status: string (optional, <= 50 chars)
+//   - notes: string (optional, <= 10000 chars)
+//   - tags: list (optional, <= 100 items)
+//   - isSubdomainAdmin: bool (optional; forbidden on public create, immutable for self-update)
+//   - role: string (optional; privileged values forbidden on public create, immutable for self-update)
+//   - adminPassword: string (optional; forbidden on public create, immutable for self-update)
+//
+// Subcollection: /tenants/{tenantId}/settings/{settingId}
+// Document ID:
+//   - 'api_keys': STRICTLY PRIVATE (Master admin or own tenant_admin only; /tenants/_master/settings/api_keys is Master admin ONLY — shared platform AI keys (`googleAiApiKey`) and Master Kesher credentials are accessed exclusively server-side via Cloud Functions (`geminiAiProxy`, `kesherMasterBilling`) with ZERO browser exposure)
+//   - 'auth_credentials': STRICTLY PRIVATE (Master admin or own tenant_admin only)
+//   - 'token_usage': PRIVATE (Master admin, own tenant_admin, or Reseller parent)
+//   - 'kos_branding_dna', 'brand_dna', other public config: Publicly readable; writable by Master or own tenant_admin
+//
+// Public-Read Tenant Subcollections:
+//   - pages, page_configs, kos_web_ai_documents, mod_pages_documents,
+//     kos_tube_pages, kos_tube_videos, kos_tube_channels,
+//     mod_forms, mod_pagebuilder_pages, sdo_media_items, sdo_media_folders,
+//     sdo_media_vault, sdo_player_campaign_configs, kos_access_declarations,
+//     cognitive_nodes, products, kos_branding_to
+//
+// Public-Create Tenant Subcollections (Admin-Read):
+//   - mod_form_submissions, event_rsvp_stats, session_events, sdo_player_session_events
+//
+// Private Tenant Subcollections (Master, own tenant_admin, or Reseller parent):
+//   - KosProjects (explicitly schema-validated):
+//       * kos_projects/{projectId}: id, title, description, clientContactId?, clientName,
+//         status ('planning'|'active'|'at_risk'|'completed'|'archived'), startDate, targetEndDate,
+//         budget?, communityGroupId?, communityGroupName?, marketing (map), tags (list <= 50),
+//         createdAt (immutable), updatedAt
+//       * kos_project_tasks/{taskId}: id, projectId (immutable), phase, title, description?,
+//         startDate, endDate, progress (0..100), status ('pending'|'in_progress'|'at_risk'|'completed'),
+//         ownerName?, ownerRole?, ownerContactId?, suppliers (list <= 50), dependsOnTaskIds (list <= 50),
+//         isMilestone?, estimatedCost?, order (>= 0), createdAt (immutable), updatedAt
+//       * kos_project_blueprints/{blueprintId}: id, name, description?, category, defaultPhases (list <= 50),
+//         sampleTasks (list <= 200), marketingTemplate? (map), createdAt
+//   - crm_groups, mod_crm_leads, crm_custom_fields, crm_analytics_saved_views,
+//     crm_group_metrics, crm_custom_charts, kesher_transactions,
+//     kesher_standing_orders, kesher_receipt_glossary, token_topups, modules,
+//     kosai_*, wa_*, custom_dashboards, etc.
+//
+// Root Collections:
+//   - /contacts/{contactId}: Master admin or owner; public lead capture create allowed (non-admin)
+//   - /system_settings/{settingId}: Public read for non-secret docs without legacy `apiKeys`; Master admin read/write (writes disallow `apiKeys`)
+//   - /settings/{settingId}: Public read for brand_dna/kos_branding_dna/public; Master admin write
+//   - Public storefront/media/forms/player collections: Public read; Master admin write
+//   - Public form submissions & session events: Public create; Master admin read/update/delete
+//   - Root CRM/Kesher/WA collections: Master admin only
+//   - Unmatched paths: DENY ALL BY DEFAULT
+//
+// ===============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions for Role-Based Access Control (RBAC)
-    function isSignedIn() {
+    // ===============================================================
+    // Core Auth & Identity Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
       return request.auth != null;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function getUserRole() {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? getUserData().role
-        : 'admin';
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == request.auth.uid;
     }
 
-    function isAdmin() {
-      return isSignedIn() && (getUserRole() == 'admin' || request.auth.token.admin == true);
+    function uidNotModified() {
+      return !('uid' in request.resource.data) ||
+        !('uid' in resource.data) ||
+        request.resource.data.uid == resource.data.uid;
     }
 
-    function isEditor() {
-      return isSignedIn() && (getUserRole() in ['admin', 'editor']);
-    }
+    // ===============================================================
+    // Multi-Tenant RBAC Helper Functions
+    // ===============================================================
 
-    function isViewer() {
-      return isSignedIn() && (getUserRole() in ['admin', 'editor', 'viewer']);
-    }
-
-    // 1. Users collection: User profile & roles management
-    match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && (
-        request.auth.uid == userId || isAdmin()
+    // Master Admin:
+    //   1) Custom claim admin == true
+    //   2) Custom claim tenantId == '_master'
+    //   3) Bootstrap Master Admin email (recommend enforcing email_verified in production)
+    //   4) /users/{uid}.role == 'admin' (protected from self-escalation in /users rules)
+    function isMasterAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        (
+          'tenantId' in request.auth.token &&
+          request.auth.token.tenantId == '_master'
+        ) ||
+        (
+          'email' in request.auth.token &&
+          request.auth.token.email in [
+            'ovt5771@gmail.com',
+            'admin@kosun.pro',
+            'master@kosun.pro'
+          ]
+        ) ||
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        )
       );
-      allow delete: if isAdmin();
     }
 
-    // 2. Global System Settings & Configurations
-    match /system_settings/{settingId} {
+    // Tenant Admin signed in via tenantAdminAuth Cloud Function custom token:
+    //   uid == 'tenant_admin_' + tenantId
+    //   token.role == 'tenant_admin'
+    //   token.tenantId == tenantId
+    function isTenantAdmin(tenantId) {
+      return isAuthenticated() &&
+        'role' in request.auth.token &&
+        request.auth.token.role == 'tenant_admin' &&
+        'tenantId' in request.auth.token &&
+        request.auth.token.tenantId == tenantId &&
+        request.auth.uid == ('tenant_admin_' + tenantId);
+    }
+
+    // Authenticated tenant admin with Reseller provisioning privileges
+    function isReseller() {
+      return isAuthenticated() &&
+        'role' in request.auth.token &&
+        request.auth.token.role == 'tenant_admin' &&
+        'canProvisionSubTenants' in request.auth.token &&
+        request.auth.token.canProvisionSubTenants == true &&
+        'tenantId' in request.auth.token &&
+        request.auth.token.tenantId is string &&
+        request.auth.token.tenantId.size() > 0;
+    }
+
+    // Reseller parent check via parentTenantId on the target tenant document
+    function isResellerParentOf(tenantId) {
+      return isReseller() &&
+        exists(/databases/$(database)/documents/tenants/$(tenantId)) &&
+        'parentTenantId' in get(/databases/$(database)/documents/tenants/$(tenantId)).data &&
+        get(/databases/$(database)/documents/tenants/$(tenantId)).data.parentTenantId == request.auth.token.tenantId;
+    }
+
+    // Master admin or the tenant's own admin
+    function canManageTenant(tenantId) {
+      return isMasterAdmin() || isTenantAdmin(tenantId);
+    }
+
+    // Master admin, the tenant's own admin, or the tenant's Reseller parent
+    function canManageTenantOrReseller(tenantId) {
+      return isMasterAdmin() || isTenantAdmin(tenantId) || isResellerParentOf(tenantId);
+    }
+
+    // ===============================================================
+    // Generic Field Validation Helpers
+    // ===============================================================
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isValidOptionalString(data, field, minLen, maxLen) {
+      return !(field in data) ||
+        data[field] == null ||
+        (data[field] is string &&
+         data[field].size() >= minLen &&
+         data[field].size() <= maxLen);
+    }
+
+    function isValidOptionalBool(data, field) {
+      return !(field in data) || data[field] == null || data[field] is bool;
+    }
+
+    function isValidOptionalNumber(data, field, minVal, maxVal) {
+      return !(field in data) ||
+        data[field] == null ||
+        (data[field] is number &&
+         data[field] >= minVal &&
+         data[field] <= maxVal);
+    }
+
+    function isValidOptionalList(data, field, maxSize) {
+      return !(field in data) ||
+        data[field] == null ||
+        (data[field] is list && data[field].size() <= maxSize);
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.size() <= 254 &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidOptionalEmail(data, field) {
+      return !(field in data) ||
+        data[field] == null ||
+        data[field] == '' ||
+        isValidEmail(data[field]);
+    }
+
+    // ===============================================================
+    // Domain Validators (Called in BOTH create and update rules)
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().size() <= 60 &&
+        isValidOptionalEmail(data, 'email') &&
+        isValidOptionalString(data, 'displayName', 0, 120) &&
+        isValidOptionalString(data, 'name', 0, 120) &&
+        isValidOptionalString(data, 'photoURL', 0, 2048) &&
+        isValidOptionalBool(data, 'isAdmin') &&
+        (!('role' in data) || data.role in ['admin', 'editor', 'viewer', 'user', 'client', 'subscriber']);
+    }
+
+    function isValidTenantDoc(data) {
+      return data.keys().size() <= 120 &&
+        isValidOptionalString(data, 'subdomain', 1, 100) &&
+        isValidOptionalString(data, 'name', 0, 200) &&
+        isValidOptionalString(data, 'displayName', 0, 200) &&
+        isValidOptionalString(data, 'parentTenantId', 0, 100) &&
+        isValidOptionalString(data, 'adminEmail', 0, 254) &&
+        isValidOptionalString(data, 'status', 0, 50) &&
+        isValidOptionalBool(data, 'canProvisionSubTenants');
+    }
+
+    function isValidContact(data) {
+      return data.keys().size() <= 120 &&
+        isValidOptionalString(data, 'name', 0, 200) &&
+        isValidOptionalString(data, 'conta_name', 0, 200) &&
+        isValidOptionalString(data, 'fullName', 0, 200) &&
+        isValidOptionalString(data, 'firstName', 0, 100) &&
+        isValidOptionalString(data, 'lastName', 0, 100) &&
+        isValidOptionalString(data, 'email', 0, 254) &&
+        isValidOptionalString(data, 'phone', 0, 50) &&
+        isValidOptionalString(data, 'conta_phone', 0, 50) &&
+        isValidOptionalString(data, 'lead_source', 0, 200) &&
+        isValidOptionalString(data, 'status', 0, 50) &&
+        isValidOptionalString(data, 'notes', 0, 10000) &&
+        isValidOptionalList(data, 'tags', 100) &&
+        isValidOptionalBool(data, 'isSubdomainAdmin');
+    }
+
+    // Prevents privilege escalation or credential injection on public lead-capture creates
+    function isSafePublicContactCreate(data) {
+      return (!('isSubdomainAdmin' in data) || data.isSubdomainAdmin != true) &&
+        (!('adminPassword' in data)) &&
+        (!('role' in data) || !(data.role in ['admin', 'master', 'tenant_admin', 'superadmin']));
+    }
+
+    function isValidPublicSubmission(data) {
+      return data.keys().size() > 0 &&
+        data.keys().size() <= 100 &&
+        isValidOptionalString(data, 'formId', 0, 128) &&
+        isValidOptionalString(data, 'sessionId', 0, 128) &&
+        isValidOptionalString(data, 'eventType', 0, 100) &&
+        isValidOptionalString(data, 'name', 0, 200) &&
+        isValidOptionalString(data, 'email', 0, 254) &&
+        isValidOptionalString(data, 'phone', 0, 50) &&
+        isValidOptionalString(data, 'message', 0, 10000) &&
+        isValidOptionalString(data, 'notes', 0, 10000);
+    }
+
+    function isValidSecretsDoc(data) {
+      return data.keys().size() <= 100;
+    }
+
+    function isValidSettingsDoc(data) {
+      return data.keys().size() <= 150 &&
+        isValidOptionalString(data, 'status', 0, 50);
+    }
+
+    function isValidContentDoc(data) {
+      return data.keys().size() <= 180 &&
+        isValidOptionalString(data, 'title', 0, 500) &&
+        isValidOptionalString(data, 'name', 0, 500) &&
+        isValidOptionalString(data, 'slug', 0, 200) &&
+        isValidOptionalString(data, 'status', 0, 50);
+    }
+
+    // KosProjects Domain Validators
+    function isValidProjectMarketing(m, requireRegistrationCount) {
+      return m is map &&
+        m.keys().hasOnly([
+          'landingPageId', 'landingPageSlug', 'landingPageUrl',
+          'formId', 'formTitle', 'registrationCount',
+          'headline', 'subheadline', 'ctaText',
+          'coverImageUrl', 'syncedToCommunity'
+        ]) &&
+        isValidOptionalString(m, 'landingPageId', 0, 128) &&
+        isValidOptionalString(m, 'landingPageSlug', 0, 200) &&
+        isValidOptionalString(m, 'landingPageUrl', 0, 2048) &&
+        isValidOptionalString(m, 'formId', 0, 128) &&
+        isValidOptionalString(m, 'formTitle', 0, 300) &&
+        isValidOptionalString(m, 'headline', 0, 500) &&
+        isValidOptionalString(m, 'subheadline', 0, 2000) &&
+        isValidOptionalString(m, 'ctaText', 0, 200) &&
+        isValidOptionalString(m, 'coverImageUrl', 0, 2048) &&
+        isValidOptionalBool(m, 'syncedToCommunity') &&
+        (
+          (!requireRegistrationCount && !('registrationCount' in m)) ||
+          (m.registrationCount is number && m.registrationCount >= 0 && m.registrationCount <= 100000000)
+        );
+    }
+
+    function isValidKosProject(data) {
+      return data.keys().hasAll(['id', 'title', 'status', 'startDate', 'targetEndDate', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'id', 'title', 'description', 'clientContactId', 'clientName',
+          'status', 'startDate', 'targetEndDate', 'budget',
+          'communityGroupId', 'communityGroupName', 'marketing',
+          'tags', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 300 &&
+        isValidOptionalString(data, 'description', 0, 10000) &&
+        isValidOptionalString(data, 'clientContactId', 0, 128) &&
+        isValidOptionalString(data, 'clientName', 0, 200) &&
+        data.status in ['planning', 'active', 'at_risk', 'completed', 'archived'] &&
+        data.startDate is string && data.startDate.size() <= 32 &&
+        data.targetEndDate is string && data.targetEndDate.size() <= 32 &&
+        isValidOptionalNumber(data, 'budget', 0, 100000000000) &&
+        isValidOptionalString(data, 'communityGroupId', 0, 128) &&
+        isValidOptionalString(data, 'communityGroupName', 0, 200) &&
+        (!('marketing' in data) || isValidProjectMarketing(data.marketing, true)) &&
+        isValidOptionalList(data, 'tags', 50) &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidKosProjectTask(data) {
+      return data.keys().hasAll([
+          'id', 'projectId', 'phase', 'title', 'startDate', 'endDate',
+          'progress', 'status', 'order', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'projectId', 'phase', 'title', 'description',
+          'startDate', 'endDate', 'progress', 'status',
+          'ownerName', 'ownerRole', 'ownerContactId',
+          'suppliers', 'dependsOnTaskIds', 'isMilestone',
+          'estimatedCost', 'order', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+        data.projectId is string && data.projectId.size() >= 1 && data.projectId.size() <= 128 &&
+        data.phase is string && data.phase.size() <= 200 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 300 &&
+        isValidOptionalString(data, 'description', 0, 10000) &&
+        data.startDate is string && data.startDate.size() <= 32 &&
+        data.endDate is string && data.endDate.size() <= 32 &&
+        data.progress is number && data.progress >= 0 && data.progress <= 100 &&
+        data.status in ['pending', 'in_progress', 'at_risk', 'completed'] &&
+        isValidOptionalString(data, 'ownerName', 0, 200) &&
+        isValidOptionalString(data, 'ownerRole', 0, 200) &&
+        isValidOptionalString(data, 'ownerContactId', 0, 128) &&
+        isValidOptionalList(data, 'suppliers', 50) &&
+        isValidOptionalList(data, 'dependsOnTaskIds', 50) &&
+        isValidOptionalBool(data, 'isMilestone') &&
+        isValidOptionalNumber(data, 'estimatedCost', 0, 100000000000) &&
+        data.order is number && data.order >= 0 &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidKosProjectBlueprint(data) {
+      return data.keys().hasAll(['id', 'name', 'category', 'defaultPhases', 'sampleTasks', 'createdAt']) &&
+        data.keys().hasOnly([
+          'id', 'name', 'description', 'category',
+          'defaultPhases', 'sampleTasks', 'marketingTemplate', 'createdAt'
+        ]) &&
+        data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 200 &&
+        isValidOptionalString(data, 'description', 0, 5000) &&
+        data.category is string && data.category.size() <= 100 &&
+        data.defaultPhases is list && data.defaultPhases.size() <= 50 &&
+        data.sampleTasks is list && data.sampleTasks.size() <= 200 &&
+        (!('marketingTemplate' in data) || data.marketingTemplate == null || isValidProjectMarketing(data.marketingTemplate, false)) &&
+        data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    // ===============================================================
+    // 1. Root Users Collection (Strict PII & RBAC Protection)
+    // ===============================================================
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isMasterAdmin();
+      allow create: if isAuthenticated() &&
+        isValidUser(request.resource.data) &&
+        uidUnchanged() &&
+        (
+          isMasterAdmin() ||
+          (
+            isOwner(userId) &&
+            (!('role' in request.resource.data) || request.resource.data.role in ['user', 'viewer', 'client']) &&
+            (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false)
+          )
+        );
+      allow update: if isAuthenticated() &&
+        isValidUser(request.resource.data) &&
+        (
+          isMasterAdmin() ||
+          (
+            isOwner(userId) &&
+            uidNotModified() &&
+            areImmutableFieldsUnchanged(['role', 'isAdmin', 'createdAt'])
+          )
+        );
+      allow delete: if isMasterAdmin();
+    }
+
+    // ===============================================================
+    // 2. Multi-Tenant Root & Subcollections (/tenants/{tenantId})
+    // ===============================================================
+    match /tenants/{tenantId} {
+      // Public read required for subdomain resolution & public storefront rendering
       allow read: if true;
-      allow write: if true;
+
+      // Create: Master admin, tenant's own admin, or Reseller creating a child tenant
+      allow create: if isValidTenantDoc(request.resource.data) && (
+        isMasterAdmin() ||
+        (
+          isTenantAdmin(tenantId) &&
+          (!('canProvisionSubTenants' in request.resource.data) || request.resource.data.canProvisionSubTenants == false)
+        ) ||
+        (
+          isReseller() &&
+          'parentTenantId' in request.resource.data &&
+          request.resource.data.parentTenantId == request.auth.token.tenantId &&
+          (!('canProvisionSubTenants' in request.resource.data) || request.resource.data.canProvisionSubTenants == false)
+        )
+      );
+
+      // Update: Master admin, tenant's own admin, or Reseller parent
+      // Non-masters cannot escalate canProvisionSubTenants or reassign parentTenantId
+      allow update: if isValidTenantDoc(request.resource.data) && (
+        isMasterAdmin() ||
+        (
+          isTenantAdmin(tenantId) &&
+          areImmutableFieldsUnchanged(['parentTenantId', 'canProvisionSubTenants', 'createdAt'])
+        ) ||
+        (
+          isReseller() &&
+          'parentTenantId' in resource.data &&
+          resource.data.parentTenantId == request.auth.token.tenantId &&
+          areImmutableFieldsUnchanged(['parentTenantId', 'canProvisionSubTenants', 'createdAt'])
+        )
+      );
+
+      allow delete: if isMasterAdmin() || (
+        isReseller() &&
+        'parentTenantId' in resource.data &&
+        resource.data.parentTenantId == request.auth.token.tenantId
+      );
+
+      // 2a. Tenant Contacts (/tenants/{tenantId}/contacts/{contactId})
+      match /contacts/{contactId} {
+        allow read: if canManageTenantOrReseller(tenantId) || isOwner(contactId);
+        allow create: if isValidContact(request.resource.data) && (
+          canManageTenantOrReseller(tenantId) ||
+          isSafePublicContactCreate(request.resource.data)
+        );
+        allow update: if isValidContact(request.resource.data) && (
+          canManageTenantOrReseller(tenantId) ||
+          (
+            isOwner(contactId) &&
+            areImmutableFieldsUnchanged(['isSubdomainAdmin', 'role', 'adminPassword'])
+          )
+        );
+        allow delete: if canManageTenantOrReseller(tenantId);
+
+        match /{nestedPath=**} {
+          allow read: if canManageTenantOrReseller(tenantId) || isOwner(contactId);
+          allow create, update: if (canManageTenantOrReseller(tenantId) || isOwner(contactId)) &&
+            isValidContentDoc(request.resource.data);
+          allow delete: if canManageTenantOrReseller(tenantId);
+        }
+      }
+
+      // 2a-bis. Tenant Scoped Users (/tenants/{tenantId}/users/{userId})
+      match /users/{userId} {
+        allow read: if canManageTenantOrReseller(tenantId) || isOwner(userId);
+        allow create: if isAuthenticated() &&
+          isValidUser(request.resource.data) &&
+          uidUnchanged() &&
+          (
+            canManageTenantOrReseller(tenantId) ||
+            (
+              isOwner(userId) &&
+              (!('role' in request.resource.data) || request.resource.data.role in ['user', 'viewer', 'client', 'subscriber']) &&
+              (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false)
+            )
+          );
+        allow update: if isAuthenticated() &&
+          isValidUser(request.resource.data) &&
+          (
+            canManageTenantOrReseller(tenantId) ||
+            (
+              isOwner(userId) &&
+              uidNotModified() &&
+              (!('role' in request.resource.data) || request.resource.data.role in ['user', 'viewer', 'client', 'subscriber']) &&
+              areImmutableFieldsUnchanged(['isAdmin', 'isSubdomainAdmin'])
+            )
+          );
+        allow delete: if canManageTenantOrReseller(tenantId);
+      }
+
+      // 2b. Tenant Settings — Secrets STRICTLY Isolated from Public, Resellers & Sibling Tenants
+      // /tenants/_master/settings/api_keys is restricted to Master Admin ONLY (canManageTenant('_master')
+      // is true only for isMasterAdmin()). Shared platform AI keys (googleAiApiKey) and Master Kesher
+      // credentials are accessed exclusively server-side via Cloud Functions (geminiAiProxy,
+      // kesherMasterBilling) with ZERO browser exposure. Subdomain admins may only access their own
+      // /tenants/{ownTenantId}/settings/api_keys.
+      match /settings/api_keys {
+        allow read: if canManageTenant(tenantId);
+        allow create, update: if canManageTenant(tenantId) &&
+          isValidSecretsDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /settings/auth_credentials {
+        allow read, delete: if canManageTenant(tenantId);
+        allow create, update: if canManageTenant(tenantId) &&
+          isValidSecretsDoc(request.resource.data);
+      }
+
+      match /settings/token_usage {
+        allow read: if canManageTenantOrReseller(tenantId);
+        allow create, update: if canManageTenantOrReseller(tenantId) &&
+          isValidSettingsDoc(request.resource.data);
+        allow delete: if isMasterAdmin();
+      }
+
+      // Public tenant settings (kos_branding_dna, brand_dna, etc.) — explicitly excludes secrets
+      match /settings/{settingId} {
+        allow read: if !(settingId in ['api_keys', 'auth_credentials', 'token_usage']);
+        allow create, update: if !(settingId in ['api_keys', 'auth_credentials', 'token_usage']) &&
+          canManageTenant(tenantId) &&
+          isValidSettingsDoc(request.resource.data);
+        allow delete: if !(settingId in ['api_keys', 'auth_credentials', 'token_usage']) &&
+          canManageTenant(tenantId);
+      }
+
+      // 2c. Public-Read Tenant Storefront / Media / Forms / Content Subcollections
+      match /pages/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /page_configs/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /kos_tube_pages/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /kos_tube_videos/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /kos_tube_channels/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /mod_forms/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /mod_pagebuilder_pages/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /mod_pages_documents/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /kos_web_ai_documents/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /sdo_media_items/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /sdo_media_folders/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /sdo_media_vault/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /sdo_player_campaign_configs/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /kos_access_declarations/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /cognitive_nodes/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /products/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /kos_branding_to/{docId=**} {
+        allow read: if true;
+        allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      // 2d. Public-Create / Admin-Read Tenant Form Submissions & Telemetry
+      match /mod_form_submissions/{subId} {
+        allow read: if canManageTenantOrReseller(tenantId);
+        allow create: if isValidPublicSubmission(request.resource.data);
+        allow update: if canManageTenant(tenantId) && isValidPublicSubmission(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /event_rsvp_stats/{statId} {
+        allow read: if canManageTenantOrReseller(tenantId);
+        allow create: if isValidPublicSubmission(request.resource.data);
+        allow update: if canManageTenant(tenantId) && isValidPublicSubmission(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /session_events/{sessionId} {
+        allow read: if canManageTenantOrReseller(tenantId);
+        allow create: if isValidPublicSubmission(request.resource.data);
+        allow update: if canManageTenant(tenantId) && isValidPublicSubmission(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      match /sdo_player_session_events/{sessionId} {
+        allow read: if canManageTenantOrReseller(tenantId);
+        allow create: if isValidPublicSubmission(request.resource.data);
+        allow update: if canManageTenant(tenantId) && isValidPublicSubmission(request.resource.data);
+        allow delete: if canManageTenant(tenantId);
+      }
+
+      // 2d-bis. KosProjects Tenant Subcollections (Private, Schema-Validated)
+      match /kos_projects/{projectId} {
+        allow read: if canManageTenantOrReseller(tenantId);
+        allow create: if canManageTenantOrReseller(tenantId) &&
+          request.resource.data.id == projectId &&
+          isValidKosProject(request.resource.data);
+        allow update: if canManageTenantOrReseller(tenantId) &&
+          areImmutableFieldsUnchanged(['id', 'createdAt']) &&
+          isValidKosProject(request.resource.data);
+        allow delete: if canManageTenantOrReseller(tenantId);
+      }
+
+      match /kos_project_tasks/{taskId} {
+        allow read: if canManageTenantOrReseller(tenantId);
+        allow create: if canManageTenantOrReseller(tenantId) &&
+          request.resource.data.id == taskId &&
+          isValidKosProjectTask(request.resource.data);
+        allow update: if canManageTenantOrReseller(tenantId) &&
+          areImmutableFieldsUnchanged(['id', 'projectId', 'createdAt']) &&
+          isValidKosProjectTask(request.resource.data);
+        allow delete: if canManageTenantOrReseller(tenantId);
+      }
+
+      match /kos_project_blueprints/{blueprintId} {
+        allow read: if canManageTenantOrReseller(tenantId);
+        allow create: if canManageTenantOrReseller(tenantId) &&
+          request.resource.data.id == blueprintId &&
+          isValidKosProjectBlueprint(request.resource.data);
+        allow update: if canManageTenantOrReseller(tenantId) &&
+          areImmutableFieldsUnchanged(['id']) &&
+          isValidKosProjectBlueprint(request.resource.data);
+        allow delete: if canManageTenantOrReseller(tenantId);
+      }
+
+      // 2e. All Other Private Tenant Subcollections (CRM, Kesher, KosAI, WA, Dashboards, etc.)
+      // Explicitly excludes 'settings' and schema-validated KosProjects collections so stricter rules
+      // cannot be bypassed via wildcard OR-evaluation.
+      match /{subcollection}/{docId=**} {
+        allow read: if !(subcollection in ['settings', 'kos_projects', 'kos_project_tasks', 'kos_project_blueprints']) &&
+          canManageTenantOrReseller(tenantId);
+        allow create, update: if !(subcollection in ['settings', 'kos_projects', 'kos_project_tasks', 'kos_project_blueprints']) &&
+          canManageTenantOrReseller(tenantId) &&
+          isValidContentDoc(request.resource.data);
+        allow delete: if !(subcollection in ['settings', 'kos_projects', 'kos_project_tasks', 'kos_project_blueprints']) &&
+          canManageTenantOrReseller(tenantId);
+      }
     }
 
-    // 3. Interactive Flow Player Engine Campaigns & Scenes
+    // ===============================================================
+    // 3. Root Global Settings
+    // ===============================================================
+    match /system_settings/{settingId} {
+      // Public read allowed only for non-secret settings docs that do NOT contain legacy apiKeys.
+      // Master Admin may always read (e.g. to inspect/purge legacy fields).
+      allow read: if isMasterAdmin() || (
+        !(settingId in ['api_keys', 'auth_credentials']) &&
+        (resource == null || !('apiKeys' in resource.data))
+      );
+      allow create, update: if isMasterAdmin() &&
+        isValidSettingsDoc(request.resource.data) &&
+        !('apiKeys' in request.resource.data);
+      allow delete: if isMasterAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if settingId in ['brand_dna', 'kos_branding_dna', 'public'];
+      allow create, update: if isMasterAdmin() && isValidSettingsDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
+    }
+
+    // ===============================================================
+    // 4. Root Contacts (Master Admin, Owner, or Public Lead Capture)
+    // ===============================================================
+    match /contacts/{contactId} {
+      allow read: if isMasterAdmin() || isOwner(contactId);
+      allow create: if isValidContact(request.resource.data) && (
+        isMasterAdmin() ||
+        isSafePublicContactCreate(request.resource.data)
+      );
+      allow update: if isValidContact(request.resource.data) && (
+        isMasterAdmin() ||
+        (
+          isOwner(contactId) &&
+          areImmutableFieldsUnchanged(['isSubdomainAdmin', 'role', 'adminPassword'])
+        )
+      );
+      allow delete: if isMasterAdmin();
+    }
+
+    // ===============================================================
+    // 5. Root Public-Read Storefront, Media, Player & Builder Collections
+    // ===============================================================
     match /sdo_player_campaign_configs/{slug} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isSignedIn();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
 
       match /scenes/{sceneId} {
         allow read: if true;
-        allow create, update: if true;
-        allow delete: if isSignedIn();
+        allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+        allow delete: if isMasterAdmin();
       }
 
-      match /{document=**} {
+      match /{nestedPath=**} {
         allow read: if true;
-        allow write: if true;
+        allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+        allow delete: if isMasterAdmin();
       }
     }
 
-    // 4. Media Vault & Gallery Hub
     match /sdo_media_vault/{docId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isSignedIn();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
     }
 
     match /sdo_media_items/{docId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isSignedIn();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
     }
 
     match /sdo_media_folders/{docId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isSignedIn();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
     }
 
-    // 5. Video Studio Projects
     match /sdo_video_projects/{projectId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isSignedIn();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
     }
 
-    // 6. Page Builder & Smart Forms
     match /mod_pagebuilder_pages/{pageId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isSignedIn();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
+    }
+
+    match /mod_pages_documents/{docId=**} {
+      allow read: if true;
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
+    }
+
+    match /kos_web_ai_documents/{docId=**} {
+      allow read: if true;
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
     }
 
     match /mod_forms/{formId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isSignedIn();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
     }
 
-    match /mod_form_submissions/{subId} {
+    match /archetype_presets/{docId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isSignedIn();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
     }
 
-    // 7. Kesher Transactions & Clearing
-    match /kesher_transactions/{txId} {
+    match /market_templates/{docId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isSignedIn();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
     }
 
-    // 8. WhatsApp & CRM Groups
-    match /wa_bots/{botId} {
-      allow read, write: if true;
-    }
-
-    match /wa_webhook_config/{configId} {
-      allow read, write: if true;
-    }
-
-    match /crm_groups/{groupId} {
-      allow read, write: if true;
-    }
-
-    match /contacts/{contactId} {
-      allow read, write: if true;
+    match /cloudstore_assets/{docId} {
+      allow read: if true;
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
     }
 
     match /client_platform_config/{clientId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+      allow delete: if isMasterAdmin();
     }
 
-    // 9. Session Events & Analytics Telemetry
+    // ===============================================================
+    // 6. Root Public-Create Form Submissions & Session Telemetry
+    // ===============================================================
+    match /mod_form_submissions/{subId} {
+      allow read: if isMasterAdmin();
+      allow create: if isValidPublicSubmission(request.resource.data);
+      allow update: if isMasterAdmin() && isValidPublicSubmission(request.resource.data);
+      allow delete: if isMasterAdmin();
+    }
+
     match /sdo_player_session_events/{sessionId} {
-      allow read, write: if true;
+      allow read: if isMasterAdmin();
+      allow create: if isValidPublicSubmission(request.resource.data);
+      allow update: if isMasterAdmin() && isValidPublicSubmission(request.resource.data);
+      allow delete: if isMasterAdmin();
     }
 
     match /session_events/{sessionId} {
-      allow read, write: if true;
+      allow read: if isMasterAdmin();
+      allow create: if isValidPublicSubmission(request.resource.data);
+      allow update: if isMasterAdmin() && isValidPublicSubmission(request.resource.data);
+      allow delete: if isMasterAdmin();
     }
 
-    // 10. General Fallback for all other database collections
+    // ===============================================================
+    // 7. Root Private Business, CRM, Kesher & WhatsApp Collections
+    // ===============================================================
+    match /kesher_transactions/{txId} {
+      allow read, delete: if isMasterAdmin();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+    }
+
+    match /wa_bots/{botId} {
+      allow read, delete: if isMasterAdmin();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+    }
+
+    match /wa_webhook_config/{configId} {
+      allow read, delete: if isMasterAdmin();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+    }
+
+    match /wa_bot_chats/{chatId} {
+      allow read, delete: if isMasterAdmin();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+    }
+
+    match /crm_groups/{groupId} {
+      allow read, delete: if isMasterAdmin();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+    }
+
+    match /mod_crm_leads/{leadId} {
+      allow read, delete: if isMasterAdmin();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+    }
+
+    match /content_strategies/{docId} {
+      allow read, delete: if isMasterAdmin();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+    }
+
+    match /sys_tenants/{docId} {
+      allow read, delete: if isMasterAdmin();
+      allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
+    }
+
+    // ===============================================================
+    // 8. Default Deny Fallback (Zero-Trust Catch-All)
+    // ===============================================================
     match /{document=**} {
-      allow read: if true;
-      allow write: if true;
+      allow read, write: if false;
     }
   }
 }

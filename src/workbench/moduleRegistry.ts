@@ -84,6 +84,10 @@ const KosLiveStandaloneView = React.lazy(() =>
   import('../modules/KosLive').then((m) => ({ default: m.KosLiveStandaloneView }))
 );
 
+const KosProjectsStandaloneView = React.lazy(() =>
+  import('../modules/KosProjects').then((m) => ({ default: m.KosProjectsStandaloneView }))
+);
+
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -95,6 +99,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'KosProjects',
+    name: 'KosProjects - פרויקטים ותוכנית עבודה',
+    description: 'ניהול פרויקטים דו-מסלולי: צד שיווקי (דפי נחיתה עם הרשמה ו-QR) וצד תפעולי (תרשים גאנט, מועדים, בעלי תפקידים וספקים) בסנכרון מלא עם KosCrm, KosTogether וסוכן KosAi.',
+    component: KosProjectsStandaloneView,
+    route: '/projects',
+    collectionPrefix: 'kos_projects',
+  },
   {
     id: 'KosLivePage',
     name: 'KosLivePage - עמודים חיים ואוואטרים אינטראקטיביים',

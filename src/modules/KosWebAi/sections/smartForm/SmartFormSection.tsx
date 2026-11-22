@@ -4,6 +4,14 @@ import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesCon
 import { eventBus } from '../../../../core/bridge/EventBus';
 import { Check, Send } from 'lucide-react';
 
+export interface SmartFormCrmField {
+  crmFieldKey: string;
+  labelHe: string;
+  inputType: 'text' | 'tel' | 'email' | 'textarea' | 'number';
+  autocomplete?: string;
+  required?: boolean;
+}
+
 export interface SmartFormSectionConfig extends BaseSectionConfig {
   type: 'smartForm';
   formId?: string;
@@ -11,6 +19,7 @@ export interface SmartFormSectionConfig extends BaseSectionConfig {
   sectionSubtitle?: string;
   containerWidth?: 'sm' | 'md' | 'lg' | 'full';
   backgroundColor?: string;
+  crmFields?: SmartFormCrmField[];
 }
 
 export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({ config }) => {
@@ -21,6 +30,7 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
+  const [dynamicValues, setDynamicValues] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const widthClasses = {
@@ -30,16 +40,55 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
     full: 'w-full',
   }[config.containerWidth || 'md'];
 
+  const hasDynamicCrmFields = Array.isArray(config.crmFields) && config.crmFields.length > 0;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !phone.trim()) return;
 
     const submissionId = `sub_${Date.now()}`;
+
+    if (hasDynamicCrmFields && config.crmFields) {
+      const crmPayload: Record<string, any> = {};
+      for (const field of config.crmFields) {
+        const val = (dynamicValues[field.crmFieldKey] || '').trim();
+        if (field.required && !val) return;
+        if (val) crmPayload[field.crmFieldKey] = val;
+      }
+
+      eventBus.publish('smart_form:submitted', {
+        formId: config.formId || `form_${config.id}`,
+        formTitle: config.sectionTitle || 'טופס יצירת קשר',
+        submissionId,
+        data: crmPayload,
+        submittedAt: new Date().toISOString(),
+      });
+
+      eventBus.publish('crm:lead:created', {
+        conta_name: crmPayload.kosun_crm_name || '',
+        conta_phone: crmPayload.kosun_crm_phone || '',
+        email: crmPayload.kosun_crm_email || '',
+        ...crmPayload,
+        source: 'עמוד נחיתה / Smart Form',
+        tags: ['ליד מטופס חכם', config.sectionTitle || 'טופס אתר'],
+        metadata: { formId: config.formId, crmFieldKeys: config.crmFields.map((f) => f.crmFieldKey) },
+      });
+
+      setIsSubmitted(true);
+      return;
+    }
+
+    if (!fullName.trim() || !phone.trim()) return;
+
     eventBus.publish('smart_form:submitted', {
       formId: config.formId || `form_${config.id}`,
       formTitle: config.sectionTitle || 'טופס יצירת קשר',
       submissionId,
-      data: { fullName, phone, email, notes },
+      data: {
+        kosun_crm_name: fullName,
+        kosun_crm_phone: phone,
+        kosun_crm_email: email,
+        kosun_crm_notes: notes,
+      },
       submittedAt: new Date().toISOString(),
     });
 
@@ -47,6 +96,10 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
       conta_name: fullName,
       conta_phone: phone,
       email,
+      kosun_crm_name: fullName,
+      kosun_crm_phone: phone,
+      kosun_crm_email: email,
+      kosun_crm_notes: notes,
       source: 'עמוד נחיתה / Smart Form',
       tags: ['ליד מטופס חכם', config.sectionTitle || 'טופס אתר'],
       metadata: { notes, formId: config.formId },
@@ -93,54 +146,108 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
             onSubmit={handleSubmit}
             className="p-6 sm:p-8 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-4 backdrop-blur-sm shadow-xl"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">שם מלא *</label>
-                <input
-                  type="text"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="ישראל ישראלי"
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                />
+            {hasDynamicCrmFields && config.crmFields ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {config.crmFields.map((field) => {
+                  const fieldDomId = `${config.id}_${field.crmFieldKey}`;
+                  const isWide = field.inputType === 'textarea' || field.crmFieldKey === 'kosun_crm_email';
+                  return (
+                    <div key={field.crmFieldKey} className={isWide ? 'sm:col-span-2' : ''}>
+                      <label htmlFor={fieldDomId} className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        {field.labelHe} {field.required ? '*' : ''}
+                      </label>
+                      {field.inputType === 'textarea' ? (
+                        <textarea
+                          id={fieldDomId}
+                          name={field.crmFieldKey}
+                          data-crm-field={field.crmFieldKey}
+                          required={field.required}
+                          value={dynamicValues[field.crmFieldKey] || ''}
+                          onChange={(e) => setDynamicValues((prev) => ({ ...prev, [field.crmFieldKey]: e.target.value }))}
+                          rows={3}
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 resize-none"
+                        />
+                      ) : (
+                        <input
+                          id={fieldDomId}
+                          name={field.crmFieldKey}
+                          data-crm-field={field.crmFieldKey}
+                          type={field.inputType}
+                          autoComplete={field.autocomplete || 'on'}
+                          required={field.required}
+                          value={dynamicValues[field.crmFieldKey] || ''}
+                          onChange={(e) => setDynamicValues((prev) => ({ ...prev, [field.crmFieldKey]: e.target.value }))}
+                          dir={field.inputType === 'tel' || field.inputType === 'email' ? 'ltr' : 'rtl'}
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">טלפון נייד *</label>
-                <input
-                  type="tel"
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="050-1234567"
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
-                  dir="ltr"
-                />
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor={`${config.id}_name`} className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">שם מלא *</label>
+                    <input
+                      id={`${config.id}_name`}
+                      name="kosun_crm_name"
+                      type="text"
+                      autoComplete="name"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="שם פרטי ומשפחה"
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={`${config.id}_phone`} className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">טלפון נייד *</label>
+                    <input
+                      id={`${config.id}_phone`}
+                      name="kosun_crm_phone"
+                      type="tel"
+                      autoComplete="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="050-1234567"
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">דוא״ל</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
-                dir="ltr"
-              />
-            </div>
+                <div>
+                  <label htmlFor={`${config.id}_email`} className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">דוא״ל</label>
+                  <input
+                    id={`${config.id}_email`}
+                    name="kosun_crm_email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
+                    dir="ltr"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">הודעה / הערות</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="במה נוכל לעזור לכם?"
-                rows={3}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
-              />
-            </div>
+                <div>
+                  <label htmlFor={`${config.id}_notes`} className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">הודעה / הערות</label>
+                  <textarea
+                    id={`${config.id}_notes`}
+                    name="kosun_crm_notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="במה נוכל לעזור לכם?"
+                    rows={3}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
+                  />
+                </div>
+              </>
+            )}
 
             <button
               type="submit"

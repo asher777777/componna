@@ -106,7 +106,7 @@ export interface AIBrainstormOutput {
 export async function generateSmartFormWithAI(
   input: AIBrainstormInput
 ): Promise<AIBrainstormOutput> {
-  const apiKey = input.geminiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
+  const apiKey = input.geminiApiKey || '';
   const selectedPreset = TONE_PRESETS.find((p) => p.id === input.tone) || TONE_PRESETS[0];
 
   const defaultSync = [

@@ -468,32 +468,34 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
     [firebaseApp, collections.mediaItems]
   );
 
-  // Test Google AI / Gemini API Key
+  // Test Google AI / Gemini API Key strictly via server-side proxy (/api/ai/test)
   const testGoogleAiKey = useCallback(
     async (keyToTest?: string): Promise<{ success: boolean; error?: string }> => {
-      const key = keyToTest || tenantApiKeys.googleAiApiKey;
-      if (!key || key.trim().length === 0) {
-        return { success: false, error: 'לא הוזן מפתח Google AI / Gemini API Key' };
-      }
-
       try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models?key=${key.trim()}`
-        );
-        if (res.ok) {
+        const { resolveAiProxyUrl } = await import('../ai/cloudAiClient');
+        const key = (keyToTest || '').trim();
+        const res = await fetch(resolveAiProxyUrl('test'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'test',
+            tenantId: apiKeysTenantId,
+            ...(key ? { apiKey: key } : {}),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data?.success) {
           return { success: true };
-        } else {
-          const errJson = await res.json().catch(() => ({}));
-          return {
-            success: false,
-            error: errJson?.error?.message || `שגיאה באימות Google API (${res.status} ${res.statusText})`,
-          };
         }
+        return {
+          success: false,
+          error: data?.error || `שגיאה באימות Google API (${res.status} ${res.statusText})`,
+        };
       } catch (err: any) {
         return { success: false, error: err?.message || 'שגיאת רשת בבדיקת מפתח Gemini' };
       }
     },
-    [tenantApiKeys.googleAiApiKey]
+    [apiKeysTenantId]
   );
 
   // Test HeyGen API Key

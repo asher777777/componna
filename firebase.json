@@ -59,6 +59,10 @@
         "function": "sitemapXml"
       },
       {
+        "source": "/api/ai/**",
+        "function": "geminiAiProxy"
+      },
+      {
         "source": "/api/kesher-proxy",
         "function": "kesherProxy"
       },

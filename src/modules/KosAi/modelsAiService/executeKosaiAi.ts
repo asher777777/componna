@@ -8,35 +8,7 @@ import { KosaiExecutionOptions, KosaiContractResult } from './types';
 import { calculateGeminiCost } from '../../../core/ai/geminiCostTracker';
 import { TenantTokenTracker } from '../../../core/ai/tenantTokenTracker';
 import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
-import { getModuleGeminiKey, getTenantApiKeysState } from '../../../core/connection/tenantApiKeys';
-
-function resolveEffectiveApiKey(customApiKey?: string, moduleName: string = 'kosai-engine'): string | null {
-  if (customApiKey && customApiKey.trim().length > 5) {
-    return customApiKey.trim();
-  }
-
-  const moduleKey = getModuleGeminiKey(moduleName);
-  if (moduleKey && moduleKey.trim().length > 5) {
-    return moduleKey.trim();
-  }
-
-  const kosaiKey = getModuleGeminiKey('kosai-engine');
-  if (kosaiKey && kosaiKey.trim().length > 5) {
-    return kosaiKey.trim();
-  }
-
-  const state = getTenantApiKeysState();
-  if (state.masterKeys?.googleAiApiKey && state.masterKeys.googleAiApiKey.trim().length > 5) {
-    return state.masterKeys.googleAiApiKey.trim();
-  }
-
-  const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  if (envKey && envKey.trim().length > 5) {
-    return envKey.trim();
-  }
-
-  return null;
-}
+import { resolveAiProxyUrl } from '../../../core/ai/cloudAiClient';
 
 export function normalizeModelName(rawModel?: string): string {
   if (!rawModel) return 'gemini-flash-lite-latest';
@@ -76,55 +48,30 @@ export async function executeKosaiAi<T = any>(
     }
   }
 
-  // 3. Resolve API Key
-  const apiKey = resolveEffectiveApiKey(options.customApiKey, moduleName);
-  if (!apiKey) {
-    throw new Error('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
-  }
-
-  // 4. Wrap with Single-Flight Deduplication
+  // 3. Wrap with Single-Flight Deduplication & call exclusive server-side AI proxy
   const flightKey = cacheKey || `${moduleName}_${prompt.substring(0, 100)}`;
 
   return kosaiCircuitBreaker.executeSingleFlight(flightKey, async () => {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-    const userParts: any[] = [{ text: prompt }];
-    if (options.imageBase64) {
-      const cleanData = options.imageBase64.includes('base64,')
-        ? options.imageBase64.split('base64,')[1]
-        : options.imageBase64;
-      userParts.push({
-        inlineData: {
-          mimeType: options.imageMimeType || 'image/jpeg',
-          data: cleanData,
-        },
-      });
-    }
-
-    const requestBody: any = {
-      contents: [{ role: 'user', parts: userParts }],
-      generationConfig: {
-        temperature: options.temperature ?? 0.7,
-        ...(options.maxOutputTokens ? { maxOutputTokens: options.maxOutputTokens } : {}),
-        ...(options.responseMimeType ? { responseMimeType: options.responseMimeType } : {}),
-      },
-    };
-
-    if (options.systemInstruction) {
-      requestBody.systemInstruction = {
-        parts: [{ text: options.systemInstruction }],
-      };
-    }
-
     const controller = new AbortController();
     const timeoutMs = options.timeoutMs || 45000;
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const res = await fetch(url, {
+      const res = await fetch(resolveAiProxyUrl('generate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          model,
+          prompt,
+          systemInstruction: options.systemInstruction,
+          imageBase64: options.imageBase64,
+          imageMimeType: options.imageMimeType,
+          temperature: options.temperature ?? 0.7,
+          maxOutputTokens: options.maxOutputTokens,
+          responseMimeType: options.responseMimeType,
+          tenantId,
+          category,
+        }),
         signal: controller.signal,
       });
 
@@ -132,7 +79,7 @@ export async function executeKosaiAi<T = any>(
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        const errMsg = errJson?.error?.message || `Gemini API returned status ${res.status}`;
+        const errMsg = errJson?.error || `AI proxy returned status ${res.status}`;
         console.warn(`[KOSAI ModelsAiService] ${moduleName} call error:`, errMsg);
 
         // Record attempted prompt tokens so counter stays accurate
@@ -149,10 +96,10 @@ export async function executeKosaiAi<T = any>(
       }
 
       const json = await res.json();
-      const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const promptTokens = json.usageMetadata?.promptTokenCount || Math.round(prompt.length / 3.5);
-      const candidatesTokens = json.usageMetadata?.candidatesTokenCount || Math.round(rawText.length / 3.5);
-      const cachedTokens = json.usageMetadata?.cachedContentTokenCount || 0;
+      const rawText = json.text || '';
+      const promptTokens = json.usageMetadata?.promptTokenCount || json.costReport?.promptTokens || Math.round(prompt.length / 3.5);
+      const candidatesTokens = json.usageMetadata?.candidatesTokenCount || json.costReport?.candidatesTokens || Math.round(rawText.length / 3.5);
+      const cachedTokens = json.usageMetadata?.cachedContentTokenCount || json.costReport?.cachedTokens || 0;
 
       const costReport = calculateGeminiCost({
         model,

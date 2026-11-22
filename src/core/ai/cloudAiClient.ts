@@ -35,10 +35,23 @@ export interface CloudAiResponse<T = any> {
 
 export const PLEASANT_AI_ERROR_HEBREW = 'שירות הבינה המלאכותית עמוס כעת, אנא נסה שוב בעוד מספר רגעים.';
 export const NOT_IN_BASKET_MESSAGE = 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.';
-export const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+
+const CLOUD_AI_PROXY_BASE = 'https://us-central1-glowmanage.cloudfunctions.net/geminiAiProxy';
 
 /**
- * Execute AI request securely: attempts proxy if available, seamless direct Gemini REST fallback
+ * Resolves the exclusive server-side Gemini AI proxy endpoint.
+ * ZERO direct browser calls to Google Generative Language API.
+ */
+export function resolveAiProxyUrl(endpoint: 'generate' | 'image' | 'cache' | 'test'): string {
+  const isLocalDev =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  return isLocalDev ? `${CLOUD_AI_PROXY_BASE}/${endpoint}` : `/api/ai/${endpoint}`;
+}
+
+/**
+ * Execute AI request strictly via server-side Cloud Function proxy (/api/ai/generate).
+ * ZERO browser API key exposure and ZERO direct calls to generativelanguage.googleapis.com.
  */
 export async function executeCloudAi<T = any>(
   options: CloudAiGenerateOptions
@@ -46,163 +59,78 @@ export async function executeCloudAi<T = any>(
   const model = options.model || 'gemini-3.8-flash';
   const timeoutMs = options.timeoutMs || 45000;
 
-  // Resolve API Key: provided key > master tenant key > tenant key > env fallback
   const state = getTenantApiKeysState();
-  const effectiveApiKey = (
-    options.apiKey ||
-    state.masterKeys?.googleAiApiKey ||
-    state.tenantKeys?.googleAiApiKey ||
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
-    ''
-  ).trim();
-
-  if (!effectiveApiKey) {
-    return {
-      success: false,
-      error: NOT_IN_BASKET_MESSAGE,
-      costReport: calculateGeminiCost({ model, promptTokens: 0, candidatesTokens: 0 }),
-    };
-  }
+  const currentResolverTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
+  const targetTenant =
+    options.tenantId ||
+    (state.tenantId && state.tenantId !== ROOT_TENANT_ID ? state.tenantId : currentResolverTenant) ||
+    ROOT_TENANT_ID;
 
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    let rawText = '';
-    let promptTokens = 250;
-    let candidatesTokens = 200;
-    let cachedTokens = 0;
+    const res = await fetch(resolveAiProxyUrl('generate'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: options.prompt,
+        systemInstruction: options.systemInstruction,
+        model,
+        temperature: options.temperature ?? 0.7,
+        responseMimeType: options.responseMimeType,
+        imageParts: options.imageParts,
+        imageBase64: options.imageBase64,
+        mimeType: options.mimeType,
+        category: options.category || 'content',
+        tenantId: targetTenant,
+        cachedContentId: options.cachedContentId,
+      }),
+      signal: controller.signal,
+    });
 
-    // 1. Try server proxy endpoint if available (skip in local Vite client dev to avoid 404 console error)
-    let proxySucceeded = false;
-    const isViteLocalDev = typeof window !== 'undefined' && (window.location.port === '5173' || window.location.hostname === 'localhost');
-    if (!isViteLocalDev) {
-      try {
-        const res = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...options,
-          apiKey: effectiveApiKey,
-          model,
-        }),
-        signal: controller.signal,
-      });
+    clearTimeout(timeoutId);
 
-      const contentType = res.headers.get('content-type') || '';
-      if (res.ok && contentType.includes('application/json')) {
-        const payload = await res.json();
-        rawText = payload.text || (typeof payload.data === 'string' ? payload.data : '');
-        if (payload.costReport) {
-          promptTokens = payload.costReport.promptTokens || promptTokens;
-          candidatesTokens = payload.costReport.candidatesTokens || candidatesTokens;
-          cachedTokens = payload.costReport.cachedTokens || 0;
-        }
-        proxySucceeded = true;
-      }
-      } catch {
-        proxySucceeded = false;
-      }
-    }
-
-    // 2. Direct Gemini REST API Execution if proxy is not configured or failed
-    if (!proxySucceeded) {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${effectiveApiKey}`;
-
-      const parts: any[] = [];
-      if (options.imageBase64 && options.mimeType) {
-        parts.push({
-          inlineData: {
-            data: options.imageBase64.replace(/^data:image\/[a-z]+;base64,/, ''),
-            mimeType: options.mimeType,
-          },
-        });
-      }
-      if (options.imageParts && Array.isArray(options.imageParts)) {
-        parts.push(...options.imageParts);
-      }
-      if (options.prompt) {
-        parts.push({ text: options.prompt });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      const errMsg = errJson?.error || `AI proxy returned status ${res.status}`;
+      console.warn('[executeCloudAi] Server AI proxy notice:', errMsg);
+      let errorMsg = PLEASANT_AI_ERROR_HEBREW;
+      if (res.status === 402) {
+        errorMsg = errJson?.error || NOT_IN_BASKET_MESSAGE;
+      } else if (res.status === 429) {
+        errorMsg = 'הגעת למגבלת הקריאות לדקה (Rate Limit). אנא המתן מספר שניות ונסה שוב.';
       }
 
-      const contents = [{ role: 'user', parts }];
-      const requestBody: any = {
-        contents,
-        generationConfig: {
-          temperature: options.temperature ?? 0.7,
-          ...(options.responseMimeType ? { responseMimeType: options.responseMimeType } : {}),
-        },
+      const estimatedPromptTokens = Math.max(10, Math.round((options.prompt?.length || 0) / 3.5));
+      if (targetTenant) {
+        TenantTokenTracker.recordTokenUsage(
+          targetTenant,
+          options.category || 'content',
+          estimatedPromptTokens,
+          {
+            costUSD: estimatedPromptTokens * 0.00000075,
+            retailBilledUSD: estimatedPromptTokens * 0.0000015,
+            inputTokens: estimatedPromptTokens,
+            outputTokens: 0,
+            promptTokens: estimatedPromptTokens,
+            candidatesTokens: 0,
+          }
+        ).catch(() => {});
+      }
+
+      return {
+        success: false,
+        error: errorMsg,
+        costReport: calculateGeminiCost({ model, promptTokens: estimatedPromptTokens, candidatesTokens: 0, cachedTokens: 0 }),
       };
-
-      if (options.cachedContentId) {
-        // Explicit Context Caching reference
-        requestBody.cachedContent = options.cachedContentId.startsWith('cachedContents/')
-          ? options.cachedContentId
-          : `cachedContents/${options.cachedContentId}`;
-      } else if (options.systemInstruction) {
-        requestBody.systemInstruction = {
-          parts: [{ text: options.systemInstruction }],
-        };
-      }
-
-      const directRes = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!directRes.ok) {
-        const errJson = await directRes.json().catch(() => ({}));
-        const errMsg = errJson?.error?.message || `Gemini API returned status ${directRes.status}`;
-        console.warn('[executeCloudAi] Direct Gemini API call notice:', errMsg);
-        let errorMsg = PLEASANT_AI_ERROR_HEBREW;
-        if (directRes.status === 402) {
-          errorMsg = 'שירות ה-AI דורש חשבון עם חיוב פעיל (Billing/402). אנא ודא שמפתח ה-API משויך לחשבון תקין ב-Google Cloud.';
-        } else if (directRes.status === 429) {
-          errorMsg = 'הגעת למגבלת הקריאות לדקה (Rate Limit). אנא המתן מספר שניות ונסה שוב.';
-        }
-
-        // Record attempted outbound prompt tokens so client ledger matches Google Cloud metrics
-        const estimatedPromptTokens = Math.max(10, Math.round((options.prompt?.length || 0) / 3.5));
-        const currentResolverTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
-        const targetTenant = options.tenantId || (state.tenantId && state.tenantId !== ROOT_TENANT_ID ? state.tenantId : currentResolverTenant) || ROOT_TENANT_ID;
-        if (targetTenant) {
-          TenantTokenTracker.recordTokenUsage(
-            targetTenant,
-            options.category || 'content',
-            estimatedPromptTokens,
-            {
-              costUSD: estimatedPromptTokens * 0.00000075,
-              retailBilledUSD: estimatedPromptTokens * 0.0000015,
-              inputTokens: estimatedPromptTokens,
-              outputTokens: 0,
-              promptTokens: estimatedPromptTokens,
-              candidatesTokens: 0,
-            }
-          ).catch(() => {});
-        }
-
-        return {
-          success: false,
-          error: errorMsg,
-          costReport: calculateGeminiCost({ model, promptTokens: estimatedPromptTokens, candidatesTokens: 0, cachedTokens: 0 }),
-        };
-      }
-
-      const json = await directRes.json();
-      rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (json.usageMetadata) {
-        promptTokens = json.usageMetadata.promptTokenCount || promptTokens;
-        candidatesTokens = json.usageMetadata.candidatesTokenCount || candidatesTokens;
-        // Official Google Gemini usageMetadata cached tokens field
-        cachedTokens = json.usageMetadata.cachedContentTokenCount || 0;
-      }
-    } else {
-      clearTimeout(timeoutId);
     }
+
+    const payload = await res.json();
+    const rawText = payload.text || (typeof payload.data === 'string' ? payload.data : '');
+    const promptTokens = payload.costReport?.promptTokens || payload.usageMetadata?.promptTokenCount || 250;
+    const candidatesTokens = payload.costReport?.candidatesTokens || payload.usageMetadata?.candidatesTokenCount || 200;
+    const cachedTokens = payload.costReport?.cachedTokens || payload.usageMetadata?.cachedContentTokenCount || 0;
 
     if (!rawText) {
       return {
@@ -231,8 +159,6 @@ export async function executeCloudAi<T = any>(
     const costReport = calculateGeminiCost({ model, promptTokens, candidatesTokens, cachedTokens });
 
     // Track tokens for active tenant
-    const currentResolverTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
-    const targetTenant = options.tenantId || (state.tenantId && state.tenantId !== ROOT_TENANT_ID ? state.tenantId : currentResolverTenant) || ROOT_TENANT_ID;
     if (targetTenant) {
       TenantTokenTracker.recordTokenUsage(
         targetTenant,

@@ -115,6 +115,8 @@ const MODULE_ID_ALIASES: Record<string, string> = {
   'media-gallery-hub': 'media-gallery-hub',
   'kosun-am': 'kosun-am',
   'kosai-engine': 'kosai-engine',
+  'kosprojects': 'kosprojects',
+  'projects': 'kosprojects',
   'kosun-board-composer': 'kosun-board-composer',
   'db-connector': 'db-connector-hub',
   'db-connector-hub': 'db-connector-hub',
@@ -155,6 +157,8 @@ const ROUTE_TO_MODULE: Array<[string, string]> = [
   ['/board-composer', 'kosun-board-composer'],
   ['/kostiktok', 'kostiktok'],
   ['/tiktok', 'kostiktok'],
+  ['/projects', 'kosprojects'],
+  ['/kosprojects', 'kosprojects'],
   ['/template', 'template'],
 ];
 
@@ -246,6 +250,7 @@ export function isModuleEntitledFor(input: ApiKeysResolutionInput, moduleId?: st
       'whatsapp-hub',
       'crm-analytics',
       'media-gallery-hub',
+      'kosprojects',
     ];
     return DEFAULT_CORE_MODULES.includes(target);
   }
@@ -259,13 +264,10 @@ export function isModuleEntitledFor(input: ApiKeysResolutionInput, moduleId?: st
  * Rule (Clause ד): Subdomain transactional APIs (Kesher, Green-API WhatsApp, HeyGen, Webhook) use tenant-scoped keys.
  */
 export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: string): SystemApiKeysConfig {
-  const envFallbackKey = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) || '';
-
   const masterAiKey = (
     input.masterKeys?.googleAiApiKey ||
     (input.isRootTenant ? input.tenantKeys.googleAiApiKey : '') ||
     input.tenantKeys.googleAiApiKey ||
-    envFallbackKey ||
     ''
   ).trim();
 
@@ -311,8 +313,8 @@ export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: stri
   return {
     ...DEFAULT_API_KEYS,
     ...input.tenantKeys,
-    // Clause ה: AI key is always taken through master collection if available
-    googleAiApiKey: masterAiKey || input.tenantKeys.googleAiApiKey || envFallbackKey || '',
+    // Clause ה: AI key is always taken through master collection if available (server-side proxy handles execution)
+    googleAiApiKey: masterAiKey || input.tenantKeys.googleAiApiKey || '',
     // YouTube Data API v3 key: always inherited from Master collection for subdomains
     youtubeApiKey: masterYoutubeKey || input.tenantKeys.youtubeApiKey || '',
     // TikTok Developer Platform Keys: always inherited from Master collection so subdomains route through it

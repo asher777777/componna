@@ -7,8 +7,8 @@
  * https://ai.google.dev/gemini-api/docs/caching
  */
 
-import { GEMINI_API_BASE_URL } from './cloudAiClient';
-import { getTenantApiKeysState } from '../connection/tenantApiKeys';
+import { resolveAiProxyUrl } from './cloudAiClient';
+import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../tenant/tenantResolver';
 
 export interface CreateCacheOptions {
   model?: string;
@@ -56,65 +56,31 @@ export async function createExplicitContextCache(
 ): Promise<{ success: boolean; cache?: ContextCacheInfo; error?: string }> {
   const model = options.model || 'gemini-3.8-flash';
   const ttlSec = Math.min(Math.max(60, options.ttlSeconds || DEFAULT_TTL_SECONDS), MAX_TTL_SECONDS);
-
-  // Resolve API Key
-  const state = getTenantApiKeysState();
-  const effectiveApiKey = (
-    options.apiKey ||
-    state.masterKeys?.googleAiApiKey ||
-    state.tenantKeys?.googleAiApiKey ||
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
-    ''
-  ).trim();
-
-  if (!effectiveApiKey) {
-    return { success: false, error: 'Missing Gemini API key for cache creation.' };
-  }
+  const tenantId = (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || ROOT_TENANT_ID;
 
   try {
-    const targetUrl = `${GEMINI_API_BASE_URL}/cachedContents?key=${effectiveApiKey}`;
-
-    const requestBody: any = {
-      model: normalizeCacheModel(model),
-      contents: options.contents,
-      ttl: `${ttlSec}s`,
-    };
-
-    if (options.displayName) {
-      requestBody.displayName = options.displayName;
-    }
-
-    if (options.systemInstruction) {
-      requestBody.systemInstruction = {
-        parts: [{ text: options.systemInstruction }],
-      };
-    }
-
-    const res = await fetch(targetUrl, {
+    const res = await fetch(resolveAiProxyUrl('cache'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        action: 'cache-create',
+        tenantId,
+        model: normalizeCacheModel(model),
+        contents: options.contents,
+        ttlSeconds: ttlSec,
+        displayName: options.displayName,
+        systemInstruction: options.systemInstruction,
+      }),
     });
 
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      const errMsg = errJson?.error?.message || `Cache creation failed with HTTP ${res.status}`;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.success) {
+      const errMsg = data?.error || `Cache creation failed with HTTP ${res.status}`;
       console.warn('[GeminiCacheManager] Creation failed:', errMsg);
       return { success: false, error: errMsg };
     }
 
-    const data = await res.json();
-    const cacheInfo: ContextCacheInfo = {
-      name: data.name,
-      model: data.model,
-      displayName: data.displayName,
-      createTime: data.createTime,
-      updateTime: data.updateTime,
-      expireTime: data.expireTime,
-      totalTokenCount: data.usageMetadata?.totalTokenCount || 0,
-    };
-
-    return { success: true, cache: cacheInfo };
+    return { success: true, cache: data.cache };
   } catch (err: any) {
     console.error('[GeminiCacheManager] Unexpected error creating cache:', err);
     return { success: false, error: err?.message || 'Network error during cache creation' };
@@ -127,27 +93,23 @@ export async function createExplicitContextCache(
  */
 export async function deleteExplicitContextCache(
   cacheName: string,
-  apiKey?: string
+  _apiKey?: string
 ): Promise<boolean> {
   if (!cacheName) return true;
-
-  const state = getTenantApiKeysState();
-  const effectiveApiKey = (
-    apiKey ||
-    state.masterKeys?.googleAiApiKey ||
-    state.tenantKeys?.googleAiApiKey ||
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
-    ''
-  ).trim();
-
-  if (!effectiveApiKey) return false;
+  const tenantId = (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || ROOT_TENANT_ID;
 
   try {
-    const cleanName = cacheName.replace(/^cachedContents\//, 'cachedContents/');
-    const deleteUrl = `${GEMINI_API_BASE_URL}/${cleanName}?key=${effectiveApiKey}`;
-
-    const res = await fetch(deleteUrl, { method: 'DELETE' });
-    return res.ok;
+    const res = await fetch(resolveAiProxyUrl('cache'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'cache-delete',
+        tenantId,
+        cacheName,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return Boolean(res.ok && data?.success);
   } catch (err) {
     console.warn(`[GeminiCacheManager] Failed to delete cache ${cacheName}:`, err);
     return false;

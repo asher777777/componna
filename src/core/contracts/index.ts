@@ -66,6 +66,7 @@ export interface CrmMetadataContract {
   getMappingFields: () => Promise<CrmFieldOption[]> | CrmFieldOption[];
   captureLead?: (lead: LeadPayload) => Promise<string | boolean>;
   createCustomField?: (field: { label: string; key?: string; type?: string }) => Promise<{ success: boolean; field?: CrmFieldOption; error?: string }>;
+  getContactsSummary?: (options?: { search?: string; tag?: string; limit?: number }) => Promise<CrmContactSummary[]>;
 }
 
 export interface NotificationContract {
@@ -443,6 +444,11 @@ export interface AuthSessionContract {
 
 export interface CrmContactSummary {
   id: string;
+  name?: string;
+  phone?: string;
+  companyName?: string;
+  role?: string;
+  tags?: string[];
   kosun_crm_name?: string;
   kosun_crm_phone?: string;
   kosun_crm_email?: string;
@@ -805,6 +811,9 @@ export interface CoreEventMap {
     youtubeVideoId?: string;
     pageConfig?: any;
   };
+  'project:created': { projectId: string; title: string; clientContactId?: string; communityGroupId?: string };
+  'project:updated': { projectId: string; title?: string; status?: string };
+  'project:milestone_reached': { projectId: string; taskId: string; title: string; communityGroupId?: string };
 }
 
 // ========================
@@ -2251,6 +2260,75 @@ export interface KosLiveContract {
   listCampaigns: () => Promise<LivingCampaignContract[]>;
   saveCampaign: (campaign: LivingCampaignContract) => Promise<void>;
   convertPageToLivingCampaign: (pageConfig: any) => Promise<LivingCampaignContract>;
+}
+
+// ========================
+// Projects & Workplan Contract (KosProjects Monopoly)
+// ========================
+
+export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'archived';
+export type ProjectTaskStatus = 'todo' | 'in_progress' | 'review' | 'blocked' | 'done';
+export type ProjectPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface ProjectSummary {
+  id: string;
+  title: string;
+  description?: string;
+  status: ProjectStatus | string;
+  priority?: ProjectPriority | string;
+  category?: string;
+  clientContactId?: string;
+  clientName?: string;
+  communityGroupId?: string;
+  ownerContactId?: string;
+  ownerName?: string;
+  startDate?: string;
+  targetEndDate?: string;
+  progressPercent?: number;
+  budgetTotal?: number;
+  budgetSpent?: number;
+  tasksCount?: number;
+  completedTasksCount?: number;
+  tags?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ProjectTaskSummary {
+  id: string;
+  projectId: string;
+  title: string;
+  description?: string;
+  status: ProjectTaskStatus | string;
+  priority?: ProjectPriority | string;
+  phase?: string;
+  isMilestone?: boolean;
+  assigneeContactId?: string;
+  assigneeName?: string;
+  vendorContactId?: string;
+  vendorName?: string;
+  startDate?: string;
+  dueDate?: string;
+  progressPercent?: number;
+  dependsOnTaskIds?: string[];
+  tags?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface KosProjectsContract {
+  listProjects: (filters?: {
+    status?: string;
+    clientContactId?: string;
+    communityGroupId?: string;
+    search?: string;
+  }) => Promise<ProjectSummary[]>;
+  getProjectById: (projectId: string) => Promise<ProjectSummary | null>;
+  listProjectTasks: (projectId: string) => Promise<ProjectTaskSummary[]>;
+  createProject?: (project: Omit<ProjectSummary, 'id'>) => Promise<{ success: boolean; projectId?: string; error?: string }>;
+  updateProjectStatus?: (projectId: string, status: ProjectStatus | string) => Promise<boolean>;
+  createTask?: (task: Omit<ProjectTaskSummary, 'id'>) => Promise<{ success: boolean; taskId?: string; error?: string }>;
+  updateTaskStatus?: (taskId: string, status: ProjectTaskStatus | string) => Promise<boolean>;
 }
 
 export * from './collections';

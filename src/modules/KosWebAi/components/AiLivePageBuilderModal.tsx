@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract, MediaPickerContract } from '../../../core/contracts';
-import { resolveApiKey } from '../api/functionsApi';
 import { MarketingIdea } from '../types';
 import { pageGenerator } from '../generators/pageGenerator';
 import {
@@ -21,7 +20,6 @@ import {
   Settings,
   AlertCircle,
   Lightbulb,
-  LayoutTemplate,
   Calendar,
   Clock,
   Target,
@@ -35,10 +33,15 @@ import {
   Compass,
   Trash2,
   Plus,
-  Send,
   Users,
-  Star,
-  MessageCircle,
+  Home,
+  BookOpen,
+  CreditCard,
+  Globe,
+  Link2,
+  Database,
+  Wand2,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
@@ -46,12 +49,27 @@ import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { TenantTokenBadge } from '../../../core/ai';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import {
+  PAGE_ARCHITECTURE_MATRIX,
+  MatrixPageTypeId,
+  getMatrixPageType,
+  buildIntakeQuestionsForPage,
+  buildPreFilledHeroImagePrompt,
+  STANDARD_CRM_FORM_FIELDS,
+  CrmFormFieldSpec,
+} from '../config/pageArchitectureMatrix';
+import {
+  IngestedSourceItem,
+  extractTextFromUploadedFile,
+  scanWebsiteUrlForGrounding,
+} from '../services/sourceIngestionService';
+import {
   WizardStepOptions,
   StructuredPageDraft,
   StreamStepInfo,
   generateStructuredPageDraft,
   streamPageBuilding,
 } from '../services/structuredPageAiService';
+import { dispatchSectionEnhancementToKosai } from '../kosai/promptToKosai';
 
 interface AiLivePageBuilderModalProps {
   isOpen: boolean;
@@ -59,6 +77,8 @@ interface AiLivePageBuilderModalProps {
   onComplete: (generatedConfig: PageBuilderConfig) => void;
   onOpenMarketingDrawer?: () => void;
 }
+
+type ModalStage = 'page_type' | 'intake' | 'review' | 'streaming';
 
 export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   isOpen,
@@ -70,62 +90,81 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
   const { openConnectorModal, getApiKeysForModule } = useSystemConnection();
 
-  // Wizard Steps:
-  // 1: Topic & Goal
-  // 2: Section Selection (Pre-generation)
-  // 3: Contextual Details (Event, Campaign, Current Affairs)
-  // 4: Media & Image Selection
-  // 5: In-Modal Content Review & Refinement (Flagship Style)
-  // 6: Streaming & Live Page Assembly
-  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
+  const [stage, setStage] = useState<ModalStage>('page_type');
 
-  // Form State: Step 1 (Topic & Goal)
-  const [promptTopic, setPromptTopic] = useState('');
-  const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
+  // Stage 1: Matrix Page Type & Optional Section Customization
+  const [selectedPageTypeId, setSelectedPageTypeId] = useState<MatrixPageTypeId>('landing');
+  const [selectedSectionTypes, setSelectedSectionTypes] = useState<SectionType[]>(
+    getMatrixPageType('landing').sections
+  );
+  const [showSectionCustomizer, setShowSectionCustomizer] = useState(false);
+
+  // Quick Marketing Ideas
   const [ideas, setIdeas] = useState<MarketingIdea[]>([]);
   const [loadingIdeas, setLoadingIdeas] = useState(false);
 
-  // Form State: Step 2 (Section Selection)
-  const [selectedSectionTypes, setSelectedSectionTypes] = useState<SectionType[]>([
-    'hero',
-    'richContent',
-    'statsBento',
-    'testimonials',
-    'faq',
-    'contact',
-  ]);
+  // Stage 2: One-Question-at-a-Time Intake
+  const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
+  const [promptTopic, setPromptTopic] = useState('');
 
-  // Form State: Step 3 (Contextual Details)
-  const [locationName, setLocationName] = useState('מרכז האירועים והכנסים');
-  const [locationAddress, setLocationAddress] = useState(brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב');
-  const [wazeQuery, setWazeQuery] = useState(brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144 תל אביב');
-  const [eventDate, setEventDate] = useState('2026-11-20');
+  // Grounding Sources (PDF/DOCX, URL, Pasted Text)
+  const [groundingSources, setGroundingSources] = useState<IngestedSourceItem[]>([]);
+  const [scanUrlInput, setScanUrlInput] = useState('');
+  const [isScanningUrl, setIsScanningUrl] = useState(false);
+  const [pastedSourceText, setPastedSourceText] = useState('');
+
+  // Hero Media
+  const [imageMode, setImageMode] = useState<'gallery' | 'ai' | 'unsplash' | 'none'>('gallery');
+  const [selectedGalleryImageUrl, setSelectedGalleryImageUrl] = useState('');
+  const [customHeroImagePrompt, setCustomHeroImagePrompt] = useState('');
+
+  // Event Hard Facts
+  const [eventDate, setEventDate] = useState('2026-12-01');
   const [eventTime, setEventTime] = useState('19:30');
   const [eventEndTime, setEventEndTime] = useState('22:00');
+  const [locationName, setLocationName] = useState('מרכז הכנסים והאירועים');
+  const [locationAddress, setLocationAddress] = useState(brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב');
+  const [wazeQuery, setWazeQuery] = useState(brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144 תל אביב');
 
+  // Campaign Hard Facts
   const [targetGoal, setTargetGoal] = useState<number>(100000);
   const [totalRaised, setTotalRaised] = useState<number>(45000);
   const [campaignCause, setCampaignCause] = useState('');
 
-  const [currentAffairsTopic, setCurrentAffairsTopic] = useState('');
-  const [mainPoints, setMainPoints] = useState('');
+  // Pricing & Kesher Checkout Hard Facts
+  const [kesherDocType, setKesherDocType] = useState<320 | 400 | 405>(320);
+  const [enableInstallments, setEnableInstallments] = useState(true);
+  const [maxInstallments, setMaxInstallments] = useState(12);
+  const [pricingPlans, setPricingPlans] = useState<
+    Array<{ id: string; name: string; priceMonthly: number; description: string; isFeatured?: boolean }>
+  >([
+    { id: 'p1', name: 'מסלול בסיסי', priceMonthly: 490, description: 'פתרון ממוקד להתחלה מהירה', isFeatured: false },
+    { id: 'p2', name: 'מסלול פרימיום', priceMonthly: 990, description: 'המסלול המלא והמבוקש ביותר', isFeatured: true },
+  ]);
 
-  // Form State: Step 4 (Image Selection)
-  const [imageMode, setImageMode] = useState<'gallery' | 'ai' | 'unsplash' | 'none'>('unsplash');
-  const [selectedGalleryImageUrl, setSelectedGalleryImageUrl] = useState<string>('');
-  const [aiImageStyle, setAiImageStyle] = useState('פוטוריאליסטי יוקרתי');
+  // Geo Local
+  const [geoCity, setGeoCity] = useState('תל אביב והמרכז');
+  const [geoAreasText, setGeoAreasText] = useState('תל אביב, רמת גן, גבעתיים, הרצליה');
 
-  // Form State: Step 5 (In-Modal Content Review)
+  // CRM Form Fields
+  const [selectedCrmFieldKeys, setSelectedCrmFieldKeys] = useState<string[]>(
+    STANDARD_CRM_FORM_FIELDS.filter((f) => f.defaultSelected).map((f) => f.crmFieldKey)
+  );
+
+  // SEO/GEO 2026.4 Focus
+  const [authorName, setAuthorName] = useState(brandDna?.identity?.companyName || '');
+  const [targetGeoQuestion, setTargetGeoQuestion] = useState('');
+
+  // Stage 3: Draft Review & Inline AI Refine
   const [draft, setDraft] = useState<StructuredPageDraft | null>(null);
-  const [activeReviewTab, setActiveReviewTab] = useState<'hero' | 'content' | 'details' | 'faq' | 'contact'>('hero');
+  const [activeReviewTab, setActiveReviewTab] = useState<'hero' | 'content' | 'details' | 'faq' | 'seo'>('hero');
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+  const [isRefiningTab, setIsRefiningTab] = useState(false);
 
-  // Form State: Step 6 (Streaming)
+  // Stage 4: Streaming
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentStreamStep, setCurrentStreamStep] = useState<StreamStepInfo | null>(null);
   const [streamedConfig, setStreamedConfig] = useState<PageBuilderConfig | null>(null);
-
-  // Error & Status
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const moduleKeys = getApiKeysForModule('KosWebAi');
@@ -134,18 +173,39 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   const wasOpenRef = useRef(false);
   const isLoadingIdeasRef = useRef(false);
 
-  // Reset & Load Initial Ideas
+  const selectedMatrixDef = useMemo(() => getMatrixPageType(selectedPageTypeId), [selectedPageTypeId]);
+  const intakeSteps = useMemo(
+    () => buildIntakeQuestionsForPage(selectedMatrixDef, selectedSectionTypes),
+    [selectedMatrixDef, selectedSectionTypes]
+  );
+
+  const prefilledImageSpec = useMemo(
+    () => buildPreFilledHeroImagePrompt(promptTopic, selectedMatrixDef, brandDna),
+    [promptTopic, selectedMatrixDef, brandDna]
+  );
+
+  useEffect(() => {
+    if (!customHeroImagePrompt && prefilledImageSpec.prompt) {
+      setCustomHeroImagePrompt(prefilledImageSpec.prompt);
+    }
+  }, [prefilledImageSpec.prompt]);
+
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
+      setStage('page_type');
+      setActiveQuestionIdx(0);
       setPromptTopic('');
-      setSelectedIdeaId(null);
-      setWizardStep(1);
+      setGroundingSources([]);
+      setPastedSourceText('');
+      setScanUrlInput('');
+      setSelectedGalleryImageUrl('');
+      setCustomHeroImagePrompt('');
       setErrorMsg(null);
       setDraft(null);
       setIsStreaming(false);
       setCurrentStreamStep(null);
       setStreamedConfig(null);
-      setSelectedSectionTypes(['hero', 'richContent', 'statsBento', 'testimonials', 'faq', 'contact']);
+      setAuthorName(brandDna?.identity?.companyName || '');
       if (ideas.length === 0) {
         loadIdeas();
       }
@@ -162,7 +222,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
       const existingPages = await pageBuilderFirestore.getAllPages();
       const generatedIdeas = await pageGenerator.generatePageIdeas(brandDna, apiKey, existingPages, force);
       setIdeas(generatedIdeas);
-    } catch (err: any) {
+    } catch (err) {
       console.warn('Could not load marketing ideas:', err);
     } finally {
       setLoadingIdeas(false);
@@ -172,54 +232,77 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Has contextual needs
-  const hasEventSections = selectedSectionTypes.some((t) => t === 'eventRsvp' || t === 'timer');
-  const hasCampaignSections = selectedSectionTypes.some(
-    (t) => t === 'campaignHeader' || t === 'campaignTiers' || t === 'campaignDonors'
-  );
-  const hasContentOrNewsSections = selectedSectionTypes.some(
-    (t) => t === 'richContent' || t === 'livePosts'
-  );
+  const handleSelectPageType = (id: MatrixPageTypeId) => {
+    setSelectedPageTypeId(id);
+    const def = getMatrixPageType(id);
+    setSelectedSectionTypes([...def.sections]);
+    setActiveQuestionIdx(0);
+  };
 
-  // Section toggle handler
   const toggleSection = (type: SectionType) => {
     if (selectedSectionTypes.includes(type)) {
-      if (selectedSectionTypes.length <= 1) {
-        alert('יש לבחור לפחות אזור אחד בעמוד.');
-        return;
-      }
+      if (selectedSectionTypes.length <= 1) return;
       setSelectedSectionTypes((prev) => prev.filter((t) => t !== type));
     } else {
       setSelectedSectionTypes((prev) => [...prev, type]);
     }
   };
 
-  // Section Presets
-  const applyPreset = (presetKey: 'service' | 'event' | 'campaign' | 'news' | 'checkout') => {
-    switch (presetKey) {
-      case 'service':
-        setSelectedSectionTypes(['hero', 'richContent', 'statsBento', 'pricing', 'testimonials', 'faq', 'contact']);
-        break;
-      case 'event':
-        setSelectedSectionTypes(['hero', 'timer', 'eventRsvp', 'richContent', 'statsBento', 'faq', 'contact']);
-        break;
-      case 'campaign':
-        setSelectedSectionTypes(['campaignHeader', 'hero', 'campaignTiers', 'campaignDonors', 'statsBento', 'faq', 'contact']);
-        break;
-      case 'news':
-        setSelectedSectionTypes(['hero', 'richContent', 'statsBento', 'livePosts', 'testimonials', 'faq', 'contact']);
-        break;
-      case 'checkout':
-        setSelectedSectionTypes(['hero', 'pricing', 'smartForm', 'timer', 'testimonials', 'contact']);
-        break;
-    }
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const item = await extractTextFromUploadedFile(file);
+    setGroundingSources((prev) => [...prev, item]);
+    e.target.value = '';
   };
 
-  // Gallery Picker
-  const handlePickFromGallery = async () => {
+  const handleScanUrl = async () => {
+    if (!scanUrlInput.trim()) return;
+    setIsScanningUrl(true);
+    const item = await scanWebsiteUrlForGrounding(scanUrlInput);
+    setGroundingSources((prev) => [...prev, item]);
+    setScanUrlInput('');
+    setIsScanningUrl(false);
+  };
+
+  const handleAddPastedSource = () => {
+    if (!pastedSourceText.trim()) return;
+    setGroundingSources((prev) => [
+      ...prev,
+      {
+        id: `src_text_${Date.now()}`,
+        type: 'text',
+        label: 'טקסט חופשי שהודבק',
+        extractedText: pastedSourceText.trim().slice(0, 6000),
+        charCount: pastedSourceText.trim().length,
+      },
+    ]);
+    setPastedSourceText('');
+  };
+
+  const handleHeroImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setSelectedGalleryImageUrl(reader.result);
+        setImageMode('gallery');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePickOrCreateFromGallery = async () => {
     if (mediaPicker?.openPicker) {
       try {
-        const selected = await mediaPicker.openPicker({ accept: 'image/*' });
+        const promptToPass = customHeroImagePrompt || prefilledImageSpec.prompt;
+        const selected = await mediaPicker.openPicker({
+          accept: 'image/*',
+          title: `בחר או צור תמונה (${prefilledImageSpec.width}x${prefilledImageSpec.height})`,
+          // Pass pre-filled AI generation hint if gallery supports it
+          ...( { aiPrompt: promptToPass, aspectRatio: prefilledImageSpec.aspectRatio } as any ),
+        });
         const item = Array.isArray(selected) ? selected[0] : selected;
         const url = typeof item === 'string' ? item : (item as any)?.url || '';
         if (url) {
@@ -230,77 +313,134 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
         console.warn('Gallery picker canceled:', err);
       }
     } else {
-      alert('גלריית המדיה של KosCloudStore אינה זמינה כרגע.');
+      setErrorMsg('גלריית המדיה אינה זמינה כרגע — ניתן להעלות תמונה ישירות מהמחשב.');
     }
   };
 
-  // Generate Structured Draft and Move to Step 5 (Review in Modal)
-  const handleGenerateDraft = async () => {
-    setIsGeneratingDraft(true);
-    setErrorMsg(null);
+  const buildWizardOptions = (): WizardStepOptions => {
+    const selectedCrmSpecs: CrmFormFieldSpec[] = STANDARD_CRM_FORM_FIELDS.filter((f) =>
+      selectedCrmFieldKeys.includes(f.crmFieldKey)
+    );
 
-    const wizardOptions: WizardStepOptions = {
-      promptTopic: promptTopic.trim() || 'עמוד שירות ופעילות חדש',
+    const allSources = [...groundingSources];
+    if (pastedSourceText.trim()) {
+      allSources.push({
+        id: 'pasted_inline',
+        type: 'text',
+        label: 'בריף טקסט מהמשתמש',
+        extractedText: pastedSourceText.trim(),
+        charCount: pastedSourceText.trim().length,
+      });
+    }
+
+    return {
+      promptTopic: promptTopic.trim() || selectedMatrixDef.shortTitleHe,
       selectedSectionTypes,
-      eventDetails: hasEventSections
+      pageTypeId: selectedPageTypeId,
+      groundingSources: allSources.map((s) => ({
+        label: s.label,
+        extractedText: s.extractedText,
+      })),
+      eventDetails: selectedSectionTypes.some((t) => t === 'eventRsvp' || t === 'timer')
+        ? { locationName, locationAddress, wazeQuery, eventDate, eventTime, eventEndTime }
+        : undefined,
+      campaignDetails: selectedSectionTypes.some((t) => t === 'campaignHeader' || t === 'campaignTiers')
+        ? { targetGoal, totalRaised, campaignCause: campaignCause || promptTopic }
+        : undefined,
+      pricingDetails: selectedSectionTypes.includes('pricing')
         ? {
-            locationName,
-            locationAddress,
-            wazeQuery,
-            eventDate,
-            eventTime,
-            eventEndTime,
+            documentType: kesherDocType,
+            enableInstallments,
+            maxInstallments,
+            plans: pricingPlans,
           }
         : undefined,
-      campaignDetails: hasCampaignSections
+      geoDetails: selectedSectionTypes.includes('geoLocal')
         ? {
-            targetGoal,
-            totalRaised,
-            campaignCause: campaignCause || promptTopic,
+            targetCity: geoCity,
+            serviceAreas: geoAreasText
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean),
           }
         : undefined,
-      newsDetails: hasContentOrNewsSections
-        ? {
-            currentAffairsTopic: currentAffairsTopic || promptTopic,
-            mainPoints,
-          }
-        : undefined,
+      crmFormFields: selectedCrmSpecs,
+      seoGeoFocus: {
+        authorName: authorName.trim() || brandDna?.identity?.companyName || '',
+        targetQuestion: targetGeoQuestion.trim(),
+      },
       imageSelection: {
         mode: imageMode,
         selectedImageUrl: selectedGalleryImageUrl,
-        aiImagePrompt: promptTopic,
+        aiImagePrompt: customHeroImagePrompt || prefilledImageSpec.prompt,
       },
     };
+  };
 
+  const handleGenerateDraft = async () => {
+    setIsGeneratingDraft(true);
+    setErrorMsg(null);
     try {
+      const wizardOptions = buildWizardOptions();
       const generatedDraft = await generateStructuredPageDraft(wizardOptions, brandDna, apiKey);
       setDraft(generatedDraft);
-      setIsGeneratingDraft(false);
-      setWizardStep(5);
+      setStage('review');
     } catch (err: any) {
       console.error('Draft generation error:', err);
-      setIsGeneratingDraft(false);
       setErrorMsg(err?.message || 'שגיאה במהלך הפקת הטיוטה.');
+    } finally {
+      setIsGeneratingDraft(false);
     }
   };
 
-  // Live Stream Building (Step 6)
+  const handleQuickRefineSection = async (sectionKey: 'hero' | 'richContent' | 'faq', instruction: string) => {
+    if (!draft) return;
+    setIsRefiningTab(true);
+    try {
+      const company = brandDna?.identity?.companyName || 'המותג';
+      const currentData =
+        sectionKey === 'hero' ? draft.hero : sectionKey === 'richContent' ? draft.richContent : draft.faqs;
+
+      const updated = await dispatchSectionEnhancementToKosai(
+        {
+          sectionType: sectionKey,
+          userPrompt: instruction,
+          companyName: company,
+          currentConfig: currentData,
+        },
+        { apiKey }
+      );
+
+      if (updated && typeof updated === 'object') {
+        setDraft((prev) => {
+          if (!prev) return prev;
+          if (sectionKey === 'hero') {
+            return { ...prev, hero: { ...prev.hero, ...updated } };
+          }
+          if (sectionKey === 'richContent') {
+            return { ...prev, richContent: { ...prev.richContent!, ...updated } };
+          }
+          if (sectionKey === 'faq' && Array.isArray(updated.items || updated)) {
+            return { ...prev, faqs: updated.items || updated };
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.warn('Quick refine failed:', err);
+    } finally {
+      setIsRefiningTab(false);
+    }
+  };
+
   const handleStartStreaming = async () => {
     if (!draft) return;
-    setWizardStep(6);
+    setStage('streaming');
     setIsStreaming(true);
     setErrorMsg(null);
 
-    const wizardOptions: WizardStepOptions = {
-      promptTopic: promptTopic.trim() || 'עמוד חדש',
-      selectedSectionTypes,
-      imageSelection: {
-        mode: imageMode,
-        selectedImageUrl: draft.hero.imageUrl || selectedGalleryImageUrl,
-      },
-    };
-
     try {
+      const wizardOptions = buildWizardOptions();
       const finalConfig = await streamPageBuilding(
         draft,
         wizardOptions,
@@ -321,6 +461,25 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
     }
   };
 
+  const getMatrixIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'Home': return <Home className="w-4 h-4" />;
+      case 'Zap': return <Zap className="w-4 h-4" />;
+      case 'FileText': return <FileText className="w-4 h-4" />;
+      case 'BookOpen': return <BookOpen className="w-4 h-4" />;
+      case 'Compass': return <Compass className="w-4 h-4" />;
+      case 'Calendar': return <Calendar className="w-4 h-4" />;
+      case 'Heart': return <Heart className="w-4 h-4" />;
+      case 'GraduationCap': return <GraduationCap className="w-4 h-4" />;
+      case 'CreditCard': return <CreditCard className="w-4 h-4" />;
+      case 'Users': return <Users className="w-4 h-4" />;
+      default: return <Sparkles className="w-4 h-4" />;
+    }
+  };
+
+  const currentQuestion = intakeSteps[activeQuestionIdx];
+  const isLastIntakeQuestion = activeQuestionIdx >= intakeSteps.length - 1;
+
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md select-text" dir="rtl">
       <div className="relative w-full max-w-4xl bg-[#07090e] border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
@@ -331,14 +490,17 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
-                <span>סיעור מוחות ויצירת עמוד ב-AI</span>
+              <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 flex-wrap">
+                <span>אדריכל העמודים החכם (AI + GEO 2026)</span>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-medium border border-indigo-500/30">
-                  {wizardStep <= 4 ? `שאלה ${wizardStep} מתוך 4` : wizardStep === 5 ? 'עריכת תוכן במודל' : 'הזרמה חיה'}
+                  {stage === 'page_type' && 'שלב 1: בחירת ארכיטקטורת עמוד'}
+                  {stage === 'intake' && `שאלה ${activeQuestionIdx + 1} מתוך ${intakeSteps.length}`}
+                  {stage === 'review' && 'תצוגה ועריכת טיוטה'}
+                  {stage === 'streaming' && 'הרכבה והזרמה חיה'}
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                תהליך מונחה חכם מבוסס Brand DNA – שאלה אחת בכל שלב, קבלת התוכן בתוך מודל והזרמה חיה.
+                {selectedMatrixDef.titleHe} • מותאם ל-Brand DNA, CRM, סליקה ופרוטוקול SEO/GEO 2026.4
               </p>
             </div>
           </div>
@@ -348,15 +510,15 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
               <button
                 type="button"
                 onClick={() => openConnectorModal('apiKeys')}
-                className="p-2 rounded-xl bg-slate-800/50 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                title="הגדרות מפתחות AI"
+                title="הגדרת מפתחות AI"
+                className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
               >
                 <Settings className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-xl bg-slate-800/50 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="p-2 rounded-xl bg-slate-800/80 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -364,279 +526,379 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
           )}
         </div>
 
-        {/* Stepper Progress Bar */}
-        <div className="w-full bg-slate-900/80 px-6 py-2.5 border-b border-slate-800/60 flex items-center justify-between text-xs font-bold text-slate-400 overflow-x-auto no-scrollbar gap-2">
-          <div className={clsx('flex items-center gap-1.5 shrink-0', wizardStep === 1 ? 'text-indigo-400 font-black' : wizardStep > 1 ? 'text-emerald-400' : '')}>
-            <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px]', wizardStep > 1 ? 'bg-emerald-500 text-slate-950 font-black' : wizardStep === 1 ? 'bg-indigo-600 text-white' : 'bg-slate-800')}>1</span>
-            <span>מטרה ונושא</span>
-          </div>
-          <span className="text-slate-700">←</span>
-          <div className={clsx('flex items-center gap-1.5 shrink-0', wizardStep === 2 ? 'text-indigo-400 font-black' : wizardStep > 2 ? 'text-emerald-400' : '')}>
-            <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px]', wizardStep > 2 ? 'bg-emerald-500 text-slate-950 font-black' : wizardStep === 2 ? 'bg-indigo-600 text-white' : 'bg-slate-800')}>2</span>
-            <span>בחירת אזורים</span>
-          </div>
-          <span className="text-slate-700">←</span>
-          <div className={clsx('flex items-center gap-1.5 shrink-0', wizardStep === 3 ? 'text-indigo-400 font-black' : wizardStep > 3 ? 'text-emerald-400' : '')}>
-            <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px]', wizardStep > 3 ? 'bg-emerald-500 text-slate-950 font-black' : wizardStep === 3 ? 'bg-indigo-600 text-white' : 'bg-slate-800')}>3</span>
-            <span>פרטים מיוחדים</span>
-          </div>
-          <span className="text-slate-700">←</span>
-          <div className={clsx('flex items-center gap-1.5 shrink-0', wizardStep === 4 ? 'text-indigo-400 font-black' : wizardStep > 4 ? 'text-emerald-400' : '')}>
-            <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px]', wizardStep > 4 ? 'bg-emerald-500 text-slate-950 font-black' : wizardStep === 4 ? 'bg-indigo-600 text-white' : 'bg-slate-800')}>4</span>
-            <span>תמונה ומדיה</span>
-          </div>
-          <span className="text-slate-700">←</span>
-          <div className={clsx('flex items-center gap-1.5 shrink-0', wizardStep === 5 ? 'text-indigo-400 font-black' : wizardStep > 5 ? 'text-emerald-400' : '')}>
-            <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px]', wizardStep > 5 ? 'bg-emerald-500 text-slate-950 font-black' : wizardStep === 5 ? 'bg-indigo-600 text-white' : 'bg-slate-800')}>5</span>
-            <span>עריכת תוכן במודל</span>
-          </div>
-          <span className="text-slate-700">←</span>
-          <div className={clsx('flex items-center gap-1.5 shrink-0', wizardStep === 6 ? 'text-indigo-400 font-black' : '')}>
-            <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px]', wizardStep === 6 ? 'bg-indigo-600 text-white animate-pulse' : 'bg-slate-800')}>6</span>
-            <span>הזרמה חיה</span>
-          </div>
-        </div>
+        {/* Body */}
+        <div className="p-5 sm:p-7 overflow-y-auto flex-1 space-y-6">
+          {errorMsg && (
+            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-3 text-rose-300 text-xs font-bold">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
-        {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-7">
-          {/* STEP 1: Page Goal & Topic */}
-          {wizardStep === 1 && (
-            <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-              <div className="flex flex-col gap-1.5">
-                <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                  <Lightbulb className="w-5 h-5 text-amber-400" />
-                  <span>שאלה 1: מה מטרת העמוד ומה הנושא שתרצו לקדם?</span>
-                </h3>
+          {/* ==================== STAGE 1: 10-PAGE MATRIX SELECTION ==================== */}
+          {stage === 'page_type' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-base font-black text-white mb-1">איזה סוג עמוד תרצה לבנות היום?</h3>
                 <p className="text-xs text-slate-400">
-                  בחרו מאחת מאפשרויות הבחירה המהירות, או כתבו באופן חופשי את הרעיון שלכם:
+                  לכל סוג עמוד הוגדר מבנה אזורים אופטימלי (Top-to-Bottom) ושאלון ממוקד המותאם בדיוק לאזורים שבו.
                 </p>
               </div>
 
-              {/* Quick Choice Chips */}
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-bold text-slate-400">שורות בחירה מהירות:</span>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { label: 'עמוד שירות / מוצר דגל חדש', icon: Zap },
-                    { label: 'כנס ואירוע קהילתי מרכזי', icon: Calendar },
-                    { label: 'קמפיין גיוס תרומות ושותפים', icon: Heart },
-                    { label: 'דף נחיתה ומכירה מהירה', icon: DollarSign },
-                    { label: 'מרכז תוכן ומאמר מקצועי / אקטואליה', icon: FileText },
-                    { label: 'הרשמה לקורס והכשרה מעשית', icon: GraduationCap },
-                  ].map((chip) => {
-                    const isSelected = promptTopic === chip.label;
-                    const IconComp = chip.icon;
-                    return (
-                      <button
-                        key={chip.label}
-                        type="button"
-                        onClick={() => {
-                          setPromptTopic(chip.label);
-                          setSelectedIdeaId(null);
-                        }}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {PAGE_ARCHITECTURE_MATRIX.map((pt) => {
+                  const isSelected = selectedPageTypeId === pt.id;
+                  return (
+                    <button
+                      key={pt.id}
+                      type="button"
+                      onClick={() => handleSelectPageType(pt.id)}
+                      className={clsx(
+                        'p-4 rounded-2xl border text-right transition-all flex items-start gap-3',
+                        isSelected
+                          ? 'bg-indigo-600/15 border-indigo-500 shadow-lg shadow-indigo-500/10'
+                          : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                      )}
+                    >
+                      <div
                         className={clsx(
-                          'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer',
-                          isSelected
-                            ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-500/20'
-                            : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-slate-700 hover:bg-slate-800'
+                          'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5',
+                          isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'
                         )}
                       >
-                        <IconComp className={clsx('w-3.5 h-3.5', isSelected ? 'text-amber-300' : 'text-indigo-400')} />
-                        <span>{chip.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                        {getMatrixIcon(pt.iconName)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-bold text-white truncate">{pt.titleHe}</span>
+                          {pt.badge && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold shrink-0">
+                              {pt.badge}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{pt.subtitleHe}</p>
+                        <div className="flex items-center gap-2 mt-2 text-[10px] text-slate-500">
+                          <span>{pt.sections.length} אזורים</span>
+                          <span>•</span>
+                          <span>{pt.hasHeader ? 'כולל תפריט עליון' : 'ממוקד ללא תפריט'}</span>
+                          {pt.hasPaymentCheckout && <span>• סליקת קשר</span>}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* AI Brainstorm Ideas (if loaded) */}
-              {ideas.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-400">
-                    <span>או בחרו רעיון מותאם אישית מתוך ה-Brand DNA:</span>
-                    {loadingIdeas && <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />}
+              {/* Selected Matrix Flow Preview & Optional Section Customizer */}
+              <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-indigo-300 flex items-center gap-2">
+                    <Layers className="w-4 h-4" />
+                    <span>זרימת העמוד הנבחרת ({selectedSectionTypes.length} אזורים)</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {ideas.slice(0, 4).map((idea) => {
-                      const isSelected = selectedIdeaId === idea.id;
+                  <button
+                    type="button"
+                    onClick={() => setShowSectionCustomizer((v) => !v)}
+                    className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>{showSectionCustomizer ? 'סגור התאמת אזורים' : 'התאמה ידנית של אזורים'}</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400">{selectedMatrixDef.essenceAndFlow}</p>
+
+                {showSectionCustomizer && (
+                  <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-800">
+                    {(Object.keys(SECTION_REGISTRY) as SectionType[]).map((secType) => {
+                      const active = selectedSectionTypes.includes(secType);
                       return (
-                        <div
-                          key={idea.id}
-                          onClick={() => {
-                            setSelectedIdeaId(idea.id);
-                            setPromptTopic(idea.prompt || idea.title);
-                          }}
+                        <button
+                          key={secType}
+                          type="button"
+                          onClick={() => toggleSection(secType)}
                           className={clsx(
-                            'p-3 rounded-2xl border text-right transition-all cursor-pointer flex flex-col gap-1',
-                            isSelected
-                              ? 'bg-indigo-950/60 border-indigo-500 shadow-lg'
-                              : 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:bg-slate-800/50'
+                            'px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all',
+                            active
+                              ? 'bg-indigo-600/20 border-indigo-500 text-indigo-200'
+                              : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300'
                           )}
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-white">{idea.title}</span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-bold border border-indigo-500/20">
-                              {idea.badge || 'רעיון מוביל'}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
-                            {idea.description}
-                          </p>
-                        </div>
+                          {SECTION_REGISTRY[secType]?.name || secType}
+                        </button>
                       );
                     })}
                   </div>
-                </div>
-              )}
-
-              {/* Free-text Manual Writing */}
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-slate-300">
-                  כתיבה ידנית (הגדירו במילים שלכם או ערכו את הבחירה):
-                </label>
-                <textarea
-                  value={promptTopic}
-                  onChange={(e) => {
-                    setPromptTopic(e.target.value);
-                    setSelectedIdeaId(null);
-                  }}
-                  placeholder="למשל: עמוד השקת שירות ליווי אישי לבכירים, או כנס שנתי עם רישום ב-Waze, או קמפיין שותפות לגיוס 100 אלף ש״ח..."
-                  className="w-full h-24 p-3 rounded-2xl bg-slate-900 border border-slate-800 focus:border-indigo-500 text-white text-xs placeholder-slate-500 resize-none transition-all select-text"
-                />
+                )}
               </div>
             </div>
           )}
 
-          {/* STEP 2: Section Selection (Pre-generation) */}
-          {wizardStep === 2 && (
-            <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-              <div className="flex flex-col gap-1.5">
-                <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                  <LayoutTemplate className="w-5 h-5 text-indigo-400" />
-                  <span>שאלה 2: אילו אזורים תרצו לכלול במבנה העמוד?</span>
-                </h3>
-                <p className="text-xs text-slate-400">
-                  בחרו תבנית מבנה מוכנה בלחיצה אחת, או סמנו/הסירו אזורים באופן אישי:
-                </p>
-              </div>
-
-              {/* 1-Click Structure Presets */}
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-bold text-slate-400">תבניות מבנה מומלצות (בחירה מהירה):</span>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {[
-                    { key: 'service', label: 'עמוד שירות/מוצר (7)', icon: Zap },
-                    { key: 'event', label: 'כנס ואירוע (7)', icon: Calendar },
-                    { key: 'campaign', label: 'קמפיין גיוס (7)', icon: Heart },
-                    { key: 'news', label: 'תוכן ואקטואליה (7)', icon: FileText },
-                    { key: 'checkout', label: 'דף סליקה מהיר (6)', icon: DollarSign },
-                  ].map((p) => (
-                    <button
-                      key={p.key}
-                      type="button"
-                      onClick={() => applyPreset(p.key as any)}
-                      className="flex items-center gap-1.5 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-indigo-500 text-slate-300 hover:text-white transition-all text-xs font-bold cursor-pointer"
-                    >
-                      <p.icon className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>{p.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Interactive Section Checkbox Grid */}
-              <div className="flex flex-col gap-2.5">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-400">
-                  <span>רשימת כל האזורים (לחצו להפעלה/כיבוי):</span>
-                  <span className="text-indigo-400 font-bold">
-                    נבחרו {selectedSectionTypes.length} אזורים
+          {/* ==================== STAGE 2: ONE QUESTION AT A TIME ==================== */}
+          {stage === 'intake' && currentQuestion && (
+            <div className="space-y-5">
+              {/* Step Progress Bar */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-indigo-300 flex items-center gap-2">
+                    <span>{currentQuestion.badgeHe}</span>
+                    {currentQuestion.isHardFactRequired && (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px]">
+                        שדה חובה מדויק
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-slate-400">
+                    שאלה {activeQuestionIdx + 1} מתוך {intakeSteps.length}
                   </span>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {[
-                    { type: 'hero', name: 'Hero ראשי והנעה לפעולה', desc: 'כותרת, סלוגן, באדג׳ וכפתורי הנעה', icon: Sparkles },
-                    { type: 'richContent', name: 'אודות ותוכן עשיר', desc: 'סיפור המותג, פסקאות תוכן וחזון', icon: FileText },
-                    { type: 'eventRsvp', name: 'פרטי אירוע, הרשמה ו-Waze', desc: 'מיקום, שעה, קישור ניווט וטופס RSVP', icon: Calendar },
-                    { type: 'timer', name: 'טיימר ספירה לאחור', desc: 'שעון רץ למועד האירוע או סיום מבצע', icon: Clock },
-                    { type: 'campaignHeader', name: 'מד התקדמות קמפיין תרומות', desc: 'יעד גיוס, סכום שנאסף ומספר תורמים', icon: Target },
-                    { type: 'campaignTiers', name: 'מדרגות תרומה וסכומים', desc: 'כרטיסיות סכומים מהירות והוראות קבע', icon: Heart },
-                    { type: 'campaignDonors', name: 'כרטיסיות תורמים ושגרירים', desc: 'פיד תורמים בזמן אמת והקדשות', icon: Users },
-                    { type: 'pricing', name: 'מחירון וחבילות שירות', desc: 'השוואת מסלולים ותמחור שקוף', icon: DollarSign },
-                    { type: 'statsBento', name: 'מדדי מפתח והישגים (Bento)', desc: '4 מדדים בולטים עם אייקונים ואחוזים', icon: Star },
-                    { type: 'testimonials', name: 'ביקורות ולקוחות ממליצים', desc: 'חוות דעת מאומתות ודירוג כוכבים', icon: Star },
-                    { type: 'faq', name: 'שאלות ותשובות נפוצות (FAQ)', desc: 'מענה לכל השאלות עם חיפוש מובנה', icon: HelpCircle },
-                    { type: 'contact', name: 'יצירת קשר ו-WhatsApp', desc: 'טופס פנייה, כפתור ווטסאפ ישיר וכתובת', icon: Phone },
-                    { type: 'community', name: 'קהילה וקבוצת WhatsApp', desc: 'כרטיס הזמנה לקהילה ודיאלוג פתוח', icon: MessageCircle },
-                    { type: 'imageListing', name: 'גלריית תמונות מהשטח', desc: 'גריד תמונות רספונסיבי מהפעילות', icon: ImageIcon },
-                  ].map((item) => {
-                    const isChecked = selectedSectionTypes.includes(item.type as SectionType);
-                    const IconComp = item.icon;
-                    return (
-                      <div
-                        key={item.type}
-                        onClick={() => toggleSection(item.type as SectionType)}
-                        className={clsx(
-                          'p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between',
-                          isChecked
-                            ? 'bg-indigo-950/40 border-indigo-500 shadow-sm'
-                            : 'bg-slate-900 border-slate-800 hover:border-slate-700 opacity-70'
-                        )}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div className={clsx('w-8 h-8 rounded-xl flex items-center justify-center shrink-0', isChecked ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400')}>
-                            <IconComp className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-white block">{item.name}</span>
-                            <span className="text-[10px] text-slate-400 block line-clamp-1">{item.desc}</span>
-                          </div>
-                        </div>
-                        <div className={clsx('w-5 h-5 rounded-lg border flex items-center justify-center transition-all', isChecked ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-slate-700')}>
-                          {isChecked && <Check className="w-3.5 h-3.5" />}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-l from-indigo-500 to-purple-500 transition-all duration-300"
+                    style={{ width: `${Math.round(((activeQuestionIdx + 1) / intakeSteps.length) * 100)}%` }}
+                  />
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* STEP 3: Contextual Details (Event, Campaign, Current Affairs) */}
-          {wizardStep === 3 && (
-            <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-              <div className="flex flex-col gap-1.5">
-                <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                  <Compass className="w-5 h-5 text-amber-400" />
-                  <span>שאלה 3: פרטים מיוחדים עבור האזורים שנבחרו</span>
-                </h3>
-                <p className="text-xs text-slate-400">
-                  הזינו את הנתונים המדויקים שיוזרמו ישירות לתוך האזורים המתאימים בעמוד:
-                </p>
-              </div>
+              {/* Single Focused Question Card */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-4">
+                <div>
+                  <h3 className="text-lg font-black text-white">{currentQuestion.questionHe}</h3>
+                  <p className="text-xs text-slate-400 mt-1 flex items-start gap-1.5">
+                    <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <span>{currentQuestion.helperTipHe}</span>
+                  </p>
+                </div>
 
-              {/* Event Specific Fields */}
-              {hasEventSections && (
-                <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-                    <Calendar className="w-4 h-4" />
-                    <span>פרטי האירוע והכנס (יוזרמו לאזור EventRsvp ולטיימר):</span>
+                {/* Q1: Topic & Goal */}
+                {currentQuestion.id === 'topic_and_goal' && (
+                  <div className="space-y-3">
+                    <textarea
+                      value={promptTopic}
+                      onChange={(e) => setPromptTopic(e.target.value)}
+                      rows={3}
+                      placeholder={`לדוגמה: דף ${selectedMatrixDef.shortTitleHe} עבור ${brandDna?.identity?.companyName || 'העסק שלנו'} שמציג את השירות החדש ומניע לתיאום שיחה...`}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-2xl p-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    />
+                    {ideas.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="text-[11px] font-bold text-slate-400">רעיונות מהירים מתוך ה-Brand DNA (לחיצה למילוי):</span>
+                        <div className="flex flex-wrap gap-2">
+                          {ideas.slice(0, 4).map((idea) => (
+                            <button
+                              key={idea.id}
+                              type="button"
+                              onClick={() => setPromptTopic(idea.prompt)}
+                              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-indigo-600/20 border border-slate-700 hover:border-indigo-500 text-xs text-slate-200 transition-all text-right"
+                            >
+                              {idea.title}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
+                )}
 
+                {/* Q2: Grounding Sources (PDF / DOCX / URL / Text) */}
+                {currentQuestion.id === 'grounding_sources' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="p-4 rounded-2xl border border-dashed border-slate-700 hover:border-indigo-500 bg-slate-950/60 cursor-pointer flex items-center gap-3 transition-all">
+                        <Upload className="w-5 h-5 text-indigo-400 shrink-0" />
+                        <div>
+                          <div className="text-xs font-bold text-white">העלאת קובץ (PDF / DOCX / TXT)</div>
+                          <div className="text-[11px] text-slate-400">חילוץ נתונים אוטומטי ל-AI</div>
+                        </div>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.txt,.md,.csv,.html"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+
+                      <div className="p-3 rounded-2xl border border-slate-700 bg-slate-950/60 flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <input
+                          type="url"
+                          value={scanUrlInput}
+                          onChange={(e) => setScanUrlInput(e.target.value)}
+                          placeholder="סרוק כתובת אתר (https://...)"
+                          className="flex-1 bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none"
+                          dir="ltr"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleScanUrl}
+                          disabled={isScanningUrl || !scanUrlInput.trim()}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold"
+                        >
+                          {isScanningUrl ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'סרוק'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <textarea
+                        value={pastedSourceText}
+                        onChange={(e) => setPastedSourceText(e.target.value)}
+                        rows={3}
+                        placeholder="או הדבק כאן טקסט מקורי, נקודות מפתח, סיכום פגישה או נתונים אמיתיים מהשטח..."
+                        className="w-full bg-slate-950 border border-slate-700 rounded-2xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                      />
+                      {pastedSourceText.trim() && (
+                        <button
+                          type="button"
+                          onClick={handleAddPastedSource}
+                          className="px-3 py-1.5 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-300 text-xs font-bold"
+                        >
+                          + הוסף כמקור מידע מאומת
+                        </button>
+                      )}
+                    </div>
+
+                    {groundingSources.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-slate-800">
+                        <div className="text-xs font-bold text-emerald-400">מקורות שנטענו ({groundingSources.length}):</div>
+                        {groundingSources.map((src) => (
+                          <div
+                            key={src.id}
+                            className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3"
+                          >
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-white truncate">{src.label}</div>
+                              <div className="text-[11px] text-slate-400">
+                                {src.charCount > 0 ? `חולצו ${src.charCount.toLocaleString()} תווים` : src.warning}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setGroundingSources((prev) => prev.filter((s) => s.id !== src.id))}
+                              className="p-1.5 text-slate-500 hover:text-rose-400"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Q3: Hero / Header Media with Pre-filled Prompt & Dimensions */}
+                {currentQuestion.id === 'hero_media' && (
+                  <div className="space-y-4">
+                    <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-indigo-300">מידות ופרומפט מוכן לגלריה / יצירת AI:</span>
+                        <span className="px-2 py-0.5 rounded-lg bg-indigo-500/20 text-indigo-200 font-mono text-[11px]">
+                          {prefilledImageSpec.width}x{prefilledImageSpec.height} ({prefilledImageSpec.aspectRatio})
+                        </span>
+                      </div>
+                      <textarea
+                        value={customHeroImagePrompt}
+                        onChange={(e) => setCustomHeroImagePrompt(e.target.value)}
+                        rows={2}
+                        className="w-full bg-slate-950/80 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <button
+                        type="button"
+                        onClick={handlePickOrCreateFromGallery}
+                        className="p-4 rounded-2xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500 text-right space-y-1 transition-all"
+                      >
+                        <ImageIcon className="w-5 h-5 text-indigo-400" />
+                        <div className="text-xs font-bold text-white">בחר / צור בגלריה</div>
+                        <div className="text-[11px] text-slate-400">פתיחת KosCloudStore עם הפרומפט והמידות</div>
+                      </button>
+
+                      <label className="p-4 rounded-2xl bg-slate-950 hover:border-indigo-500 border border-slate-700 cursor-pointer text-right space-y-1 transition-all">
+                        <Upload className="w-5 h-5 text-emerald-400" />
+                        <div className="text-xs font-bold text-white">העלה תמונה מהמחשב</div>
+                        <div className="text-[11px] text-slate-400">JPG, PNG, WebP</div>
+                        <input type="file" accept="image/*" onChange={handleHeroImageFileUpload} className="hidden" />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageMode('unsplash');
+                          setSelectedGalleryImageUrl('');
+                        }}
+                        className={clsx(
+                          'p-4 rounded-2xl border text-right space-y-1 transition-all',
+                          imageMode === 'unsplash' && !selectedGalleryImageUrl
+                            ? 'bg-purple-600/20 border-purple-500'
+                            : 'bg-slate-950 border-slate-700 hover:border-slate-600'
+                        )}
+                      >
+                        <Sparkles className="w-5 h-5 text-purple-400" />
+                        <div className="text-xs font-bold text-white">התאמה אוטומטית</div>
+                        <div className="text-[11px] text-slate-400">תמונת אווירה תואמת לתחום</div>
+                      </button>
+                    </div>
+
+                    {selectedGalleryImageUrl && (
+                      <div className="relative rounded-2xl overflow-hidden border border-slate-700 max-h-48">
+                        <img src={selectedGalleryImageUrl} alt="תצוגה מקדימה" className="w-full h-44 object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGalleryImageUrl('')}
+                          className="absolute top-2 left-2 p-1.5 rounded-lg bg-slate-950/80 text-rose-400 hover:bg-rose-500/20"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Q4: Event Date, Time & Location */}
+                {currentQuestion.id === 'event_datetime_location' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-slate-300 font-bold">שם המקום / האולם:</label>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">תאריך האירוע *</label>
+                      <input
+                        type="date"
+                        value={eventDate}
+                        onChange={(e) => setEventDate(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">שעת התחלה</label>
+                        <input
+                          type="time"
+                          value={eventTime}
+                          onChange={(e) => setEventTime(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">שעת סיום</label>
+                        <input
+                          type="time"
+                          value={eventEndTime}
+                          onChange={(e) => setEventEndTime(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">שם המתחם / זום *</label>
                       <input
                         type="text"
                         value={locationName}
                         onChange={(e) => setLocationName(e.target.value)}
-                        placeholder="מרכז הכנסים והאירועים"
-                        className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-slate-300 font-bold">כתובת מלאה או יעד Waze:</label>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">כתובת מלאה / Waze</label>
                       <input
                         type="text"
                         value={locationAddress}
@@ -644,652 +906,537 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
                           setLocationAddress(e.target.value);
                           setWazeQuery(e.target.value);
                         }}
-                        placeholder="דרך מנחם בגין 144, תל אביב"
-                        className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-slate-300 font-bold">תאריך האירוע:</label>
-                      <input
-                        type="date"
-                        value={eventDate}
-                        onChange={(e) => setEventDate(e.target.value)}
-                        className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-slate-300 font-bold">שעת התחלה וסיום:</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="time"
-                          value={eventTime}
-                          onChange={(e) => setEventTime(e.target.value)}
-                          className="bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white flex-1"
-                        />
-                        <span className="text-slate-500 text-xs">עד</span>
-                        <input
-                          type="time"
-                          value={eventEndTime}
-                          onChange={(e) => setEventEndTime(e.target.value)}
-                          className="bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white flex-1"
-                        />
-                      </div>
-                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Campaign / Fundraising Specific Fields */}
-              {hasCampaignSections && (
-                <div className="p-4 rounded-2xl bg-rose-500/5 border border-rose-500/20 flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-rose-400 text-xs font-bold">
-                    <Heart className="w-4 h-4" />
-                    <span>פרטי קמפיין הגיוס והתרומות:</span>
-                  </div>
-
+                {/* Q5: Campaign Goal & Tiers */}
+                {currentQuestion.id === 'campaign_goal_tiers' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-slate-300 font-bold">יעד הגיוס (₪):</label>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">יעד גיוס (₪) *</label>
                       <input
                         type="number"
                         value={targetGoal}
                         onChange={(e) => setTargetGoal(Number(e.target.value))}
-                        className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-slate-300 font-bold">סכום שגויס כעת (₪):</label>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">סכום שנאסף עד כה (₪)</label>
                       <input
                         type="number"
                         value={totalRaised}
                         onChange={(e) => setTotalRaised(Number(e.target.value))}
-                        className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
                       />
                     </div>
-                    <div className="flex flex-col gap-1 sm:col-span-2">
-                      <label className="text-[11px] text-slate-300 font-bold">מטרת העל של הקמפיין:</label>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-slate-300 mb-1">מטרת הקמפיין (למה תורמים?)</label>
                       <input
                         type="text"
                         value={campaignCause}
                         onChange={(e) => setCampaignCause(e.target.value)}
-                        placeholder="הקמת מרכז קהילתי חדש / מלגות והרחבת הפעילות"
-                        className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                        placeholder="לדוגמה: הקמת מרכז חדשנות לנוער..."
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
                       />
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Current Affairs / News Points */}
-              {hasContentOrNewsSections && (
-                <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold">
-                    <FileText className="w-4 h-4" />
-                    <span>פרטי אקטואליה ומסר מרכזי (אודות / תוכן עשיר / פוסטים):</span>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <input
-                      type="text"
-                      value={currentAffairsTopic}
-                      onChange={(e) => setCurrentAffairsTopic(e.target.value)}
-                      placeholder="נושא מרכזי או מבזק אקטואלי"
-                      className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                    />
-                    <textarea
-                      value={mainPoints}
-                      onChange={(e) => setMainPoints(e.target.value)}
-                      placeholder="נקודות מפתח להבלטה בפסקאות התוכן..."
-                      className="bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white h-20 resize-none"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {!hasEventSections && !hasCampaignSections && !hasContentOrNewsSections && (
-                <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 text-center flex flex-col items-center gap-2">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400" />
-                  <span className="text-sm font-bold text-white">כל נתוני האזורים שנבחרו מוכנים ומסונכרנים!</span>
-                  <span className="text-xs text-slate-400">האזורים שנבחרו ישתמשו בנתוני ה-Brand DNA המובילים שלכם. ניתן להמשיך לשלב התמונה.</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* STEP 4: Media & Image Selection */}
-          {wizardStep === 4 && (
-            <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-              <div className="flex flex-col gap-1.5">
-                <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5 text-indigo-400" />
-                  <span>שאלה 4: איזו תמונה ראשית תלווה את העמוד?</span>
-                </h3>
-                <p className="text-xs text-slate-400">
-                  בחרו תמונה מתוך גלריית המדיה (KosCloudStore), צרו ב-AI, או השתמשו בתמונת אווירה:
-                </p>
-              </div>
-
-              {/* 4 Image Option Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* 1. Pick from Gallery (KosCloudStore) */}
-                <div
-                  onClick={handlePickFromGallery}
-                  className={clsx(
-                    'p-4 rounded-2xl border text-right transition-all cursor-pointer flex flex-col gap-2 relative',
-                    imageMode === 'gallery' && selectedGalleryImageUrl
-                      ? 'bg-indigo-950/60 border-indigo-500 shadow-md'
-                      : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white">בחירה מגלריית המדיה</span>
-                    <Upload className="w-4 h-4 text-indigo-400" />
-                  </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    בחירת תמונה שכבר הועלתה ל-KosCloudStore עבור העסק.
-                  </p>
-                  {selectedGalleryImageUrl && (
-                    <div className="w-full h-20 rounded-xl overflow-hidden mt-1 border border-indigo-500/40 relative">
-                      <img src={selectedGalleryImageUrl} alt="נבחר" className="w-full h-full object-cover" />
-                      <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] text-emerald-400 font-bold">
-                        נבחר בהצלחה ✓
-                      </span>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePickFromGallery();
-                    }}
-                    className="mt-1 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all text-center cursor-pointer"
-                  >
-                    {selectedGalleryImageUrl ? 'החלף תמונה מהגלריה' : 'פתח את גלריית המדיה'}
-                  </button>
-                </div>
-
-                {/* 2. Generate with AI */}
-                <div
-                  onClick={() => setImageMode('ai')}
-                  className={clsx(
-                    'p-4 rounded-2xl border text-right transition-all cursor-pointer flex flex-col gap-2',
-                    imageMode === 'ai' ? 'bg-indigo-950/60 border-indigo-500 shadow-md' : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white">יצירת תמונה על ידי AI</span>
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                  </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    הפקת תמונה מקורית לפי נושא העמוד והמיתוג.
-                  </p>
-                  {imageMode === 'ai' && (
-                    <div className="mt-1 flex flex-col gap-1">
-                      <span className="text-[10px] text-slate-400 font-bold">סגנון אמנותי:</span>
-                      <select
-                        value={aiImageStyle}
-                        onChange={(e) => setAiImageStyle(e.target.value)}
-                        className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white"
+                {/* Q6: Pricing & Kesher Checkout */}
+                {currentQuestion.id === 'pricing_and_checkout' && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      {pricingPlans.map((plan, idx) => (
+                        <div key={plan.id} className="grid grid-cols-12 gap-2 items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
+                          <input
+                            type="text"
+                            value={plan.name}
+                            onChange={(e) => {
+                              const next = [...pricingPlans];
+                              next[idx].name = e.target.value;
+                              setPricingPlans(next);
+                            }}
+                            placeholder="שם חבילה"
+                            className="col-span-4 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                          />
+                          <input
+                            type="number"
+                            value={plan.priceMonthly}
+                            onChange={(e) => {
+                              const next = [...pricingPlans];
+                              next[idx].priceMonthly = Number(e.target.value);
+                              setPricingPlans(next);
+                            }}
+                            placeholder="מחיר ₪"
+                            className="col-span-3 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                          />
+                          <input
+                            type="text"
+                            value={plan.description}
+                            onChange={(e) => {
+                              const next = [...pricingPlans];
+                              next[idx].description = e.target.value;
+                              setPricingPlans(next);
+                            }}
+                            placeholder="תיאור קצר"
+                            className="col-span-4 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setPricingPlans((prev) => prev.filter((_, i) => i !== idx))}
+                            disabled={pricingPlans.length <= 1}
+                            className="col-span-1 text-slate-500 hover:text-rose-400 disabled:opacity-30 flex justify-center"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPricingPlans((prev) => [
+                            ...prev,
+                            { id: `p_${Date.now()}`, name: 'מסלול חדש', priceMonthly: 1490, description: 'ליווי VIP מלא' },
+                          ])
+                        }
+                        className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
                       >
-                        <option value="פוטוריאליסטי יוקרתי">פוטוריאליסטי יוקרתי</option>
-                        <option value="הייטק מודרני מואר">הייטק מודרני מואר</option>
-                        <option value="קהילתי וחם">קהילתי וחם</option>
-                        <option value="מינימליסטי נקי">מינימליסטי נקי</option>
-                      </select>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>הוסף מסלול מחיר</span>
+                      </button>
                     </div>
-                  )}
-                </div>
 
-                {/* 3. Smart Unsplash Matching */}
-                <div
-                  onClick={() => setImageMode('unsplash')}
-                  className={clsx(
-                    'p-4 rounded-2xl border text-right transition-all cursor-pointer flex flex-col gap-2',
-                    imageMode === 'unsplash' ? 'bg-indigo-950/60 border-indigo-500 shadow-md' : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white">תמונת מאגר מותאמת אישית</span>
-                    <ImageIcon className="w-4 h-4 text-emerald-400" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">סוג מסמך סליקה (קשר)</label>
+                        <select
+                          value={kesherDocType}
+                          onChange={(e) => setKesherDocType(Number(e.target.value) as 320 | 400 | 405)}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                        >
+                          <option value={320}>חשבונית מס קבלה (320)</option>
+                          <option value={400}>קבלה לעוסק פטור / עמותה (400)</option>
+                          <option value={405}>קבלת תרומה - סעיף 46 (405)</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-3 pt-4">
+                        <input
+                          id="kesher_inst"
+                          type="checkbox"
+                          checked={enableInstallments}
+                          onChange={(e) => setEnableInstallments(e.target.checked)}
+                          className="rounded border-slate-700"
+                        />
+                        <label htmlFor="kesher_inst" className="text-xs text-slate-300">
+                          אפשר פריסה לתשלומים (עד {maxInstallments})
+                        </label>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    תמונה מקצועית איכותית ממאגר Unsplash המותאמת לנושא העמוד.
-                  </p>
-                </div>
+                )}
 
-                {/* 4. No Image */}
-                <div
-                  onClick={() => setImageMode('none')}
-                  className={clsx(
-                    'p-4 rounded-2xl border text-right transition-all cursor-pointer flex flex-col gap-2',
-                    imageMode === 'none' ? 'bg-indigo-950/60 border-indigo-500 shadow-md' : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white">ללא תמונה (מראה טיפוגרפי)</span>
-                    <FileText className="w-4 h-4 text-slate-400" />
+                {/* Q7: Geo Local */}
+                {currentQuestion.id === 'geo_location_details' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">עיר מרכזית</label>
+                      <input
+                        type="text"
+                        value={geoCity}
+                        onChange={(e) => setGeoCity(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">אזורי שירות (מופרדים בפסיק)</label>
+                      <input
+                        type="text"
+                        value={geoAreasText}
+                        onChange={(e) => setGeoAreasText(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
+                      />
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    דף נקי מבוסס טיפוגרפיה, צבעי מותג וכרטיסיות מידע.
-                  </p>
-                </div>
+                )}
+
+                {/* Q8: CRM Form Fields Mapping */}
+                {currentQuestion.id === 'crm_form_fields' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {STANDARD_CRM_FORM_FIELDS.map((field) => {
+                      const checked = selectedCrmFieldKeys.includes(field.crmFieldKey);
+                      return (
+                        <button
+                          key={field.crmFieldKey}
+                          type="button"
+                          onClick={() => {
+                            if (field.required) return;
+                            setSelectedCrmFieldKeys((prev) =>
+                              checked ? prev.filter((k) => k !== field.crmFieldKey) : [...prev, field.crmFieldKey]
+                            );
+                          }}
+                          className={clsx(
+                            'p-3 rounded-xl border text-right flex items-center justify-between transition-all',
+                            checked
+                              ? 'bg-indigo-600/15 border-indigo-500 text-white'
+                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Database className="w-3.5 h-3.5 text-indigo-400" />
+                            <span className="text-xs font-bold">{field.labelHe}</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-500">{field.crmFieldKey}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Q9: SEO & GEO 2026.4 Focus */}
+                {currentQuestion.id === 'seo_geo_focus' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">שם המומחה / המחבר (לסכמת Person)</label>
+                      <input
+                        type="text"
+                        value={authorName}
+                        onChange={(e) => setAuthorName(e.target.value)}
+                        placeholder={brandDna?.identity?.companyName || 'שם המומחה או המותג'}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">שאלת ליבה שתרצו להופיע עליה ב-AI וגוגל</label>
+                      <input
+                        type="text"
+                        value={targetGeoQuestion}
+                        onChange={(e) => setTargetGeoQuestion(e.target.value)}
+                        placeholder="לדוגמה: איך בוחרים..."
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* STEP 5: In-Modal Review & Refinement (Flagship Style) */}
-          {wizardStep === 5 && draft && (
-            <div className="flex flex-col gap-5 max-w-3xl mx-auto">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                    <Edit3 className="w-5 h-5 text-indigo-400" />
-                    <span>סקירת תוכן העמוד ועריכתו בתוך המודל</span>
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    בדקו וערכו את התוכן שהופק. לאחר אישורכם, העמוד יוזרם חי אל תוך המערכת:
-                  </p>
+          {/* ==================== STAGE 3: IN-MODAL DRAFT REVIEW ==================== */}
+          {stage === 'review' && draft && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex gap-1.5 flex-wrap">
+                  {[
+                    { id: 'hero', label: 'Hero ראשי' },
+                    { id: 'content', label: 'תוכן (Answer-First)' },
+                    { id: 'details', label: 'נתונים / מחירון' },
+                    { id: 'faq', label: `שאלות נפוצות (${draft.faqs?.length || 0})` },
+                    { id: 'seo', label: 'SEO & GEO 2026' },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveReviewTab(tab.id as any)}
+                      className={clsx(
+                        'px-3 py-1.5 rounded-xl text-xs font-bold transition-all',
+                        activeReviewTab === tab.id
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
-                <span className="text-xs px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                  התוכן מוכן לעריכה ✓
-                </span>
-              </div>
 
-              {/* Sub-tabs for Review */}
-              <div className="flex items-center gap-1.5 p-1 bg-slate-900 rounded-2xl border border-slate-800 overflow-x-auto no-scrollbar">
-                <button
-                  type="button"
-                  onClick={() => setActiveReviewTab('hero')}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer',
-                    activeReviewTab === 'hero' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                  )}
-                >
-                  Hero ראשי
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveReviewTab('content')}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer',
-                    activeReviewTab === 'content' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                  )}
-                >
-                  אודות ותוכן
-                </button>
-                {(hasEventSections || hasCampaignSections) && (
+                {(activeReviewTab === 'hero' || activeReviewTab === 'content') && (
                   <button
                     type="button"
-                    onClick={() => setActiveReviewTab('details')}
-                    className={clsx(
-                      'px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer',
-                      activeReviewTab === 'details' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                    )}
+                    disabled={isRefiningTab}
+                    onClick={() =>
+                      handleQuickRefineSection(
+                        activeReviewTab === 'hero' ? 'hero' : 'richContent',
+                        'חדד את המסר השיווקי, הפוך אותו לישיר יותר והדגש את הערך הייחודי של המותג'
+                      )
+                    }
+                    className="px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 hover:bg-amber-500/25"
                   >
-                    פרטי {hasEventSections ? 'אירוע' : 'קמפיין'}
+                    {isRefiningTab ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                    <span>חדד אזור זה ב-AI</span>
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setActiveReviewTab('faq')}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer',
-                    activeReviewTab === 'faq' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                  )}
-                >
-                  שאלות ותשובות ({draft.faqs?.length || 0})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveReviewTab('contact')}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer',
-                    activeReviewTab === 'contact' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                  )}
-                >
-                  יצירת קשר
-                </button>
               </div>
 
-              {/* Sub-tab 1: Hero */}
               {activeReviewTab === 'hero' && (
-                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-300">כותרת עמוד ודפדפן (Page Title):</label>
+                <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">כותרת עמוד (Title)</label>
                     <input
                       type="text"
                       value={draft.pageTitle}
                       onChange={(e) => setDraft({ ...draft, pageTitle: e.target.value })}
-                      className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
                     />
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-300">כותרת ראשית (Hero Title):</label>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">כותרת H1 ראשית</label>
                     <input
                       type="text"
                       value={draft.hero.title}
                       onChange={(e) => setDraft({ ...draft, hero: { ...draft.hero, title: e.target.value } })}
-                      className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-bold"
                     />
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-300">פסקת משנה / סלוגן (Hero Subtitle):</label>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">תת-כותרת (Answer-First)</label>
                     <textarea
+                      rows={2}
                       value={draft.hero.subtitle}
                       onChange={(e) => setDraft({ ...draft, hero: { ...draft.hero, subtitle: e.target.value } })}
-                      className="bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white h-20 resize-none"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
                     />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-300">כפתור ראשי:</label>
-                      <input
-                        type="text"
-                        value={draft.hero.ctaPrimaryText}
-                        onChange={(e) => setDraft({ ...draft, hero: { ...draft.hero, ctaPrimaryText: e.target.value } })}
-                        className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-300">כפתור משני (WhatsApp):</label>
-                      <input
-                        type="text"
-                        value={draft.hero.ctaSecondaryText}
-                        onChange={(e) => setDraft({ ...draft, hero: { ...draft.hero, ctaSecondaryText: e.target.value } })}
-                        className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                      />
-                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Sub-tab 2: Content */}
               {activeReviewTab === 'content' && draft.richContent && (
-                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-300">כותרת אזור התוכן:</label>
+                <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">כותרת H2 מרכזית</label>
                     <input
                       type="text"
                       value={draft.richContent.heading}
-                      onChange={(e) => setDraft({ ...draft, richContent: { ...draft.richContent!, heading: e.target.value } })}
-                      className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                      onChange={(e) =>
+                        setDraft({ ...draft, richContent: { ...draft.richContent!, heading: e.target.value } })
+                      }
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
                     />
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-300">גוף התוכן (פסקאות מעוצבות):</label>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">גוף תוכן (HTML / Answer-First)</label>
                     <textarea
-                      value={draft.richContent.body.replace(/<[^>]+>/g, '')}
-                      onChange={(e) => setDraft({ ...draft, richContent: { ...draft.richContent!, body: `<p>${e.target.value}</p>` } })}
-                      className="bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white h-32 resize-none"
+                      rows={6}
+                      value={draft.richContent.body}
+                      onChange={(e) =>
+                        setDraft({ ...draft, richContent: { ...draft.richContent!, body: e.target.value } })
+                      }
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono"
                     />
                   </div>
                 </div>
               )}
 
-              {/* Sub-tab 3: Event / Campaign Details */}
               {activeReviewTab === 'details' && (
-                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-3">
-                  {draft.event && hasEventSections && (
-                    <div className="flex flex-col gap-3">
-                      <span className="text-xs font-bold text-amber-400">פרטי האירוע:</span>
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          type="text"
-                          value={draft.event.locationName}
-                          onChange={(e) => setDraft({ ...draft, event: { ...draft.event!, locationName: e.target.value } })}
-                          placeholder="שם המקום"
-                          className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                        />
-                        <input
-                          type="text"
-                          value={draft.event.locationAddress}
-                          onChange={(e) => setDraft({ ...draft, event: { ...draft.event!, locationAddress: e.target.value } })}
-                          placeholder="כתובת"
-                          className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {draft.campaign && hasCampaignSections && (
-                    <div className="flex flex-col gap-3">
-                      <span className="text-xs font-bold text-rose-400">פרטי הקמפיין:</span>
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          type="number"
-                          value={draft.campaign.targetGoal}
-                          onChange={(e) => setDraft({ ...draft, campaign: { ...draft.campaign!, targetGoal: Number(e.target.value) } })}
-                          placeholder="יעד גיוס"
-                          className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                        />
-                        <input
-                          type="number"
-                          value={draft.campaign.totalRaised}
-                          onChange={(e) => setDraft({ ...draft, campaign: { ...draft.campaign!, totalRaised: Number(e.target.value) } })}
-                          placeholder="סכום שכבר נאסף"
-                          className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                        />
-                      </div>
+                <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-3 text-xs text-slate-300">
+                  <div><strong className="text-white">סוג עמוד:</strong> {selectedMatrixDef.titleHe}</div>
+                  <div><strong className="text-white">אזורי עמוד ({selectedSectionTypes.length}):</strong> {selectedSectionTypes.join(' ➔ ')}</div>
+                  {draft.pricing?.plans && (
+                    <div>
+                      <strong className="text-white">מסלולי מחיר (סליקת קשר {kesherDocType}):</strong>
+                      <ul className="list-disc list-inside mt-1 space-y-1">
+                        {draft.pricing.plans.map((p) => (
+                          <li key={p.id}>{p.name} — ₪{p.priceMonthly}</li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Sub-tab 4: FAQ */}
-              {activeReviewTab === 'faq' && draft.faqs && (
-                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-300">שאלות ותשובות נפוצות:</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newFaq = { id: `f_${Date.now()}`, question: 'שאלה חדשה', answer: 'תשובה מפורטת' };
-                        setDraft({ ...draft, faqs: [...draft.faqs!, newFaq] });
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span>הוסף שאלה</span>
-                    </button>
-                  </div>
-                  <div className="flex flex-col gap-2.5">
-                    {draft.faqs.map((faq, idx) => (
-                      <div key={faq.id || idx} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5">
-                        <div className="flex items-center justify-between">
-                          <input
-                            type="text"
-                            value={faq.question}
-                            onChange={(e) => {
-                              const updated = [...draft.faqs!];
-                              updated[idx].question = e.target.value;
-                              setDraft({ ...draft, faqs: updated });
-                            }}
-                            className="bg-transparent border-none text-xs font-bold text-white w-full focus:outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDraft({ ...draft, faqs: draft.faqs!.filter((_, i) => i !== idx) });
-                            }}
-                            className="text-slate-500 hover:text-rose-400 p-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <textarea
-                          value={faq.answer}
-                          onChange={(e) => {
-                            const updated = [...draft.faqs!];
-                            updated[idx].answer = e.target.value;
-                            setDraft({ ...draft, faqs: updated });
-                          }}
-                          className="bg-slate-900 border border-slate-800 rounded-lg p-2 text-[11px] text-slate-300 h-14 resize-none"
-                        />
-                      </div>
-                    ))}
-                  </div>
+              {activeReviewTab === 'faq' && (
+                <div className="space-y-2">
+                  {(draft.faqs || []).map((faq, idx) => (
+                    <div key={faq.id} className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
+                      <input
+                        type="text"
+                        value={faq.question}
+                        onChange={(e) => {
+                          const next = [...(draft.faqs || [])];
+                          next[idx] = { ...next[idx], question: e.target.value };
+                          setDraft({ ...draft, faqs: next });
+                        }}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold text-white"
+                      />
+                      <textarea
+                        rows={2}
+                        value={faq.answer}
+                        onChange={(e) => {
+                          const next = [...(draft.faqs || [])];
+                          next[idx] = { ...next[idx], answer: e.target.value };
+                          setDraft({ ...draft, faqs: next });
+                        }}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-300"
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Sub-tab 5: Contact */}
-              {activeReviewTab === 'contact' && draft.contact && (
-                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-300">טלפון:</label>
-                      <input
-                        type="text"
-                        value={draft.contact.phone}
-                        onChange={(e) => setDraft({ ...draft, contact: { ...draft.contact!, phone: e.target.value } })}
-                        className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-300">ווטסאפ:</label>
-                      <input
-                        type="text"
-                        value={draft.contact.whatsapp}
-                        onChange={(e) => setDraft({ ...draft, contact: { ...draft.contact!, whatsapp: e.target.value } })}
-                        className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                      />
-                    </div>
+              {activeReviewTab === 'seo' && (
+                <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">Meta Title (50-60 תווים)</label>
+                    <input
+                      type="text"
+                      value={draft.seoGeo?.title || draft.pageTitle}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          seoGeo: {
+                            ...(draft.seoGeo || {
+                              description: '',
+                              keywords: [],
+                              aiKnowledgeSummary: '',
+                              aiTargetQuestions: [],
+                              author: authorName,
+                            }),
+                            title: e.target.value,
+                          },
+                        })
+                      }
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">AI Knowledge Summary (GEO/AIO)</label>
+                    <textarea
+                      rows={3}
+                      value={draft.seoGeo?.aiKnowledgeSummary || ''}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          seoGeo: {
+                            ...(draft.seoGeo || {
+                              title: draft.pageTitle,
+                              description: '',
+                              keywords: [],
+                              aiTargetQuestions: [],
+                              author: authorName,
+                            }),
+                            aiKnowledgeSummary: e.target.value,
+                          },
+                        })
+                      }
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200"
+                    />
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* STEP 6: Live Streaming and Progress */}
-          {wizardStep === 6 && (
-            <div className="flex flex-col items-center justify-center py-10 gap-6 max-w-xl mx-auto">
-              <div className="relative w-28 h-28 flex items-center justify-center">
-                <div className="absolute inset-0 border-4 border-slate-800 rounded-full"></div>
-                <div
-                  className="absolute inset-0 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin"
-                  style={{ animationDuration: '1.2s' }}
-                ></div>
-                <div className="absolute inset-0 flex items-center justify-center text-xl font-black text-white">
-                  {currentStreamStep?.progressPercent || 0}%
-                </div>
+          {/* ==================== STAGE 4: STREAMING ==================== */}
+          {stage === 'streaming' && (
+            <div className="py-10 flex flex-col items-center justify-center text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                <Loader2 className="w-8 h-8 animate-spin" />
               </div>
-
-              <div className="text-center flex flex-col gap-2">
-                <h3 className="text-xl font-black text-white">
-                  {currentStreamStep?.stepTitle || 'מקים את תשתיות העמוד...'}
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-white">
+                  {currentStreamStep?.stepTitle || 'מרכיב את העמוד ומחיל Brand DNA...'}
                 </h3>
-                <p className="text-slate-400 text-xs flex items-center justify-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
-                  <span>{currentStreamStep?.statusText || 'מזרים תוכן ועיצוב בזמן אמת...'}</span>
+                <p className="text-xs text-slate-400">
+                  {currentStreamStep?.statusText || 'מסנכרן עיצוב, שדות CRM, סליקת קשר וסכמות SEO/GEO 2026.4'}
                 </p>
               </div>
-
-              {/* Live Section Building Badges */}
-              <div className="flex flex-wrap items-center justify-center gap-2 max-w-md mt-2">
-                {streamedConfig?.sectionOrder.map((secId, idx) => (
-                  <div
-                    key={secId}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-bold animate-in fade-in"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>אזור {idx + 1} הוקם ({secId.split('_')[0]})</span>
-                  </div>
-                ))}
+              <div className="w-full max-w-md h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-l from-indigo-500 to-emerald-500 transition-all duration-300"
+                  style={{ width: `${currentStreamStep?.progressPercent || 15}%` }}
+                />
               </div>
             </div>
           )}
         </div>
 
-        {/* Error Notification */}
-        {errorMsg && (
-          <div className="mx-6 mb-4 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-            <span className="text-xs text-red-200">{errorMsg}</span>
-          </div>
-        )}
-
-        {/* Footer Actions Bar */}
-        {wizardStep !== 6 && (
-          <div className="p-4 sm:p-5 border-t border-slate-800/80 bg-slate-900/60 flex items-center justify-between">
-            {wizardStep > 1 ? (
-              <button
-                type="button"
-                onClick={() => setWizardStep((prev) => (prev - 1) as any)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all cursor-pointer"
-              >
-                <ArrowRight className="w-3.5 h-3.5" />
-                <span>חזור</span>
-              </button>
-            ) : (
-              <div />
-            )}
-
-            <div className="flex items-center gap-3">
-              {wizardStep === 1 && (
+        {/* Footer Controls */}
+        {stage !== 'streaming' && (
+          <div className="p-5 sm:p-6 border-t border-slate-800/80 bg-slate-900/40 flex items-center justify-between gap-3">
+            <div>
+              {stage === 'intake' && (
                 <button
                   type="button"
-                  onClick={() => setWizardStep(2)}
-                  disabled={!promptTopic.trim()}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-all shadow-md shadow-indigo-600/30 cursor-pointer"
+                  onClick={() => {
+                    if (activeQuestionIdx > 0) setActiveQuestionIdx((i) => i - 1);
+                    else setStage('page_type');
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5"
                 >
-                  <span>המשך לבחירת אזורים</span>
-                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <ArrowRight className="w-4 h-4" />
+                  <span>הקודם</span>
+                </button>
+              )}
+              {stage === 'review' && (
+                <button
+                  type="button"
+                  onClick={() => setStage('intake')}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                  <span>חזור לשאלון</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {stage === 'page_type' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveQuestionIdx(0);
+                    setStage('intake');
+                  }}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-l from-indigo-600 to-purple-600 hover:opacity-90 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-indigo-600/25"
+                >
+                  <span>המשך לשאלון הממוקד ({intakeSteps.length} שאלות)</span>
+                  <ArrowLeft className="w-4 h-4" />
                 </button>
               )}
 
-              {wizardStep === 2 && (
+              {stage === 'intake' && !isLastIntakeQuestion && (
                 <button
                   type="button"
-                  onClick={() => setWizardStep(3)}
-                  disabled={selectedSectionTypes.length === 0}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-all shadow-md shadow-indigo-600/30 cursor-pointer"
+                  onClick={() => setActiveQuestionIdx((i) => Math.min(intakeSteps.length - 1, i + 1))}
+                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black flex items-center gap-2"
                 >
-                  <span>המשך לפרטים מיוחדים</span>
-                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>לשאלה הבאה</span>
+                  <ArrowLeft className="w-4 h-4" />
                 </button>
               )}
 
-              {wizardStep === 3 && (
+              {stage === 'intake' && isLastIntakeQuestion && (
                 <button
                   type="button"
-                  onClick={() => setWizardStep(4)}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-indigo-600/30 cursor-pointer"
-                >
-                  <span>המשך לבחירת תמונה ומדיה</span>
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                </button>
-              )}
-
-              {wizardStep === 4 && (
-                <button
-                  type="button"
-                  onClick={handleGenerateDraft}
                   disabled={isGeneratingDraft}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-600/30 cursor-pointer"
+                  onClick={handleGenerateDraft}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-l from-indigo-600 to-purple-600 hover:opacity-90 disabled:opacity-50 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-indigo-600/25"
                 >
                   {isGeneratingDraft ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>מפיק תוכן מותאם ב-AI...</span>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>מייצר טיוטה מותאמת מותג ב-AI...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      <span>הפק תוכן ופתח לעריכה במודל</span>
-                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <Sparkles className="w-4 h-4" />
+                      <span>הפק עמוד עם AI</span>
                     </>
                   )}
                 </button>
               )}
 
-              {wizardStep === 5 && (
+              {stage === 'review' && (
                 <button
                   type="button"
                   onClick={handleStartStreaming}
-                  className="flex items-center gap-2 px-7 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white text-xs font-black transition-all shadow-lg shadow-emerald-600/30 cursor-pointer hover:scale-105"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-l from-emerald-600 to-indigo-600 hover:opacity-90 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-emerald-600/20"
                 >
-                  <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>צור עמוד מלא (הזרמת נתונים חיה)</span>
-                  <ArrowLeft className="w-4 h-4" />
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>אשר והרכב עמוד בעורך</span>
                 </button>
               )}
             </div>

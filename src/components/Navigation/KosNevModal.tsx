@@ -21,6 +21,7 @@ import {
   Youtube,
   HardDrive,
   Accessibility,
+  FolderKanban,
 } from 'lucide-react';
 import { getFirestore, doc, onSnapshot } from 'firebase/firestore';
 import { REGISTERED_MODULES } from '../../workbench/moduleRegistry';
@@ -206,6 +207,13 @@ export const MODULE_META_CONFIG: Record<string, {
     slogan: 'ניהול משתמשים ורמות אבטחה',
     icon: Lock,
   },
+  KosProjects: {
+    hebrewName: 'פרויקטים ותוכנית עבודה',
+    englishPrefix: 'KOS',
+    englishRest: 'PROJECTS',
+    slogan: 'שיווק, גאנט וספקים במקום אחד',
+    icon: FolderKanban,
+  },
 };
 
 // Canonical preferred routes for each canonical module
@@ -234,6 +242,7 @@ export const CANONICAL_MODULE_ROUTES: Record<string, string> = {
   KosCampaigns: '/ambassador-campaigns',
   KosData: '/db-collections',
   KosAuth: '/auth-portal',
+  KosProjects: '/projects',
 };
 
 export interface KosNevModalProps {

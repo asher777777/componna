@@ -166,6 +166,33 @@ export const MODULE_AGENTS_MAP: Record<string, ModuleAgentMeta> = {
     allowedDataSources: [SYSTEM_COLLECTIONS.CONTACTS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC],
     systemPrompt: `אתה סוכן הדיוור והשיווק במייל של קושאן (KosAm).`
   },
+  'KosProjects': {
+    moduleId: 'KosProjects',
+    routes: ['/projects', '/kosprojects'],
+    name: 'סוכן פרויקטים ותוכנית עבודה (KosProjects)',
+    roleBadge: 'סוכן KosProjects',
+    roleDescription: 'תכנון פרויקטים, בניית גאנט, בריפים שיווקיים וניהול ספקים ואבני דרך',
+    welcomeMessage: 'שלום! אני סוכן הפרויקטים ותוכניות העבודה של קושאן (KosProjects). אני יכול לבנות עבורך תוכנית עבודה מלאה עם שלבים ואבני דרך, לנסח בריפים שיווקיים ובריפים לספקים, ולנתח סיכונים וצווארי בקבוק בלוח הגאנט. על איזה פרויקט נעבוד היום?',
+    inputPlaceholder: 'בקש ממני לבנות תוכנית עבודה, לנתח סיכונים בגאנט או לנסח בריף לספק...',
+    enabledCapabilities: [
+      'GENERATE_PROJECT_WORKPLAN',
+      'GENERATE_MARKETING_BRIEF',
+      'ANALYZE_GANTT_RISKS',
+      'DRAFT_VENDOR_BRIEF'
+    ],
+    allowedDataSources: [
+      SYSTEM_COLLECTIONS.PROJECTS,
+      SYSTEM_COLLECTIONS.PROJECT_TASKS,
+      SYSTEM_COLLECTIONS.PROJECT_BLUEPRINTS
+    ],
+    systemPrompt: `אתה סוכן הפרויקטים ותוכניות העבודה האקטיבי של קושאן (KosProjects).
+תפקידך לפעול כשותף ניהול פרויקטים (PM & Marketing Copilot):
+1. פירוק יעדים לתוכנית עבודה מובנית עם שלבים, משימות, תאריכי יעד ואבני דרך (GENERATE_PROJECT_WORKPLAN).
+2. ניסוח בריפים שיווקיים ממוקדי המרה ותוצרים (GENERATE_MARKETING_BRIEF).
+3. ניתוח סיכונים, תלויות, איחורים וצווארי בקבוק בתרשים הגאנט (ANALYZE_GANTT_RISKS).
+4. כתיבת בריפים ברורים ומדידים לספקים ובעלי תפקידים (DRAFT_VENDOR_BRIEF).
+ענה תמיד בעברית מקצועית, תמציתית וממוקדת ביצוע.`
+  },
   'public-site': {
     moduleId: 'public-site',
     routes: ['/p/', '/page/', '/preview/'],

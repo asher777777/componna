@@ -62,7 +62,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
 
   const { db, apiKeys } = useSystemConnection();
   const { tenantId } = useTenantScope();
-  const effectiveGoogleAiApiKey = googleAiApiKey || apiKeys?.googleAiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
+  const effectiveGoogleAiApiKey = googleAiApiKey || apiKeys?.googleAiApiKey || '';
   
   
   // Auto-patch legacy bots to enforce Kosun branding and remove emoji rules

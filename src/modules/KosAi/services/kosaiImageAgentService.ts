@@ -167,116 +167,45 @@ async function executeImageSynthesis(
   referenceImageBase64?: string,
   customApiKey?: string
 ): Promise<{ imageUrl: string; base64Data: string; mimeType: string; usageReport: TokenUsageReport }> {
-  const effectiveKey = (customApiKey || getModuleGeminiKey('kosai-engine') || getModuleGeminiKey('media-gallery-hub') || '').trim();
+  // 1. Server-side Gemini / Imagen proxy (/api/ai/image) — ZERO browser API key exposure
+  try {
+    const { resolveAiProxyUrl } = await import('../../../core/ai/cloudAiClient');
+    const { resolveCurrentTenantId, ROOT_TENANT_ID } = await import('../../../core/tenant/tenantResolver');
+    const activeTenant = (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || ROOT_TENANT_ID;
 
-  // 1. Google Imagen 3 / Gemini native API
-  if (effectiveKey) {
-    // A. Imagen 3 predict
-    if (model.includes('imagen')) {
-      const endpoints = [
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${effectiveKey}`,
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${effectiveKey}`,
-      ];
+    const proxyRes = await fetch(resolveAiProxyUrl('image'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'image',
+        prompt: englishPrompt,
+        aspectRatio,
+        model,
+        referenceImageBase64,
+        tenantId: activeTenant,
+      }),
+    });
 
-      for (const ep of endpoints) {
-        try {
-          const res = await fetch(ep, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              instances: [{ prompt: englishPrompt }],
-              parameters: {
-                sampleCount: 1,
-                aspectRatio,
-                personGeneration: 'ALLOW_ADULT',
-                outputMimeType: 'image/jpeg',
-              },
-            }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
-            const mime = data?.predictions?.[0]?.mimeType || 'image/jpeg';
-            if (b64) {
-              const usage = calculateGeminiCost({
-                model: 'imagen-3.0-generate-002',
-                promptTokens: 60,
-                candidatesTokens: 1120,
-              });
-              return {
-                imageUrl: `data:${mime};base64,${b64}`,
-                base64Data: b64,
-                mimeType: mime,
-                usageReport: usage,
-              };
-            }
-          }
-        } catch (e) {
-          console.warn('[KOSAI Imagen predict notice]:', e);
-        }
+    if (proxyRes.ok) {
+      const data = await proxyRes.json();
+      if (data?.success && data?.base64Data) {
+        const mime = data.mimeType || 'image/jpeg';
+        const b64 = data.base64Data;
+        const usage = calculateGeminiCost({
+          model: data.model || model,
+          promptTokens: data.usageMetadata?.promptTokenCount || 65,
+          candidatesTokens: data.usageMetadata?.candidatesTokenCount || 1120,
+        });
+        return {
+          imageUrl: data.imageUrl || `data:${mime};base64,${b64}`,
+          base64Data: b64,
+          mimeType: mime,
+          usageReport: usage,
+        };
       }
     }
-
-    // B. Gemini generateContent with image modality
-    const candidateModels = [
-      model,
-      'gemini-3.1-flash-image',
-      'gemini-3.1-flash-lite-image',
-      'gemini-3-pro-image',
-    ].filter((m, i, arr) => m && arr.indexOf(m) === i && !m.includes('imagen'));
-
-    for (const targetModel of candidateModels) {
-      try {
-        const parts: any[] = [];
-        if (referenceImageBase64) {
-          const cleanRef = referenceImageBase64.replace(/^data:image\/\w+;base64,/, '');
-          parts.push({
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: cleanRef,
-            },
-          });
-        }
-        parts.push({ text: englishPrompt });
-
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${effectiveKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts }],
-              generationConfig: {
-                responseModalities: ['IMAGE', 'TEXT'],
-              },
-            }),
-          }
-        );
-
-        if (res.ok) {
-          const data = await res.json();
-          const candidateParts = data?.candidates?.[0]?.content?.parts || [];
-          const imgPart = candidateParts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
-          if (imgPart?.inlineData?.data) {
-            const mime = imgPart.inlineData.mimeType || 'image/jpeg';
-            const b64 = imgPart.inlineData.data;
-            const usage = calculateGeminiCost({
-              model: targetModel,
-              promptTokens: data.usageMetadata?.promptTokenCount || 65,
-              candidatesTokens: data.usageMetadata?.candidatesTokenCount || 1120,
-            });
-            return {
-              imageUrl: `data:${mime};base64,${b64}`,
-              base64Data: b64,
-              mimeType: mime,
-              usageReport: usage,
-            };
-          }
-        }
-      } catch (err) {
-        console.warn(`[KOSAI Gemini ${targetModel} notice]:`, err);
-      }
-    }
+  } catch (err) {
+    console.warn('[KOSAI Image Proxy notice]:', err);
   }
 
   // 2. High-Fidelity Flux.1 Engine Fallback

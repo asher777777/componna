@@ -4,10 +4,10 @@
  * and Ultra-High-Definition AI Synthesis (Flux.1 / SDXL).
  */
 
-import { calculateGeminiCost, TokenUsageReport, GEMINI_API_BASE_URL } from '../../../core/ai';
+import { calculateGeminiCost, TokenUsageReport, resolveAiProxyUrl } from '../../../core/ai';
 import { TenantTokenTracker } from '../../../core/ai/tenantTokenTracker';
 import { translateHebrewPromptToEnglish } from './geminiPromptAssistant';
-import { getModuleGeminiKey, getTenantApiKeysState } from '../../../core/connection/tenantApiKeys';
+import { getTenantApiKeysState } from '../../../core/connection/tenantApiKeys';
 import { ROOT_TENANT_ID, resolveCurrentTenantId } from '../../../core/tenant/tenantResolver';
 
 function recordGalleryTokens(report: TokenUsageReport) {
@@ -157,127 +157,48 @@ export async function generateGeminiImage(
   const aspectRatio = options.aspectRatio || '1:1';
   const { width, height } = getDimensionsForAspectRatio(aspectRatio);
 
-  const effectiveKey = (options.customApiKey || apiKey || getModuleGeminiKey('media-gallery-hub') || '').trim();
+  // 1. Server-side Gemini / Imagen proxy (/api/ai/image) — ZERO browser API key exposure
+  try {
+    const activeTenant = (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || ROOT_TENANT_ID;
+    const res = await fetch(resolveAiProxyUrl('image'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'image',
+        prompt: englishPrompt,
+        aspectRatio,
+        model,
+        referenceImageBase64: options.referenceImageBase64,
+        tenantId: activeTenant,
+      }),
+    });
 
-  // 1. Google Gemini Native Image Endpoints (Google AI Studio / Vertex AI)
-  if (effectiveKey) {
-    // A. Imagen 3 predict endpoint
-    if (model === 'imagen-3.0-generate-002') {
-      const endpoint = `${GEMINI_API_BASE_URL}/models/imagen-3.0-generate-002:predict?key=${effectiveKey}`;
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.success && data?.base64Data) {
+        const mime = data.mimeType || 'image/jpeg';
+        const b64 = data.base64Data;
+        const resolvedModel = data.model || model;
+        const usageReport = calculateGeminiCost({
+          model: resolvedModel,
+          promptTokens: data.usageMetadata?.promptTokenCount || 65,
+          candidatesTokens: data.usageMetadata?.candidatesTokenCount || 1120,
+        });
+        recordGalleryTokens(usageReport);
 
-      try {
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-            body: JSON.stringify({
-              instances: [{ prompt: englishPrompt }],
-              parameters: {
-                sampleCount: 1,
-                aspectRatio: aspectRatio,
-                personGeneration: 'ALLOW_ADULT',
-                outputMimeType: 'image/jpeg',
-              },
-            }),
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
-            const mime = data?.predictions?.[0]?.mimeType || 'image/jpeg';
-            if (b64) {
-              const usageReport = calculateGeminiCost({
-                model: 'imagen-3.0-generate-002',
-                promptTokens: 50,
-                candidatesTokens: 1120,
-              });
-              recordGalleryTokens(usageReport);
-
-              return {
-                imageUrl: `data:${mime};base64,${b64}`,
-                base64Data: b64,
-                mimeType: mime,
-                width,
-                height,
-                model: 'imagen-3.0-generate-002',
-                usageReport,
-              };
-            }
-          }
-        } catch (err) {
-          console.warn('[Imagen 3 predict call notice]:', err);
-        }
-    }
-
-    // B. Gemini generateContent endpoints with image modality (2026 models only)
-    const preferredModels = [
-      model,
-      'gemini-3.1-flash-image',
-      'gemini-3.1-flash-lite-image',
-      'gemini-3-pro-image',
-    ].filter((m, idx, arr) => m && arr.indexOf(m) === idx && m !== 'imagen-3.0-generate-002');
-
-    for (const targetModel of preferredModels) {
-      try {
-        const parts: any[] = [];
-        if (options.referenceImageBase64) {
-          const cleanRef = options.referenceImageBase64.replace(/^data:image\/\w+;base64,/, '');
-          parts.push({
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: cleanRef,
-            },
-          });
-        }
-        parts.push({ text: englishPrompt });
-
-        const geminiEndpoint = `${GEMINI_API_BASE_URL}/models/${targetModel}:generateContent?key=${effectiveKey}`;
-        const res = await fetch(geminiEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            model: targetModel,
-            generationConfig: {
-              responseModalities: ['IMAGE', 'TEXT'],
-            },
-          }),
-        }).catch(() => null);
-
-        if (!res) continue;
-
-        if (res.ok) {
-          const data = await res.json();
-          const candidateParts = data?.candidates?.[0]?.content?.parts || [];
-          const imagePart = candidateParts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
-
-          if (imagePart?.inlineData?.data) {
-            const mime = imagePart.inlineData.mimeType || 'image/jpeg';
-            const b64 = imagePart.inlineData.data;
-
-            const usageReport = calculateGeminiCost({
-              model: targetModel,
-              promptTokens: data.usageMetadata?.promptTokenCount || 65,
-              candidatesTokens: data.usageMetadata?.candidatesTokenCount || 1120,
-            });
-            recordGalleryTokens(usageReport);
-
-            return {
-              imageUrl: `data:${mime};base64,${b64}`,
-              base64Data: b64,
-              mimeType: mime,
-              width,
-              height,
-              model: targetModel,
-              usageReport,
-            };
-          }
-        }
-      } catch (geminiErr) {
-        console.warn(`[Gemini GenerateContent notice for ${targetModel}]:`, geminiErr);
+        return {
+          imageUrl: data.imageUrl || `data:${mime};base64,${b64}`,
+          base64Data: b64,
+          mimeType: mime,
+          width,
+          height,
+          model: resolvedModel,
+          usageReport,
+        };
       }
     }
+  } catch (err) {
+    console.warn('[Gemini Image Proxy notice]:', err);
   }
 
   // 2. High-Fidelity AI Image Engine (Flux.1 / SDXL Synthesis with verified loading)

@@ -208,7 +208,7 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
   // API Key Setting
   const resolveInitialKey = () => {
     if (apiKeys.googleAiApiKey) return apiKeys.googleAiApiKey;
-    if (import.meta.env.VITE_GEMINI_API_KEY) return import.meta.env.VITE_GEMINI_API_KEY as string;
+    // Gemini keys are resolved strictly server-side via geminiAiProxy
     return '';
   };
   const [apiKeyInput, setApiKeyInput] = useState<string>(resolveInitialKey);

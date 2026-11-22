@@ -68,6 +68,16 @@ export const AVAILABLE_MODULES_CATALOG: AvailableModuleOption[] = [
     defaultIncluded: true,
   },
   {
+    id: 'KosProjects',
+    name: 'פרויקטים ותוכנית עבודה',
+    englishPrefix: 'Kos',
+    englishRest: 'Projects',
+    description: 'ניהול פרויקטים דו-מסלולי: דפי נחיתה והרשמה לצד תרשים גאנט, מועדים, בעלי תפקידים וספקים',
+    category: 'core',
+    badgeColor: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
+    defaultIncluded: true,
+  },
+  {
     id: 'kesher-payments-hub',
     name: 'סליקה וקבלות קשר',
     englishPrefix: 'Kos',

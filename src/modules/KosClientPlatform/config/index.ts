@@ -59,6 +59,14 @@ export const MASTER_AVAILABLE_MODULES: MasterModuleMetadata[] = [
     ]
   },
   {
+    id: 'KosProjects',
+    defaultTitle: 'פרויקטים ותוכנית עבודה',
+    defaultSlug: '/projects',
+    description: 'ניהול פרויקטים דו-מסלולי: דפי נחיתה והרשמה לצד תרשים גאנט, בעלי תפקידים וספקים בסנכרון CRM וקהילות',
+    iconName: 'FolderKanban',
+    requiredKeys: []
+  },
+  {
     id: 'KosWebAi',
     defaultTitle: 'יוצר עמודים ואתרים',
     defaultSlug: '/KosWebAi',

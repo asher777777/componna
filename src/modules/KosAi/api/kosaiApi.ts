@@ -1,6 +1,6 @@
-import { resolveApiKey as defaultResolveApiKey, callGeminiApi as coreCallGeminiApi } from '../../KosWebAi/api/functionsApi';
+import { callGeminiApi as coreCallGeminiApi } from '../../KosWebAi/api/functionsApi';
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai/geminiCostTracker';
-import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
+import { resolveAiProxyUrl } from '../../../core/ai/cloudAiClient';
 import { TenantTokenTracker } from '../../../core/ai/tenantTokenTracker';
 import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
 
@@ -68,30 +68,14 @@ export const callGeminiApi = async ({
   imageBase64,
   history,
   cachedContentId,
-  apiKey: customApiKey
 }: KosaiApiOptions): Promise<KosaiApiResponse> => {
-  const apiKey = (customApiKey && customApiKey.trim().length > 5)
-    ? customApiKey.trim()
-    : getModuleGeminiKey('kosai-engine') || getModuleGeminiKey('KosWebAi') || defaultResolveApiKey();
-  
   const model = 'gemini-3.8-flash-lite';
+  const activeTenant = (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || ROOT_TENANT_ID;
 
-  if (!apiKey) {
-    return {
-      data: {
-        message: 'שלום! כדי שאוכל לענות בזמן אמת ולבצע פעולות עיצוב חכמות עם בינה מלאכותית, אנא הגדר מפתח Google Gemini API בהגדרות הסוכן ⚙️ או בהגדרות הטננט. בינתיים, אני כאן לרשותך בכל שאלה על המערכת והעמודים.',
-        action: 'NONE',
-        payload: {}
-      },
-      usageReport: calculateGeminiCost({ model, promptTokens: 0, candidatesTokens: 0 })
-    };
-  }
-
-  // Try direct fetch with primary model and automatic fallback to flash-lite if needed
+  // Route strictly through server-side Cloud Function proxy (/api/ai/generate) — ZERO browser key exposure
   const modelsToTry = [model, 'gemini-3.8-flash-lite'];
   for (const currentModel of Array.from(new Set(modelsToTry))) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
       const contents: any[] = [];
 
       // Add conversation history if present
@@ -120,32 +104,22 @@ export const callGeminiApi = async ({
         parts: currentParts
       });
 
-      const requestBody: any = {
-        contents,
-        generationConfig: {
-          temperature: 0.7,
-          responseMimeType: 'application/json'
-        }
-      };
-
-      if (systemInstruction) {
-        requestBody.systemInstruction = {
-          parts: [{ text: systemInstruction }]
-        };
-      }
-
-      // Attach Gemini Context Cache ID if available
-      if (cachedContentId) {
-        requestBody.cachedContent = cachedContentId;
-      }
-
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-      const res = await fetch(url, {
+      const res = await fetch(resolveAiProxyUrl('generate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          model: currentModel,
+          contents,
+          systemInstruction,
+          cachedContentId,
+          temperature: 0.7,
+          responseMimeType: 'application/json',
+          tenantId: activeTenant,
+          category: 'chatbot',
+        }),
         signal: controller.signal
       });
 
@@ -153,16 +127,15 @@ export const callGeminiApi = async ({
 
       if (res.ok) {
         const result = await res.json();
-        const candidateText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        const parsed = extractJsonFromText(candidateText || '');
+        const candidateText = result.text || '';
+        const parsed = extractJsonFromText(candidateText);
 
         const usageReport = calculateGeminiCost({
           model: currentModel,
-          promptTokens: result.usageMetadata?.promptTokenCount || 20,
-          candidatesTokens: result.usageMetadata?.candidatesTokenCount || 40,
+          promptTokens: result.usageMetadata?.promptTokenCount || result.costReport?.promptTokens || 20,
+          candidatesTokens: result.usageMetadata?.candidatesTokenCount || result.costReport?.candidatesTokens || 40,
         });
 
-        const activeTenant = (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || ROOT_TENANT_ID;
         TenantTokenTracker.recordTokenUsage(
           activeTenant,
           'chatbot',
@@ -177,10 +150,10 @@ export const callGeminiApi = async ({
         };
       } else {
         const errText = await res.text().catch(() => '');
-        console.warn(`[KOSAI API] ${currentModel} returned ${res.status}:`, errText);
+        console.warn(`[KOSAI API] ${currentModel} proxy returned ${res.status}:`, errText);
       }
-    } catch (directErr) {
-      console.warn(`[KOSAI API] ${currentModel} fetch error:`, directErr);
+    } catch (proxyErr) {
+      console.warn(`[KOSAI API] ${currentModel} proxy error:`, proxyErr);
     }
   }
 

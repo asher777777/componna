@@ -30,8 +30,8 @@
 ### 3. מודל הרשאות ואבטחה (Security & Permissions)
 * **איסור שמירת סודות וטוקנים ב-LocalStorage:**
   חל איסור לשמור מפתחות API, סיסמאות או מפתחות שירות ב-`localStorage` או ב-`sessionStorage`.
-* **קריאות בינה מלאכותית ושרת וקטורי (AI & Vector Server Security):**
-  כל קריאת AI או ניתוב וקטורי מתבצעים דרך Cloud Functions מאובטחות (`functions/`) או דרך חוזה `KosAi`.
+* **קריאות בינה מלאכותית ומניעת דליפת מפתח Gemini (Zero Browser Key Exposure):**
+  חל איסור מוחלט לבצע קריאות ישירות מהדפדפן אל `generativelanguage.googleapis.com` או להשתמש ב-`VITE_GEMINI_API_KEY` בקוד הקליינט / ב-GitHub Actions. כל קריאת AI (טקסט, תמונות, Cache ובדיקת חיבור) עוברת **אך ורק** דרך שער השרת המאובטח `/api/ai/*` (`geminiAiProxy` ב-`functions/`), והמפתח נשמר ונקרא בצד השרת בלבד. ראה פירוט מחייב מלא ב-[gemini_api_key_security.md](file:///c:/comona/.gemini/rules/gemini_api_key_security.md).
 
 ---
 

@@ -5,6 +5,7 @@ import { useTenantScope } from '../../../core/tenant';
 import {
   CrmMetadataContract,
   CrmFieldOption,
+  CrmContactSummary,
   LeadCaptureContract,
   LeadPayload,
   SYSTEM_COLLECTIONS,
@@ -117,6 +118,73 @@ export const CrmAnalyticsHostBridge: React.FC = () => {
           return { success: true, field: option };
         } catch (err: any) {
           return { success: false, error: err?.message || 'Error creating custom field' };
+        }
+      },
+
+      getContactsSummary: async (options?: { search?: string; tag?: string; limit?: number }): Promise<CrmContactSummary[]> => {
+        if (!db) return [];
+        try {
+          const contactsPath = getScopedCollectionPath(SYSTEM_COLLECTIONS.CONTACTS);
+          const snap = await getDocs(collection(db, contactsPath));
+          const searchLower = options?.search?.trim().toLowerCase() || '';
+          const tagLower = options?.tag?.trim().toLowerCase() || '';
+          const maxResults = options?.limit && options.limit > 0 ? options.limit : 100;
+
+          const results: CrmContactSummary[] = [];
+
+          snap.forEach((docSnap) => {
+            const d = docSnap.data() || {};
+            if (d.kosun_crm_status === 'trashed' || d.status === 'trashed') {
+              return;
+            }
+
+            const name = String(d.kosun_crm_name || d.conta_name || d.name || '').trim();
+            const phone = String(d.kosun_crm_phone || d.conta_phone || d.phone || '').trim();
+            const email = String(d.kosun_crm_email || d.email || '').trim();
+            const companyName = String(d.kosun_crm_company || d.company_name || d.company || '').trim();
+            const role = String(d.kosun_crm_role || d.job_title || d.role || '').trim();
+
+            const rawTags = d.kosun_crm_tags ?? d.tags ?? [];
+            const tags: string[] = Array.isArray(rawTags)
+              ? rawTags.map((t: unknown) => String(t).trim()).filter(Boolean)
+              : typeof rawTags === 'string'
+                ? rawTags.split(',').map((t) => t.trim()).filter(Boolean)
+                : [];
+
+            if (tagLower) {
+              const hasTag = tags.some((t) => t.toLowerCase() === tagLower || t.toLowerCase().includes(tagLower));
+              if (!hasTag) return;
+            }
+
+            if (searchLower) {
+              const haystack = `${name} ${phone} ${email} ${companyName} ${role} ${tags.join(' ')}`.toLowerCase();
+              if (!haystack.includes(searchLower)) return;
+            }
+
+            results.push({
+              id: docSnap.id,
+              name,
+              phone,
+              email,
+              companyName: companyName || undefined,
+              role: role || undefined,
+              tags,
+              kosun_crm_name: name || undefined,
+              kosun_crm_phone: phone || undefined,
+              kosun_crm_email: email || undefined,
+              kosun_crm_gov_id: d.kosun_crm_gov_id || d.tg1 || undefined,
+              conta_name: name || undefined,
+              conta_phone: phone || undefined,
+              total_spent: typeof d.kosun_crm_total_spent === 'number' ? d.kosun_crm_total_spent : (typeof d.total_spent === 'number' ? d.total_spent : undefined),
+              order_count: typeof d.kosun_crm_order_count === 'number' ? d.kosun_crm_order_count : (typeof d.order_count === 'number' ? d.order_count : undefined),
+            });
+          });
+
+          results.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'he'));
+          return results.slice(0, maxResults);
+        } catch (err) {
+          console.warn('[CrmHostBridge] getContactsSummary error:', err);
+          return [];
         }
       },
     };

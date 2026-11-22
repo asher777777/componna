@@ -34,6 +34,7 @@ export const DEFAULT_SUBDOMAIN_MODULES: string[] = [
   'KosCampaigns',
   'KoSeoPowerEngin',
   'KosLive',
+  'KosProjects',
 ];
 
 /** Mapping of all legacy route aliases to their canonical KOSUN26 module IDs */
@@ -150,6 +151,10 @@ export const MODULE_ALIAS_MAP: Record<string, string> = {
   // KosTenantProvisioner
   'kostenantprovisioner': 'KosTenantProvisioner',
   'tenant-provisioner': 'KosTenantProvisioner',
+
+  // KosProjects
+  'projects': 'KosProjects',
+  'kosprojects': 'KosProjects',
 };
 
 export function toCanonicalModuleId(id: string): string {

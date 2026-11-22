@@ -2,12 +2,25 @@ import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
 import { BrandDna } from '../../../core/contracts';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import { resolveLiveBrandDna } from './brandSectionHydrator';
-import { dispatchPageStructureToKosai } from '../kosai/promptToKosai';
+import { dispatchStructuredDraftToKosai } from '../kosai/promptToKosai';
 import { resolveApiKey } from '../api/functionsApi';
+import {
+  MatrixPageTypeId,
+  CrmFormFieldSpec,
+  STANDARD_CRM_FORM_FIELDS,
+  getMatrixPageType,
+} from '../config/pageArchitectureMatrix';
+import { applyStylePresetToPage } from './pageStylePresetService';
+import { syncSinglePageWithBrandDna } from './pageBrandSyncService';
 
 export interface WizardStepOptions {
   promptTopic: string;
   selectedSectionTypes: SectionType[];
+  pageTypeId?: MatrixPageTypeId;
+  groundingSources?: Array<{
+    label: string;
+    extractedText: string;
+  }>;
   eventDetails?: {
     locationName?: string;
     locationAddress?: string;
@@ -21,6 +34,29 @@ export interface WizardStepOptions {
     totalRaised?: number;
     campaignCause?: string;
     daysLeft?: number;
+    tiers?: Array<{ id: string; title: string; amount: number; description: string; isPopular?: boolean }>;
+  };
+  pricingDetails?: {
+    documentType?: 320 | 400 | 405;
+    enableInstallments?: boolean;
+    maxInstallments?: number;
+    plans?: Array<{
+      id: string;
+      name: string;
+      priceMonthly: number;
+      description: string;
+      features?: string[];
+      isFeatured?: boolean;
+    }>;
+  };
+  geoDetails?: {
+    targetCity?: string;
+    serviceAreas?: string[];
+  };
+  crmFormFields?: CrmFormFieldSpec[];
+  seoGeoFocus?: {
+    authorName?: string;
+    targetQuestion?: string;
   };
   newsDetails?: {
     currentAffairsTopic?: string;
@@ -49,6 +85,12 @@ export interface StructuredPageDraft {
   richContent?: {
     heading: string;
     body: string;
+  };
+  beforeAfter?: {
+    title: string;
+    subtitle: string;
+    beforeLabel: string;
+    afterLabel: string;
   };
   event?: {
     eventTitle: string;
@@ -88,6 +130,14 @@ export interface StructuredPageDraft {
     email: string;
     whatsapp: string;
     address: string;
+  };
+  seoGeo?: {
+    title: string;
+    description: string;
+    keywords: string[];
+    aiKnowledgeSummary: string;
+    aiTargetQuestions: string[];
+    author: string;
   };
 }
 
@@ -263,8 +313,8 @@ export function generateHeuristicStructuredDraft(
 }
 
 /**
- * Generates StructuredPageDraft using KOSAI with safe heuristic fallback.
- * Guaranteed 100% success rate!
+ * Generates StructuredPageDraft using KOSAI (single unified schema, zero prompt conflict)
+ * with full Brand DNA, grounding sources, hard facts, and 2026.4 GEO/SEO rules.
  */
 export async function generateStructuredPageDraft(
   options: WizardStepOptions,
@@ -272,8 +322,27 @@ export async function generateStructuredPageDraft(
   providedApiKey?: string
 ): Promise<StructuredPageDraft> {
   const fallback = generateHeuristicStructuredDraft(options, brandDna);
-  const apiKey = resolveApiKey(providedApiKey);
 
+  // Merge user-entered hard pricing/campaign tiers into fallback immediately
+  if (options.pricingDetails?.plans && options.pricingDetails.plans.length > 0) {
+    fallback.pricing = {
+      title: fallback.pricing?.title || 'חבילות ומסלולים מותאמים',
+      subtitle: fallback.pricing?.subtitle || 'בחרו את המסלול המתאים ביותר עבורכם',
+      plans: options.pricingDetails.plans.map((p, idx) => ({
+        id: p.id || `p_${idx + 1}`,
+        name: p.name,
+        priceMonthly: Number(p.priceMonthly) || 0,
+        description: p.description || '',
+        features: p.features && p.features.length > 0 ? p.features : ['מעטפת שירות מלאה', 'ליווי מקצועי'],
+        isFeatured: Boolean(p.isFeatured),
+      })),
+    };
+  }
+  if (options.campaignDetails?.tiers && options.campaignDetails.tiers.length > 0 && fallback.campaign) {
+    fallback.campaign.tiers = options.campaignDetails.tiers;
+  }
+
+  const apiKey = resolveApiKey(providedApiKey);
   if (!apiKey) {
     return fallback;
   }
@@ -281,49 +350,52 @@ export async function generateStructuredPageDraft(
   const liveDna = resolveLiveBrandDna(brandDna);
   const company = liveDna?.identity?.companyName || 'העסק';
   const slogan = liveDna?.identity?.slogan || '';
-  const tone = (liveDna?.identity as any)?.brandPersonality || 'מקצועי, מוביל ומשכנע';
+  const tone =
+    (liveDna?.voice as any)?.tone ||
+    (liveDna?.identity as any)?.brandPersonality ||
+    'מקצועי, מוביל ומשכנע';
 
-  const prompt = `
-You are an Elite Brand Copywriter and Web Architect.
-Build a structured JSON content plan in idiomatic native Hebrew for:
-- Company: "${company}" (${slogan})
-- Tone of Voice: "${tone}"
-- Selected Sections: ${options.selectedSectionTypes.join(', ')}
-- Page Concept: "${options.promptTopic}"
-${options.eventDetails ? `- Event Details: Date ${options.eventDetails.eventDate}, Time ${options.eventDetails.eventTime}, Location ${options.eventDetails.locationName}` : ''}
-${options.campaignDetails ? `- Campaign Goal: ₪${options.campaignDetails.targetGoal}, Cause: ${options.campaignDetails.campaignCause}` : ''}
-${options.newsDetails ? `- News Topic: ${options.newsDetails.currentAffairsTopic}` : ''}
+  const matrixDef = options.pageTypeId ? getMatrixPageType(options.pageTypeId) : getMatrixPageType('landing');
+  const groundingFacts = (options.groundingSources || [])
+    .filter((s) => s.extractedText?.trim())
+    .map((s) => `[מקור: ${s.label}]\n${s.extractedText}`)
+    .join('\n\n');
 
-Return ONLY a JSON matching this schema:
-{
-  "pageTitle": "כותרת עמוד מרתקת",
-  "hero": {
-    "title": "כותרת ראשית חזקה וממוקדת",
-    "subtitle": "פסקת משנה סוחפת עם הצעת ערך",
-    "badge": "תגית קצרה",
-    "ctaPrimaryText": "טקסט כפתור הנעה לפעולה",
-    "ctaSecondaryText": "טקסט כפתור משני"
-  },
-  "richContent": {
-    "heading": "כותרת פסקת תוכן עשירה",
-    "body": "<p>טקסט עשיר ומפורט בעברית רהוטה...</p>"
-  },
-  "faqs": [
-    {"question": "שאלה נפוצה 1", "answer": "תשובה מלאה ומקצועית"},
-    {"question": "שאלה נפוצה 2", "answer": "תשובה מלאה ומקצועית"}
-  ]
-}
-`;
+  const ecosystemServices = [
+    ...(liveDna?.ecosystem?.services?.map((s: any) => s.name || s.title || s).filter(Boolean) || []),
+    ...(liveDna?.ecosystem?.products?.map((p: any) => p.name || p.title || p).filter(Boolean) || []),
+  ];
 
   try {
-    const rawRes = await dispatchPageStructureToKosai(
+    const rawRes = await dispatchStructuredDraftToKosai(
       {
+        pageTypeTitle: matrixDef.titleHe,
+        pageEssenceAndFlow: matrixDef.essenceAndFlow,
+        selectedSections: options.selectedSectionTypes,
+        userTopic: options.promptTopic,
+        groundingFacts: groundingFacts || undefined,
+        authorName: options.seoGeoFocus?.authorName || company,
+        targetQuestion: options.seoGeoFocus?.targetQuestion,
         companyName: company,
         slogan,
-        targetAudience: liveDna?.audience?.targetAudiences?.join(', '),
         uvp: liveDna?.audience?.mainUvp,
         voiceTone: tone,
-        userPrompt: prompt,
+        powerWords: liveDna?.voice?.powerWords,
+        targetAudiences: liveDna?.audience?.targetAudiences,
+        commonObjections: liveDna?.audience?.commonObjections,
+        ecosystemServices,
+        stylePreset: liveDna?.designTokens?.defaultStylePreset || 'standard',
+        uiVocabulary: liveDna?.uiVocabulary
+          ? {
+              primaryCta: liveDna.uiVocabulary.primaryCta,
+              whatsappCta: liveDna.uiVocabulary.whatsappCta,
+              formSubmitText: liveDna.uiVocabulary.formSubmitText,
+            }
+          : undefined,
+        eventDetails: options.eventDetails,
+        campaignDetails: options.campaignDetails,
+        pricingInput: options.pricingDetails?.plans,
+        geoDetails: options.geoDetails,
       },
       { apiKey }
     );
@@ -343,6 +415,36 @@ Return ONLY a JSON matching this schema:
       }
 
       if (parsed && typeof parsed === 'object') {
+        // Preserve user hard-fact prices if provided; otherwise accept AI plans
+        const resolvedPricingPlans =
+          options.pricingDetails?.plans && options.pricingDetails.plans.length > 0
+            ? options.pricingDetails.plans.map((userPlan, idx) => {
+                const aiMatch = Array.isArray(parsed.pricing?.plans) ? parsed.pricing.plans[idx] : null;
+                return {
+                  id: userPlan.id || `p_${idx + 1}`,
+                  name: userPlan.name || aiMatch?.name || `מסלול ${idx + 1}`,
+                  priceMonthly: Number(userPlan.priceMonthly) || 0,
+                  description: userPlan.description || aiMatch?.description || '',
+                  features:
+                    userPlan.features && userPlan.features.length > 0
+                      ? userPlan.features
+                      : Array.isArray(aiMatch?.features) && aiMatch.features.length > 0
+                      ? aiMatch.features
+                      : ['מעטפת שירות מלאה', 'ליווי מקצועי'],
+                  isFeatured: Boolean(userPlan.isFeatured),
+                };
+              })
+            : Array.isArray(parsed.pricing?.plans) && parsed.pricing.plans.length > 0
+            ? parsed.pricing.plans.map((p: any, idx: number) => ({
+                id: `p_${idx + 1}`,
+                name: p.name || `מסלול ${idx + 1}`,
+                priceMonthly: Number(p.priceMonthly) || 490,
+                description: p.description || '',
+                features: Array.isArray(p.features) ? p.features : [],
+                isFeatured: Boolean(p.isFeatured),
+              }))
+            : fallback.pricing?.plans || [];
+
         return {
           ...fallback,
           pageTitle: parsed.pageTitle || fallback.pageTitle,
@@ -360,13 +462,63 @@ Return ONLY a JSON matching this schema:
                 body: parsed.richContent.body || fallback.richContent?.body || '',
               }
             : fallback.richContent,
-          faqs: Array.isArray(parsed.faqs) && parsed.faqs.length > 0
-            ? parsed.faqs.map((f: any, idx: number) => ({
-                id: `f_${idx + 1}`,
-                question: f.question || f.q || '',
-                answer: f.answer || f.a || '',
-              }))
-            : fallback.faqs,
+          beforeAfter: parsed.beforeAfter
+            ? {
+                title: parsed.beforeAfter.title || 'השינוי שאנחנו מביאים',
+                subtitle: parsed.beforeAfter.subtitle || 'לפני ואחרי העבודה איתנו',
+                beforeLabel: parsed.beforeAfter.beforeLabel || 'לפני',
+                afterLabel: parsed.beforeAfter.afterLabel || 'אחרי',
+              }
+            : fallback.beforeAfter,
+          stats:
+            Array.isArray(parsed.stats) && parsed.stats.length > 0
+              ? parsed.stats.map((s: any, idx: number) => ({
+                  id: `s_${idx + 1}`,
+                  number: String(s.number || '100'),
+                  suffix: String(s.suffix || ''),
+                  label: s.label || '',
+                  description: s.description || '',
+                }))
+              : fallback.stats,
+          testimonials:
+            Array.isArray(parsed.testimonials) && parsed.testimonials.length > 0
+              ? parsed.testimonials.map((t: any, idx: number) => ({
+                  id: `tm_${idx + 1}`,
+                  name: t.name || 'לקוח מאומת',
+                  role: t.role || '',
+                  company: t.company || '',
+                  content: t.content || '',
+                  rating: Number(t.rating) || 5,
+                }))
+              : fallback.testimonials,
+          pricing: {
+            title: parsed.pricing?.title || fallback.pricing?.title || 'מסלולים וחבילות',
+            subtitle: parsed.pricing?.subtitle || fallback.pricing?.subtitle || '',
+            plans: resolvedPricingPlans,
+          },
+          faqs:
+            Array.isArray(parsed.faqs) && parsed.faqs.length > 0
+              ? parsed.faqs.map((f: any, idx: number) => ({
+                  id: `f_${idx + 1}`,
+                  question: f.question || f.q || '',
+                  answer: f.answer || f.a || '',
+                }))
+              : fallback.faqs,
+          contact: {
+            ...fallback.contact!,
+            title: parsed.contact?.title || fallback.contact?.title || 'בואו נדבר',
+            subtitle: parsed.contact?.subtitle || fallback.contact?.subtitle || '',
+          },
+          seoGeo: parsed.seoGeo
+            ? {
+                title: parsed.seoGeo.title || `${parsed.pageTitle || fallback.pageTitle} | ${company}`,
+                description: parsed.seoGeo.description || parsed.hero?.subtitle || fallback.hero.subtitle,
+                keywords: Array.isArray(parsed.seoGeo.keywords) ? parsed.seoGeo.keywords : [company, options.promptTopic],
+                aiKnowledgeSummary: parsed.seoGeo.aiKnowledgeSummary || '',
+                aiTargetQuestions: Array.isArray(parsed.seoGeo.aiTargetQuestions) ? parsed.seoGeo.aiTargetQuestions : [],
+                author: parsed.seoGeo.author || options.seoGeoFocus?.authorName || company,
+              }
+            : undefined,
         };
       }
     }
@@ -378,7 +530,8 @@ Return ONLY a JSON matching this schema:
 }
 
 /**
- * Builds the complete PageBuilderConfig from the user-reviewed draft and selected sections.
+ * Builds the complete PageBuilderConfig from the user-reviewed draft, selected sections,
+ * Brand DNA style presets, UI vocabulary, CRM field mappings, Kesher checkout params, and 2026.4 GEO/SEO.
  */
 export function buildPageConfigFromStructuredDraft(
   draft: StructuredPageDraft,
@@ -390,28 +543,36 @@ export function buildPageConfigFromStructuredDraft(
   const companyName = liveDna?.identity?.companyName || 'קושאן';
   const slogan = liveDna?.identity?.slogan || '';
   const pageId = `page_${Date.now()}`;
+  const matrixDef = options.pageTypeId ? getMatrixPageType(options.pageTypeId) : null;
+  const shouldShowHeader = matrixDef ? matrixDef.hasHeader : true;
+
+  const crmFields =
+    options.crmFormFields && options.crmFormFields.length > 0
+      ? options.crmFormFields
+      : STANDARD_CRM_FORM_FIELDS.filter((f) => f.defaultSelected);
 
   const config: PageBuilderConfig = {
     pageId,
     pageTitle: draft.pageTitle,
     slug: draft.slug,
     published: false,
-    isHomePage: false,
+    isHomePage: options.pageTypeId === 'homepage',
     viewsCount: 0,
     leadsCount: 0,
     globalSettings: {
       siteTitle: `${draft.pageTitle} | ${companyName}`,
       companyName,
       slogan,
-      theme: 'modern',
+      siteLogoUrl: liveDna?.identity?.logoUrl || '',
+      theme: (liveDna?.designTokens?.defaultStylePreset as any) || 'modern',
       headerLayout: 'capsule-floating',
       headerSticky: true,
-      isHeaderVisible: true,
+      isHeaderVisible: shouldShowHeader,
       isFooterVisible: true,
       primaryColor: liveDna?.designTokens?.primaryColor || '#6366f1',
       secondaryColor: liveDna?.designTokens?.secondaryColor || '#ec4899',
-      backgroundColor: liveDna?.designTokens?.backgroundColor || '#090a0f',
-      textColor: liveDna?.designTokens?.textColor || '#f8fafc',
+      backgroundColor: liveDna?.designTokens?.backgroundColor || '#ffffff',
+      textColor: liveDna?.designTokens?.textColor || '#0f172a',
       fontFamily: liveDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
       borderRadius: liveDna?.designTokens?.borderRadius || 'md',
       buttonStyle: liveDna?.designTokens?.buttonStyle || 'gradient',
@@ -419,19 +580,44 @@ export function buildPageConfigFromStructuredDraft(
       contactPhone: draft.contact?.phone || liveDna?.trust?.contactPhone || '052-6968008',
       contactEmail: draft.contact?.email || liveDna?.trust?.contactEmail || 'ovt5771@gmail.com',
       address: draft.contact?.address || liveDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב',
+      brandDnaSynced: true,
     },
     seoSettings: {
-      title: `${draft.pageTitle} | ${companyName}`,
-      description: draft.hero.subtitle || slogan,
-      keywords: [companyName, draft.pageTitle, 'שירותים', 'אירועים'],
+      title: draft.seoGeo?.title || `${draft.pageTitle} | ${companyName}`,
+      description: draft.seoGeo?.description || draft.hero.subtitle || slogan,
+      keywords: draft.seoGeo?.keywords || [companyName, draft.pageTitle],
+      author: draft.seoGeo?.author || options.seoGeoFocus?.authorName || companyName,
+      ogType: options.pageTypeId === 'pillar_article' ? 'article' : 'website',
+      twitterCard: 'summary_large_image',
+      aiKnowledgeSummary: draft.seoGeo?.aiKnowledgeSummary || draft.hero.subtitle,
+      aiTargetQuestions:
+        draft.seoGeo?.aiTargetQuestions && draft.seoGeo.aiTargetQuestions.length > 0
+          ? draft.seoGeo.aiTargetQuestions
+          : draft.faqs?.slice(0, 3).map((f) => f.question),
+      aiEntitySchemaType: (matrixDef?.recommendedSchemaType as any) || 'ProfessionalService',
+      aiBotIndexingEnabled: true,
+      geo: options.geoDetails?.targetCity
+        ? {
+            enabled: true,
+            targetCity: options.geoDetails.targetCity,
+            serviceAreas: options.geoDetails.serviceAreas || [options.geoDetails.targetCity],
+            localBusinessName: companyName,
+            businessAddress: liveDna?.trust?.officeAddress,
+            businessPhone: liveDna?.trust?.contactPhone,
+            businessEmail: liveDna?.trust?.contactEmail,
+          }
+        : undefined,
     },
     sectionOrder: [],
     sections: {},
   };
 
-  const selectedSections = options.selectedSectionTypes.length > 0
+  const rawSelected = options.selectedSectionTypes.length > 0
     ? options.selectedSectionTypes
     : (['hero', 'richContent', 'statsBento', 'testimonials', 'faq', 'contact'] as SectionType[]);
+
+  // Respect matrix hasHeader rule: omit 'header' section if page type is distraction-free (landing / campaign)
+  const selectedSections = shouldShowHeader ? rawSelected : rawSelected.filter((t) => t !== 'header');
 
   selectedSections.forEach((type, index) => {
     const secDef = SECTION_REGISTRY[type];
@@ -463,6 +649,11 @@ export function buildPageConfigFromStructuredDraft(
     } else if (type === 'richContent' && draft.richContent) {
       enrichedData.heading = draft.richContent.heading;
       enrichedData.body = draft.richContent.body;
+    } else if (type === 'beforeAfter' && draft.beforeAfter) {
+      enrichedData.title = draft.beforeAfter.title;
+      enrichedData.subtitle = draft.beforeAfter.subtitle;
+      enrichedData.beforeLabel = draft.beforeAfter.beforeLabel;
+      enrichedData.afterLabel = draft.beforeAfter.afterLabel;
     } else if (type === 'eventRsvp' && draft.event) {
       enrichedData.title = draft.event.eventTitle;
       enrichedData.eventTitle = draft.event.eventTitle;
@@ -472,6 +663,7 @@ export function buildPageConfigFromStructuredDraft(
       enrichedData.locationName = draft.event.locationName;
       enrichedData.locationAddress = draft.event.locationAddress;
       enrichedData.wazeQuery = draft.event.wazeQuery;
+      enrichedData.crmFields = crmFields;
     } else if (type === 'timer' && draft.event) {
       enrichedData.title = `ספירה לאחור: ${draft.event.eventTitle}`;
       enrichedData.subtitle = `${draft.event.locationName} • ${draft.event.eventDate}`;
@@ -484,17 +676,40 @@ export function buildPageConfigFromStructuredDraft(
       enrichedData.donorsCount = draft.campaign.donorsCount;
       enrichedData.daysLeft = draft.campaign.daysLeft;
     } else if (type === 'campaignTiers' && draft.campaign) {
-      enrichedData.tiers = draft.campaign.tiers;
+      enrichedData.tiers = draft.campaign.tiers.map((t) => ({
+        ...t,
+        actionType: 'kesher_checkout',
+        documentType: 405,
+      }));
     } else if (type === 'pricing' && draft.pricing) {
+      const docType = options.pricingDetails?.documentType || 320;
+      const maxInst = options.pricingDetails?.enableInstallments ? options.pricingDetails.maxInstallments || 12 : 1;
       enrichedData.title = draft.pricing.title;
       enrichedData.subtitle = draft.pricing.subtitle;
-      enrichedData.packages = draft.pricing.plans;
+      enrichedData.packages = draft.pricing.plans.map((p) => ({
+        ...p,
+        priceMonthly: String(p.priceMonthly),
+        actionType: 'kesher_checkout',
+        documentType: docType,
+        maxInstallments: maxInst,
+        buttonText: liveDna?.uiVocabulary?.primaryCta || 'להצטרפות ותשלום מאובטח',
+      }));
     } else if (type === 'statsBento' && draft.stats) {
       enrichedData.stats = draft.stats;
     } else if (type === 'testimonials' && draft.testimonials) {
       enrichedData.items = draft.testimonials;
     } else if (type === 'faq' && draft.faqs) {
       enrichedData.items = draft.faqs;
+    } else if (type === 'geoLocal') {
+      enrichedData.city = options.geoDetails?.targetCity || enrichedData.city || 'תל אביב';
+      enrichedData.serviceAreas = options.geoDetails?.serviceAreas || enrichedData.serviceAreas || ['כל הארץ'];
+      enrichedData.phone = config.globalSettings.contactPhone;
+      enrichedData.email = config.globalSettings.contactEmail;
+      enrichedData.address = config.globalSettings.address;
+    } else if (type === 'smartForm' || type === 'landingSection') {
+      enrichedData.sectionTitle = enrichedData.sectionTitle || draft.contact?.title || 'השאירו פרטים ונחזור אליכם';
+      enrichedData.sectionSubtitle = enrichedData.sectionSubtitle || draft.contact?.subtitle || '';
+      enrichedData.crmFields = crmFields;
     } else if (type === 'contact') {
       enrichedData.title = draft.contact?.title || 'יצירת קשר מהירה';
       enrichedData.subtitle = draft.contact?.subtitle || 'השאירו פרטים ונחזור אליכם בהקדם';
@@ -504,13 +719,22 @@ export function buildPageConfigFromStructuredDraft(
       enrichedData.address = draft.contact?.address || config.globalSettings.address;
       enrichedData.directWhatsappChat = true;
       enrichedData.showForm = true;
+      enrichedData.crmFields = crmFields;
     }
 
     config.sectionOrder.push(secId);
     config.sections[secId] = enrichedData;
   });
 
-  return config;
+  // Automatically apply tenant Brand Style Preset & UI Vocabulary mini-copy
+  const preset = liveDna?.designTokens?.defaultStylePreset;
+  let finalPage = config;
+  if (preset) {
+    finalPage = applyStylePresetToPage(finalPage, preset).updatedPage;
+  }
+  finalPage = syncSinglePageWithBrandDna(finalPage, liveDna).updatedPage;
+
+  return finalPage;
 }
 
 /**

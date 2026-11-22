@@ -40,7 +40,8 @@ export const kosaiWebAiContract = {
   },
 
   /**
-   * Generates a complete 4-8 sections landing page with JSON output.
+   * Generates a complete 4-8+ sections landing page with JSON output.
+   * Uses gemini-3.8-flash with higher token budget for rich Hebrew copy & GEO 2026.4 compliance.
    */
   async generatePageStructure(
     prompt: string,
@@ -48,8 +49,8 @@ export const kosaiWebAiContract = {
     options?: { apiKey?: string; tenantId?: string }
   ): Promise<KosaiContractResult<any>> {
     return executeKosaiAi('KosWebAi', prompt, {
-      model: 'gemini-3.8-flash-lite',
-      maxOutputTokens: 4000,
+      model: 'gemini-3.8-flash',
+      maxOutputTokens: 6500,
       systemInstruction,
       responseMimeType: 'application/json',
       temperature: 0.7,

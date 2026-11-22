@@ -133,18 +133,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         );
         if (tenantRes.success) {
           setSuccessMsg('התחברת בהצלחה כמנהל המערכת!');
+          setLoading(false);
           setTimeout(() => {
             onClose();
-            const url = new URL(window.location.href);
-            if (activeSub === '_master') {
-              url.pathname = '/';
-              url.searchParams.set('edit', 'true');
-            } else {
-              url.pathname = '/brand-dna';
-            }
-            url.search = '';
-            window.location.href = url.toString();
-          }, 500);
+          }, 450);
           return;
         } else {
           console.warn('[AuthModal] Tenant auth check:', tenantRes.error);

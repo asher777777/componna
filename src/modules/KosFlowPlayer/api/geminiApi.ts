@@ -9,7 +9,7 @@ export class GeminiApi {
   public static async routeIntentWithGemini(
     payload: VoiceIntentPayload
   ): Promise<VoiceIntentResponse> {
-    const apiKey = payload.apiKey || import.meta.env.VITE_GEMINI_API_KEY;
+    const apiKey = payload.apiKey || '';
 
     if (!apiKey) {
       console.warn('[GeminiApi] No Gemini API key provided. Falling back to local keyword matching.');

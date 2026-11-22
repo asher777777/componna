@@ -105,6 +105,11 @@ export const SYSTEM_COLLECTIONS = {
   KOS_ACCESS_SETTINGS: 'mod_kos_access_settings',
   KOS_ACCESS_DECLARATIONS: 'mod_kos_access_declarations',
   KOS_ACCESS_FEEDBACK: 'mod_kos_access_feedback',
+
+  // 15. KosProjects ("קושאן פרויקטים" - Projects, Workplans, Gantt & Vendors)
+  PROJECTS: 'kos_projects',
+  PROJECT_TASKS: 'kos_project_tasks',
+  PROJECT_BLUEPRINTS: 'kos_project_blueprints',
 } as const;
 
 export type SystemCollectionKey = keyof typeof SYSTEM_COLLECTIONS;

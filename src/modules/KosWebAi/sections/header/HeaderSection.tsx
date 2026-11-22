@@ -6,6 +6,7 @@ import { useSystemConnection } from '../../../../core/connection/SystemConnectio
 import { PageBuilderConfig } from '../../types/pageBuilder.types';
 import { AuthModal } from '../../../../components/Auth/AuthModal';
 import { subscribeToAuth, logoutUser, AuthState } from '../../../../services/firebaseAuth';
+import { TenantAuthService } from '../../../KosTenantProvisioner/services/tenantAuthService';
 import {
   Menu,
   X,
@@ -18,6 +19,7 @@ import {
   Sparkles,
   Sun,
   Moon,
+  Settings,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -72,6 +74,32 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
     });
     return () => unsub();
   }, [firebaseApp]);
+
+  const [isTenantAuthed, setIsTenantAuthed] = useState<boolean>(() =>
+    tenantId ? TenantAuthService.isTenantAuthenticated(tenantId) : false
+  );
+
+  useEffect(() => {
+    const syncTenantAuth = () => {
+      setIsTenantAuthed(tenantId ? TenantAuthService.isTenantAuthenticated(tenantId) : false);
+    };
+    syncTenantAuth();
+    window.addEventListener('kosun_tenant_auth_changed', syncTenantAuth);
+    return () => window.removeEventListener('kosun_tenant_auth_changed', syncTenantAuth);
+  }, [tenantId]);
+
+  const isLoggedIn = Boolean((authState.isAuthenticated && !authState.isAnonymous) || isTenantAuthed);
+
+  const handleFullLogout = async () => {
+    if (tenantId) {
+      TenantAuthService.logoutTenant(tenantId);
+    }
+    try {
+      await logoutUser(firebaseApp);
+    } catch {}
+    setIsTenantAuthed(false);
+    setMobileMenuOpen(false);
+  };
 
   const safeConfig = config || {} as HeaderSectionConfig;
   const {
@@ -451,30 +479,28 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
 
                   {/* Login / Auth Button */}
                   {showLoginButton && (
-                    authState.isAuthenticated ? (
-                      <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
-                        <div className="flex items-center gap-2 min-w-0 pr-1">
-                          <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                            <User className="w-4 h-4" />
-                          </div>
-                          <div className="text-right truncate">
-                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate" title={authState.displayName || authState.email || 'משתמש מחובר'}>
-                              {authState.displayName || (authState.email ? authState.email.split('@')[0] : 'מחובר')}
-                            </span>
-                            <span className="text-[10px] text-slate-400 block font-normal">
-                              {authState.role === 'admin' ? 'מנהל מערכת' : 'משתמש מחובר'}
-                            </span>
-                          </div>
-                        </div>
+                    isLoggedIn ? (
+                      <div className="space-y-2">
                         <button
                           type="button"
-                          onClick={async () => {
-                            await logoutUser(firebaseApp);
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            window.dispatchEvent(new CustomEvent('kosun:open-tenant-settings'));
                           }}
-                          className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition cursor-pointer flex-shrink-0"
+                          className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 text-xs font-bold transition shadow-xs cursor-pointer"
+                          title="הגדרות חשבון, מפתחות שירותים, תשלומים, רכיבים פעילים ושדרוגים"
+                        >
+                          <Settings className="w-4 h-4" />
+                          <span>הגדרות, מפתחות וחשבון</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleFullLogout}
+                          className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-sm cursor-pointer"
                           title="התנתקות מהמערכת"
                         >
                           <LogOut className="w-4 h-4" />
+                          <span>התנתק</span>
                         </button>
                       </div>
                     ) : (
@@ -635,22 +661,16 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
               )}
 
               {showLoginButton && (
-                authState.isAuthenticated ? (
-                  <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 sm:p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 px-1.5 truncate max-w-[110px] sm:max-w-[150px]" title={authState.displayName || authState.email || 'משתמש מחובר'}>
-                      {authState.displayName || (authState.email ? authState.email.split('@')[0] : 'מחובר')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await logoutUser(firebaseApp);
-                      }}
-                      className="p-1 sm:p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition cursor-pointer"
-                      title="התנתקות מהמערכת"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                isLoggedIn ? (
+                  <button
+                    type="button"
+                    onClick={handleFullLogout}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50 transition shadow-sm cursor-pointer"
+                    title="התנתקות מהמערכת"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span className="text-[11px] font-bold">התנתק</span>
+                  </button>
                 ) : (
                   <button
                     type="button"

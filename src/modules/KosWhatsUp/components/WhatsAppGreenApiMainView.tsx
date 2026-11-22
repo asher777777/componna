@@ -97,7 +97,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
   }, [instanceId, token, apiUrl]);
 
   // 24/7 Client-side Auto Responder Fallback & Listener
-  const effectiveGeminiKey = apiKeys.googleAiApiKey || (apiKeys as any).geminiApiKey || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+  const effectiveGeminiKey = apiKeys.googleAiApiKey || (apiKeys as any).geminiApiKey || '';
   const { isListening: isAutoResponderActive } = useWhatsAppAutoResponder({
     greenApiService,
     apiKey: effectiveGeminiKey,

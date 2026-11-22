@@ -19,7 +19,8 @@ const KosCloudStoreStandaloneView = React.lazy(() => import('../../KosCloudStore
 const MediaGalleryHubStandaloneView = KosCloudStoreStandaloneView;
 const DbCollectionsHubStandaloneView = React.lazy(() => import('../../KosData').then(m => ({ default: m.DbCollectionsHubStandaloneView })));
 const TemplateStandaloneView = React.lazy(() => import('../../KosTemplate').then(m => ({ default: m.TemplateStandaloneView })));
-import { Globe, ShoppingBag, Sparkles } from 'lucide-react';
+const KosProjectsStandaloneView = React.lazy(() => import('../../KosProjects').then(m => ({ default: m.KosProjectsStandaloneView })));
+import { Globe, ShoppingBag, Sparkles, FolderKanban } from 'lucide-react';
 
 export interface DynamicClientShellProps {
   onExitToPublic?: () => void;
@@ -45,6 +46,7 @@ export const DynamicClientShell: React.FC<DynamicClientShellProps> = ({ onExitTo
       case 'Image': return Image;
       case 'Database': return Database;
       case 'Layers': return Layers;
+      case 'FolderKanban': return FolderKanban;
       default: return Sliders;
     }
   };
@@ -70,6 +72,9 @@ export const DynamicClientShell: React.FC<DynamicClientShellProps> = ({ onExitTo
         return <MediaGalleryHubStandaloneView />;
       case 'db-collections-hub':
         return <DbCollectionsHubStandaloneView />;
+      case 'KosProjects':
+      case 'projects':
+        return <KosProjectsStandaloneView />;
       case 'template':
         return <TemplateStandaloneView />;
       default:

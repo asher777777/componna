@@ -29,10 +29,6 @@ export function resolveAiApiKey(explicitKey?: string): string {
   if (state.masterKeys?.googleAiApiKey && state.masterKeys.googleAiApiKey.trim().length > 5) {
     return state.masterKeys.googleAiApiKey.trim();
   }
-  const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  if (envKey && envKey.trim().length > 5) {
-    return envKey.trim();
-  }
   return '';
 }
 

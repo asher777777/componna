@@ -52,7 +52,7 @@ export const FlowPlayerModuleProvider: React.FC<{
     db,
     databaseId: config.databaseId,
     collections,
-    geminiApiKey: config.geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY,
+    geminiApiKey: config.geminiApiKey || '',
     functionsBaseUrl: config.functionsBaseUrl || import.meta.env.VITE_FUNCTIONS_BASE_URL,
     onNavigate: config.onNavigate,
     config,

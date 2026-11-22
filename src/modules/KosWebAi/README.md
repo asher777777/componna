@@ -32,7 +32,7 @@
 ## 🚀 מנוע ה-AI האוטונומי (Autonomous Multi-Section AI)
 
 - **לעולם לא נוצר Hero בודד:** המנוע מייצר תמיד שלד שלם בן 4 עד 8 אזורים מקושרים וקוהרנטיים (Hero ➔ ServicesGrid ➔ StatsBento ➔ Testimonials ➔ FAQ ➔ Contact).
-- **Smart Key Resolver:** בודק לפי סדר עדיפויות מוגדר: פרמטר ➔ `googleAiApiKey` ➔ `geminiApiKey` ➔ קונפיגורציית מערכת ➔ משתני סביבה (`VITE_GEMINI_API_KEY`).
+- **Server-Side AI Proxy:** כל קריאות ה-AI עוברות אך ורק דרך שער השרת `/api/ai/generate` (`geminiAiProxy`) — אפס חשיפת מפתחות בדפדפן.
 - **Real-Time Visual Streaming:** מעקב אחוזים מדויק (0% עד 100%) וטעינה מדורגת חיה של האזורים.
 - **Graceful Fallback:** גם ללא מפתח API זמין, נוצר שלד עשיר ומרהיב של 6 אזורים מלאים עם הודעה עדינה להזנת מפתח.
 

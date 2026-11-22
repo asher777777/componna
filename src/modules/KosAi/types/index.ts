@@ -54,7 +54,11 @@ export type KosaiCapability =
   | 'UPDATE_SMART_FORM'
   | 'SAVE_FORM_TEMPLATE'
   | 'LOAD_SMART_FORM'
-  | 'DELETE_SMART_FORM';
+  | 'DELETE_SMART_FORM'
+  | 'GENERATE_PROJECT_WORKPLAN'
+  | 'GENERATE_MARKETING_BRIEF'
+  | 'ANALYZE_GANTT_RISKS'
+  | 'DRAFT_VENDOR_BRIEF';
 
 export interface KosaiMessage {
   id: string;

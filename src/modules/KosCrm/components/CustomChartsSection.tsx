@@ -29,7 +29,7 @@ export const CustomChartsSection: React.FC<Props> = ({
     (apiKeys?.googleAiApiKey || '').trim() ||
     getModuleGeminiKey('crm-analytics') ||
     getModuleGeminiKey() ||
-    ((import.meta as any).env?.VITE_GEMINI_API_KEY || '').trim();
+    '';
 
   const [charts, setCharts] = useState<CustomCrmChart[]>([]);
   const [loadingCharts, setLoadingCharts] = useState(false);

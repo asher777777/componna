@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sitemapXml = exports.mediaProxy = exports.tiktokWebhook = exports.triggerScheduledReminders = exports.dispatchScheduledReminders = exports.tenantAdminAuth = exports.kesherMasterBilling = exports.kesherProxy = exports.whatsappWebhook = void 0;
+exports.geminiAiProxy = exports.sitemapXml = exports.mediaProxy = exports.tiktokWebhook = exports.triggerScheduledReminders = exports.dispatchScheduledReminders = exports.tenantAdminAuth = exports.kesherMasterBilling = exports.kesherProxy = exports.whatsappWebhook = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const generative_ai_1 = require("@google/generative-ai");
@@ -2002,6 +2002,363 @@ exports.sitemapXml = functions.https.onRequest((req, res) => {
         catch (error) {
             console.error('[sitemapXml] Failed generating sitemap:', error);
             res.status(500).send('Error generating sitemap');
+        }
+    });
+});
+// ============================================================================
+// SECURE SERVER-SIDE GEMINI AI PROXY (/api/ai/*)
+// Zero Browser Key Exposure: Resolves Gemini API key strictly on the server
+// (process.env.GEMINI_API_KEY -> tenants/{tenantId}/settings/api_keys ->
+//  tenants/_master/settings/api_keys -> settings/api_keys) and forwards to
+// Google Generative Language API via `x-goog-api-key` header (never URL query).
+// ============================================================================
+function sanitizeSecretFromError(msg) {
+    return String(msg || 'AI request failed').replace(/AIzaSy[A-Za-z0-9_-]{10,50}/g, '[REDACTED_KEY]');
+}
+async function resolveServerGeminiKey(tenantId) {
+    const envKey = String(process.env.GEMINI_API_KEY || '').trim();
+    if (envKey.length > 10)
+        return envKey;
+    const cleanTenant = String(tenantId || '').trim().toLowerCase();
+    if (cleanTenant && cleanTenant !== '_master' && /^[a-z0-9_-]{1,80}$/.test(cleanTenant)) {
+        try {
+            const tSnap = await db.collection('tenants').doc(cleanTenant).collection('settings').doc('api_keys').get();
+            if (tSnap.exists) {
+                const d = tSnap.data() || {};
+                const k = String(d.googleAiApiKey || d.geminiApiKey || '').trim();
+                if (k.length > 10)
+                    return k;
+            }
+        }
+        catch (e) {
+            console.warn('[geminiAiProxy] Could not read tenant api_keys:', e);
+        }
+    }
+    try {
+        const masterSnap = await db.collection('tenants').doc('_master').collection('settings').doc('api_keys').get();
+        if (masterSnap.exists) {
+            const d = masterSnap.data() || {};
+            const k = String(d.googleAiApiKey || d.geminiApiKey || '').trim();
+            if (k.length > 10)
+                return k;
+        }
+    }
+    catch (e) {
+        console.warn('[geminiAiProxy] Could not read master api_keys:', e);
+    }
+    try {
+        const rootSnap = await db.collection('settings').doc('api_keys').get();
+        if (rootSnap.exists) {
+            const d = rootSnap.data() || {};
+            const k = String(d.googleAiApiKey || d.geminiApiKey || '').trim();
+            if (k.length > 10)
+                return k;
+        }
+    }
+    catch (e) {
+        console.warn('[geminiAiProxy] Could not read root api_keys:', e);
+    }
+    return '';
+}
+exports.geminiAiProxy = functions.runWith({ timeoutSeconds: 120, memory: '512MB' }).https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
+        try {
+            const body = (req.body && typeof req.body === 'object') ? req.body : {};
+            const pathLower = String(req.path || '').toLowerCase();
+            const action = String(body.action ||
+                (pathLower.includes('/image') ? 'image'
+                    : pathLower.includes('/cache') ? (req.method === 'DELETE' ? 'cache-delete' : 'cache-create')
+                        : pathLower.includes('/test') ? 'test'
+                            : 'generate')).toLowerCase();
+            const tenantId = String(body.tenantId || '_master').trim().toLowerCase();
+            // 1. TEST CONNECTION (/api/ai/test)
+            if (action === 'test') {
+                const keyToTest = (typeof body.apiKey === 'string' && body.apiKey.trim().length > 10)
+                    ? body.apiKey.trim()
+                    : await resolveServerGeminiKey(tenantId);
+                if (!keyToTest) {
+                    res.status(400).json({ success: false, error: 'לא מוגדר מפתח Gemini בשרת.' });
+                    return;
+                }
+                const testRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+                    method: 'GET',
+                    headers: { 'x-goog-api-key': keyToTest },
+                });
+                if (testRes.ok) {
+                    const data = await testRes.json().catch(() => ({}));
+                    res.status(200).json({
+                        success: true,
+                        modelsCount: Array.isArray(data === null || data === void 0 ? void 0 : data.models) ? data.models.length : 0,
+                    });
+                    return;
+                }
+                const errJson = await testRes.json().catch(() => ({}));
+                res.status(testRes.status).json({
+                    success: false,
+                    error: sanitizeSecretFromError(((_a = errJson === null || errJson === void 0 ? void 0 : errJson.error) === null || _a === void 0 ? void 0 : _a.message) || `Google API error (${testRes.status})`),
+                });
+                return;
+            }
+            // Resolve server-side key for all other actions (NEVER trust client-supplied keys in production)
+            const apiKey = await resolveServerGeminiKey(tenantId);
+            if (!apiKey) {
+                res.status(402).json({
+                    success: false,
+                    error: 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.',
+                });
+                return;
+            }
+            // 2. CONTEXT CACHE CREATE / DELETE (/api/ai/cache)
+            if (action === 'cache-create') {
+                const model = String(body.model || 'gemini-3.8-flash').replace(/^models\//, '').trim();
+                const ttlSec = Math.min(Math.max(60, Number(body.ttlSeconds || 3600)), 7200);
+                const requestBody = {
+                    model: `models/${model}`,
+                    contents: Array.isArray(body.contents) ? body.contents : [],
+                    ttl: `${ttlSec}s`,
+                };
+                if (body.displayName)
+                    requestBody.displayName = body.displayName;
+                if (body.systemInstruction) {
+                    requestBody.systemInstruction = typeof body.systemInstruction === 'string'
+                        ? { parts: [{ text: body.systemInstruction }] }
+                        : body.systemInstruction;
+                }
+                const cacheRes = await fetch('https://generativelanguage.googleapis.com/v1beta/cachedContents', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': apiKey,
+                    },
+                    body: JSON.stringify(requestBody),
+                });
+                const data = await cacheRes.json().catch(() => ({}));
+                if (!cacheRes.ok) {
+                    res.status(cacheRes.status).json({
+                        success: false,
+                        error: sanitizeSecretFromError(((_b = data === null || data === void 0 ? void 0 : data.error) === null || _b === void 0 ? void 0 : _b.message) || `Cache creation failed (${cacheRes.status})`),
+                    });
+                    return;
+                }
+                res.status(200).json({
+                    success: true,
+                    cache: {
+                        name: data.name,
+                        model: data.model,
+                        displayName: data.displayName,
+                        createTime: data.createTime,
+                        updateTime: data.updateTime,
+                        expireTime: data.expireTime,
+                        totalTokenCount: ((_c = data.usageMetadata) === null || _c === void 0 ? void 0 : _c.totalTokenCount) || 0,
+                    },
+                });
+                return;
+            }
+            if (action === 'cache-delete') {
+                const cacheName = String(body.cacheName || '').trim();
+                if (!cacheName || !/^cachedContents\/[a-zA-Z0-9_-]+$/.test(cacheName)) {
+                    res.status(400).json({ success: false, error: 'Invalid cacheName' });
+                    return;
+                }
+                const delRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${cacheName}`, {
+                    method: 'DELETE',
+                    headers: { 'x-goog-api-key': apiKey },
+                });
+                res.status(200).json({ success: delRes.ok });
+                return;
+            }
+            // 3. IMAGE GENERATION (/api/ai/image)
+            if (action === 'image') {
+                const prompt = String(body.prompt || '').trim();
+                if (!prompt) {
+                    res.status(400).json({ success: false, error: 'Missing prompt' });
+                    return;
+                }
+                const requestedModel = String(body.model || 'gemini-3.1-flash-image').replace(/^models\//, '').trim();
+                const aspectRatio = String(body.aspectRatio || '1:1');
+                const referenceImageBase64 = typeof body.referenceImageBase64 === 'string' ? body.referenceImageBase64 : undefined;
+                if (requestedModel.includes('imagen')) {
+                    const imagenModels = ['imagen-3.0-generate-002', 'imagen-3.0-generate-001'];
+                    for (const imModel of imagenModels) {
+                        try {
+                            const imRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${imModel}:predict`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'x-goog-api-key': apiKey,
+                                },
+                                body: JSON.stringify({
+                                    instances: [{ prompt }],
+                                    parameters: {
+                                        sampleCount: 1,
+                                        aspectRatio,
+                                        personGeneration: 'ALLOW_ADULT',
+                                        outputMimeType: 'image/jpeg',
+                                    },
+                                }),
+                            });
+                            if (imRes.ok) {
+                                const data = await imRes.json();
+                                const b64 = (_e = (_d = data === null || data === void 0 ? void 0 : data.predictions) === null || _d === void 0 ? void 0 : _d[0]) === null || _e === void 0 ? void 0 : _e.bytesBase64Encoded;
+                                const mime = ((_g = (_f = data === null || data === void 0 ? void 0 : data.predictions) === null || _f === void 0 ? void 0 : _f[0]) === null || _g === void 0 ? void 0 : _g.mimeType) || 'image/jpeg';
+                                if (b64) {
+                                    res.status(200).json({
+                                        success: true,
+                                        model: imModel,
+                                        imageUrl: `data:${mime};base64,${b64}`,
+                                        base64Data: b64,
+                                        mimeType: mime,
+                                    });
+                                    return;
+                                }
+                            }
+                        }
+                        catch (e) {
+                            console.warn(`[geminiAiProxy] Imagen ${imModel} error:`, e);
+                        }
+                    }
+                }
+                const candidateModels = Array.from(new Set([
+                    requestedModel,
+                    'gemini-3.1-flash-image',
+                    'gemini-3.1-flash-lite-image',
+                    'gemini-3-pro-image',
+                ].filter((m) => m && !m.includes('imagen'))));
+                let lastErr = 'Image generation failed';
+                for (const targetModel of candidateModels) {
+                    try {
+                        const parts = [];
+                        if (referenceImageBase64) {
+                            const cleanRef = referenceImageBase64.replace(/^data:image\/\w+;base64,/, '');
+                            parts.push({ inlineData: { mimeType: 'image/jpeg', data: cleanRef } });
+                        }
+                        parts.push({ text: prompt });
+                        const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-goog-api-key': apiKey,
+                            },
+                            body: JSON.stringify({
+                                contents: [{ parts }],
+                                generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+                            }),
+                        });
+                        if (imgRes.ok) {
+                            const data = await imgRes.json();
+                            const candidateParts = ((_k = (_j = (_h = data === null || data === void 0 ? void 0 : data.candidates) === null || _h === void 0 ? void 0 : _h[0]) === null || _j === void 0 ? void 0 : _j.content) === null || _k === void 0 ? void 0 : _k.parts) || [];
+                            const imgPart = candidateParts.find((p) => { var _a, _b; return (_b = (_a = p.inlineData) === null || _a === void 0 ? void 0 : _a.mimeType) === null || _b === void 0 ? void 0 : _b.startsWith('image/'); });
+                            if ((_l = imgPart === null || imgPart === void 0 ? void 0 : imgPart.inlineData) === null || _l === void 0 ? void 0 : _l.data) {
+                                const mime = imgPart.inlineData.mimeType;
+                                const b64 = imgPart.inlineData.data;
+                                res.status(200).json({
+                                    success: true,
+                                    model: targetModel,
+                                    imageUrl: `data:${mime};base64,${b64}`,
+                                    base64Data: b64,
+                                    mimeType: mime,
+                                    usageMetadata: data === null || data === void 0 ? void 0 : data.usageMetadata,
+                                });
+                                return;
+                            }
+                        }
+                        else {
+                            const errJson = await imgRes.json().catch(() => ({}));
+                            lastErr = sanitizeSecretFromError(((_m = errJson === null || errJson === void 0 ? void 0 : errJson.error) === null || _m === void 0 ? void 0 : _m.message) || `HTTP ${imgRes.status}`);
+                        }
+                    }
+                    catch (e) {
+                        lastErr = sanitizeSecretFromError((e === null || e === void 0 ? void 0 : e.message) || 'Image request error');
+                    }
+                }
+                res.status(502).json({ success: false, error: lastErr });
+                return;
+            }
+            // 4. STANDARD TEXT / JSON / MULTIMODAL GENERATION (/api/ai/generate)
+            const model = String(body.model || 'gemini-3.8-flash').replace(/^models\//, '').trim();
+            if (!/^[a-zA-Z0-9._-]{2,80}$/.test(model)) {
+                res.status(400).json({ success: false, error: 'Invalid model identifier' });
+                return;
+            }
+            let contents = [];
+            if (Array.isArray(body.contents) && body.contents.length > 0) {
+                contents = body.contents;
+            }
+            else {
+                const parts = [];
+                if (body.imageBase64) {
+                    const cleanData = String(body.imageBase64).includes('base64,')
+                        ? String(body.imageBase64).split('base64,')[1]
+                        : String(body.imageBase64);
+                    const mimeType = body.mimeType || body.imageMimeType || (String(body.imageBase64).startsWith('data:')
+                        ? (_o = String(body.imageBase64).split(';')[0]) === null || _o === void 0 ? void 0 : _o.split(':')[1]
+                        : 'image/jpeg') || 'image/jpeg';
+                    parts.push({ inlineData: { data: cleanData, mimeType } });
+                }
+                if (Array.isArray(body.imageParts)) {
+                    parts.push(...body.imageParts);
+                }
+                if (body.prompt) {
+                    parts.push({ text: String(body.prompt) });
+                }
+                if (parts.length === 0) {
+                    res.status(400).json({ success: false, error: 'Missing prompt or contents' });
+                    return;
+                }
+                contents = [{ role: 'user', parts }];
+            }
+            const requestBody = {
+                contents,
+                generationConfig: Object.assign(Object.assign({ temperature: typeof body.temperature === 'number' ? body.temperature : 0.7 }, (body.maxOutputTokens ? { maxOutputTokens: Number(body.maxOutputTokens) } : {})), (body.responseMimeType ? { responseMimeType: body.responseMimeType } : {})),
+            };
+            if (body.cachedContentId) {
+                const cid = String(body.cachedContentId);
+                requestBody.cachedContent = cid.startsWith('cachedContents/') ? cid : `cachedContents/${cid}`;
+            }
+            else if (body.systemInstruction) {
+                requestBody.systemInstruction = typeof body.systemInstruction === 'string'
+                    ? { parts: [{ text: body.systemInstruction }] }
+                    : body.systemInstruction;
+            }
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': apiKey,
+                },
+                body: JSON.stringify(requestBody),
+            });
+            if (!geminiRes.ok) {
+                const errJson = await geminiRes.json().catch(() => ({}));
+                const errMsg = sanitizeSecretFromError(((_p = errJson === null || errJson === void 0 ? void 0 : errJson.error) === null || _p === void 0 ? void 0 : _p.message) || `Gemini API returned status ${geminiRes.status}`);
+                res.status(geminiRes.status).json({ success: false, error: errMsg });
+                return;
+            }
+            const data = await geminiRes.json();
+            const text = ((_u = (_t = (_s = (_r = (_q = data === null || data === void 0 ? void 0 : data.candidates) === null || _q === void 0 ? void 0 : _q[0]) === null || _r === void 0 ? void 0 : _r.content) === null || _s === void 0 ? void 0 : _s.parts) === null || _t === void 0 ? void 0 : _t[0]) === null || _u === void 0 ? void 0 : _u.text) || '';
+            const usageMetadata = (data === null || data === void 0 ? void 0 : data.usageMetadata) || {};
+            res.status(200).json({
+                success: true,
+                text,
+                usageMetadata,
+                costReport: {
+                    promptTokens: usageMetadata.promptTokenCount || 0,
+                    candidatesTokens: usageMetadata.candidatesTokenCount || 0,
+                    cachedTokens: usageMetadata.cachedContentTokenCount || 0,
+                },
+            });
+        }
+        catch (err) {
+            console.error('[geminiAiProxy] Unexpected error:', err);
+            res.status(500).json({
+                success: false,
+                error: sanitizeSecretFromError((err === null || err === void 0 ? void 0 : err.message) || 'Internal AI proxy error'),
+            });
         }
     });
 });

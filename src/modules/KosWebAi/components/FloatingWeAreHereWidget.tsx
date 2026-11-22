@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   MessageCircle,
   Phone,
@@ -16,6 +16,10 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useBrandDna } from '../../KosBranding/hooks/useBrandDna';
+import { useTenantScope } from '../../../core/tenant';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { subscribeToAuth } from '../../../services/firebaseAuth';
+import { TenantAuthService } from '../../KosTenantProvisioner/services/tenantAuthService';
 
 export interface FloatingWeAreHereWidgetProps {
   pageConfigSettings?: any;
@@ -34,8 +38,37 @@ export const FloatingWeAreHereWidget: React.FC<FloatingWeAreHereWidgetProps> = (
 
   const brandContext = useBrandDna();
   const brandDna = brandContext?.brandDna;
+  const { tenantId } = useTenantScope();
+  const { firebaseApp } = useSystemConnection();
+
+  const [isFirebaseAuthed, setIsFirebaseAuthed] = useState(false);
+  const [isTenantAuthed, setIsTenantAuthed] = useState<boolean>(() =>
+    tenantId ? TenantAuthService.isTenantAuthenticated(tenantId) : false
+  );
+
+  useEffect(() => {
+    if (!firebaseApp) return;
+    const unsub = subscribeToAuth(firebaseApp, (state) => {
+      setIsFirebaseAuthed(Boolean(state.isAuthenticated && !state.isAnonymous));
+    });
+    return () => unsub();
+  }, [firebaseApp]);
+
+  useEffect(() => {
+    const syncTenantAuth = () => {
+      setIsTenantAuthed(tenantId ? TenantAuthService.isTenantAuthenticated(tenantId) : false);
+    };
+    syncTenantAuth();
+    window.addEventListener('kosun_tenant_auth_changed', syncTenantAuth);
+    return () => window.removeEventListener('kosun_tenant_auth_changed', syncTenantAuth);
+  }, [tenantId]);
+
+  const isUserLoggedIn = isFirebaseAuthed || isTenantAuthed;
 
   const widgetSettings = pageConfigSettings?.floatingContactWidget || {};
+
+  // Hide the "אנחנו כאן" floating widget whenever a user/admin is logged in (unless actively editing the page)
+  if (isUserLoggedIn && !isEditing) return null;
 
   // Check if widget is enabled (default to true per user spec)
   const isEnabled = widgetSettings.enabled !== false;

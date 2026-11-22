@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sun, Moon, Menu, X, LucideIcon } from 'lucide-react';
+import { Sun, Moon, Menu, X, Settings, LucideIcon } from 'lucide-react';
 
 export interface KosunNavItem {
   id: string;
@@ -139,8 +139,24 @@ export const KosunShell: React.FC<KosunShellProps> = ({
           })}
         </nav>
 
-        {/* כפתור החלפת יום/לילה מובנה בתוך התפריט */}
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
+        {/* כפתור הגדרות חשבון, מפתחות ורכיבים + החלפת יום/לילה */}
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 space-y-2">
+          <button
+            type="button"
+            onClick={() => {
+              setIsDrawerOpen(false);
+              window.dispatchEvent(new CustomEvent('kosun:open-tenant-settings'));
+            }}
+            className="w-full flex items-center justify-between p-2.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition cursor-pointer shadow-xs"
+            title="הגדרות חשבון, מפתחות שירותים, תשלומים, רכיבים פעילים ושדרוגים"
+          >
+            <div className="flex items-center gap-2.5">
+              <Settings className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>הגדרות, מפתחות וחשבון</span>
+            </div>
+            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-indigo-600 text-white">HUB</span>
+          </button>
+
           <button
             type="button"
             onClick={toggleTheme}

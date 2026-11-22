@@ -218,3 +218,152 @@ export async function dispatchSeoMetadataToKosai(
   const result = await kosaiWebAiContract.generateSeoMetadata(prompt, options?.cacheKey, options);
   return result.data;
 }
+
+// ----------------------------------------------------------------------------
+// 3. Dedicated Structured Draft Prompt (Zero Schema Conflict + Full Brand DNA + GEO 2026.4)
+// ----------------------------------------------------------------------------
+
+export interface StructuredDraftPromptContext {
+  pageTypeTitle: string;
+  pageEssenceAndFlow: string;
+  selectedSections: string[];
+  userTopic: string;
+  groundingFacts?: string;
+  authorName?: string;
+  targetQuestion?: string;
+  companyName: string;
+  slogan?: string;
+  uvp?: string;
+  voiceTone?: string;
+  powerWords?: string[];
+  targetAudiences?: string[];
+  commonObjections?: Array<{ objection: string; rebuttal: string }>;
+  ecosystemServices?: string[];
+  stylePreset?: string;
+  uiVocabulary?: {
+    primaryCta?: string;
+    whatsappCta?: string;
+    formSubmitText?: string;
+  };
+  eventDetails?: {
+    eventDate?: string;
+    eventTime?: string;
+    locationName?: string;
+    locationAddress?: string;
+  };
+  campaignDetails?: {
+    targetGoal?: number;
+    totalRaised?: number;
+    campaignCause?: string;
+  };
+  pricingInput?: Array<{ name: string; priceMonthly: number; description?: string }>;
+  geoDetails?: {
+    targetCity?: string;
+    serviceAreas?: string[];
+  };
+}
+
+export const GENERATE_STRUCTURED_DRAFT_PROMPT = (ctx: StructuredDraftPromptContext) => `
+You are an Elite Israeli Brand Copywriter, Conversion Architect, and 2026.4 GEO/SEO Specialist.
+Generate high-converting, idiomatic native Hebrew content for ALL sections of this page, strictly grounded in the user's real data and Brand DNA.
+
+### 1. PAGE ARCHITECTURE & FLOW:
+- Page Type: ${ctx.pageTypeTitle}
+- Conversion & UX Flow: ${ctx.pageEssenceAndFlow}
+- Active Sections: ${ctx.selectedSections.join(', ')}
+- Core Topic & Goal: "${ctx.userTopic}"
+
+### 2. BRAND DNA & MINI-COPY (MUST MATCH VOICE & STYLE):
+- Company: "${ctx.companyName}"
+- Slogan: "${ctx.slogan || ''}"
+- UVP: "${ctx.uvp || ''}"
+- Tone & Style Preset: "${ctx.voiceTone || 'מקצועי, סמכותי ומניע לפעולה'}" (Style: ${ctx.stylePreset || 'standard'})
+- Power Words to weave naturally: ${ctx.powerWords?.slice(0, 8).join(', ') || 'איכות, תוצאות, ליווי אישי'}
+- Target Audiences: ${ctx.targetAudiences?.slice(0, 3).join(', ') || 'לקוחות איכותיים'}
+- Known Customer Objections (use for FAQ & rebuttals): ${
+  ctx.commonObjections?.slice(0, 4).map((o) => `"${o.objection}" -> "${o.rebuttal}"`).join(' | ') || 'אין'
+}
+- Brand Services / Products: ${ctx.ecosystemServices?.slice(0, 5).join(', ') || 'לא צוינו'}
+- Preferred Brand CTAs: Primary="${ctx.uiVocabulary?.primaryCta || 'השאירו פרטים'}", WhatsApp="${ctx.uiVocabulary?.whatsappCta || 'שיחה בוואטסאפ'}"
+
+### 3. HARD FACTS & GROUNDING SOURCES (DO NOT HALLUCINATE OR CONTRADICT):
+${ctx.groundingFacts ? `- Uploaded Docs / Scanned Site / Brief:\n"""\n${ctx.groundingFacts.slice(0, 4500)}\n"""` : '- No external doc provided; rely strictly on Brand DNA and Topic.'}
+${ctx.eventDetails ? `- Event Hard Facts: Date=${ctx.eventDetails.eventDate}, Time=${ctx.eventDetails.eventTime}, Location=${ctx.eventDetails.locationName}, Address=${ctx.eventDetails.locationAddress}` : ''}
+${ctx.campaignDetails ? `- Campaign Hard Facts: Goal=₪${ctx.campaignDetails.targetGoal}, Raised=₪${ctx.campaignDetails.totalRaised}, Cause=${ctx.campaignDetails.campaignCause}` : ''}
+${ctx.pricingInput?.length ? `- User Pricing Plans (KEEP EXACT PRICES): ${ctx.pricingInput.map((p) => `${p.name}: ₪${p.priceMonthly}`).join(', ')}` : ''}
+${ctx.geoDetails?.targetCity ? `- Local SEO City: ${ctx.geoDetails.targetCity}, Areas: ${ctx.geoDetails.serviceAreas?.join(', ') || ''}` : ''}
+
+### 4. MANDATORY 2026.4 SEO & GEO PROTOCOL RULES:
+1. Information Gain: Use concrete details, numbers, and insights from the Grounding Sources & Brand DNA. Never write generic AI fluff.
+2. Answer-First Structure: In "richContent.body", start the first paragraph and each <h2> section with a sharp, direct, data-backed 40-60 word answer for LLM extraction, followed by structured <ul><li> lists or a comparison block.
+3. No Placeholder Clichés: NEVER use generic names like "ישראל ישראלי", "דניאל כהן", or "רעות מזרחי" if real context is available; craft authentic, realistic Israeli testimonials tailored to this exact niche.
+4. SEO/GEO Metadata: Provide "seoGeo" with meta title (50-60 chars), meta description (140-160 chars), "aiKnowledgeSummary" (2-3 factual sentences), and 3 "aiTargetQuestions"${ctx.targetQuestion ? ` (must include: "${ctx.targetQuestion}")` : ''}.
+
+Return ONLY valid JSON (no markdown ticks) matching this exact schema:
+{
+  "pageTitle": "כותרת עמוד ממירה ומדויקת",
+  "hero": {
+    "title": "כותרת H1 חדה וממוקדת תועלת",
+    "subtitle": "תת-כותרת משכנעת (Answer-First) באורך 1-2 משפטים",
+    "badge": "תגית מיתוג קצרה",
+    "ctaPrimaryText": "טקסט כפתור ראשי מותאם מותג",
+    "ctaSecondaryText": "טקסט כפתור משני"
+  },
+  "richContent": {
+    "heading": "כותרת H2 מרכזית",
+    "body": "<p><strong>תשובה ישירה (40-60 מילים):</strong> ...</p><h2>...</h2><ul><li>...</li></ul>"
+  },
+  "stats": [
+    { "number": "98", "suffix": "%", "label": "מדד רלוונטי לתחום", "description": "הסבר קצר מבוסס נתון" },
+    { "number": "1,200", "suffix": "+", "label": "מדד שני", "description": "הסבר קצר" },
+    { "number": "24", "suffix": "ש׳", "label": "מדד שלישי", "description": "הסבר קצר" }
+  ],
+  "beforeAfter": {
+    "title": "השינוי שאנחנו מביאים",
+    "subtitle": "לפני ואחרי העבודה איתנו",
+    "beforeLabel": "המצב לפני (כאב מרכזי)",
+    "afterLabel": "התוצאה אחרי (פתרון)"
+  },
+  "testimonials": [
+    { "name": "שם ישראלי אמין", "role": "תפקיד רלוונטי", "company": "שם עסק/תחום", "content": "המלצה ספציפית לנושא העמוד", "rating": 5 },
+    { "name": "שם ישראלי אמין 2", "role": "תפקיד רלוונטי", "company": "שם עסק/תחום", "content": "המלצה ספציפית לנושא העמוד", "rating": 5 }
+  ],
+  "pricing": {
+    "title": "מסלולים וחבילות",
+    "subtitle": "בחרו את המסלול המתאים עבורכם",
+    "plans": [
+      { "name": "שם מסלול", "priceMonthly": 490, "description": "תיאור תועלת", "features": ["יתרון 1", "יתרון 2", "יתרון 3"], "isFeatured": false }
+    ]
+  },
+  "faqs": [
+    { "question": "שאלה נפוצה אמיתית של הלקוח", "answer": "תשובה חדה ומקצועית (Answer-First)" },
+    { "question": "שאלת התנגדות שנייה", "answer": "תשובה שמסירה חסם" },
+    { "question": "שאלת התחלה / מחיר", "answer": "תשובה ברורה ומניעה לפעולה" }
+  ],
+  "contact": {
+    "title": "כותרת אזור יצירת קשר מותאמת לעמוד",
+    "subtitle": "משפט הנעה לפעולה"
+  },
+  "seoGeo": {
+    "title": "Meta Title 50-60 chars | ${ctx.companyName}",
+    "description": "Meta Description 140-160 chars with CTA",
+    "keywords": ["מילת מפתח 1", "מילת מפתח 2", "מילת מפתח 3", "מילת מפתח 4"],
+    "aiKnowledgeSummary": "סיכום עובדתי בן 2-3 משפטים לשאיבה על ידי ChatGPT/Gemini/Perplexity",
+    "aiTargetQuestions": ["שאלה 1", "שאלה 2", "שאלה 3"],
+    "author": "${ctx.authorName || ctx.companyName}"
+  }
+}
+`;
+
+export async function dispatchStructuredDraftToKosai(
+  context: StructuredDraftPromptContext,
+  options?: { apiKey?: string; tenantId?: string }
+): Promise<any> {
+  const prompt = GENERATE_STRUCTURED_DRAFT_PROMPT(context);
+  const result = await kosaiWebAiContract.generatePageStructure(
+    prompt,
+    'You are an Elite Israeli Brand Copywriter & 2026.4 GEO/SEO Architect. Always return pure valid JSON matching the requested schema.',
+    options
+  );
+  return result.data;
+}
