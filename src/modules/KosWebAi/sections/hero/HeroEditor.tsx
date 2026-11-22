@@ -375,10 +375,13 @@ export const HeroEditor: React.FC<{
   const handleSelectLayout = (layoutDef: StylePresetDefinition) => {
     updatePatch({
       layout: layoutDef.heroLayoutId,
-      objectScale: 'auto',
+      objectScale: 'massive',
       buttonShape: 'auto',
       buttonSize: 'auto',
-      imagePosition: 'auto',
+      imagePosition: 'bottom',
+      textBgEnabled: formData.textBgEnabled ?? true,
+      textBgScope: formData.textBgScope || 'full-section',
+      textBgEffect: formData.textBgEffect || 'zoom-glow',
     });
     showNotification(`הוחלה ${layoutDef.title}`);
   };
@@ -806,7 +809,7 @@ export const HeroEditor: React.FC<{
                     גודל אובייקטים וטיפוגרפיה
                   </label>
                   <select
-                    value={formData.objectScale || 'auto'}
+                    value={formData.objectScale || 'massive'}
                     onChange={(e) => updateField('objectScale', e.target.value as any)}
                     className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500 ${
                       isDarkMode
@@ -827,7 +830,7 @@ export const HeroEditor: React.FC<{
                     מיקום התמונה ביחס לטקסט
                   </label>
                   <select
-                    value={formData.imagePosition || 'auto'}
+                    value={formData.imagePosition || 'bottom'}
                     onChange={(e) => updateField('imagePosition', e.target.value as any)}
                     className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500 ${
                       isDarkMode
@@ -897,13 +900,13 @@ export const HeroEditor: React.FC<{
                 </div>
                 <input
                   type="checkbox"
-                  checked={Boolean(formData.textBgEnabled)}
+                  checked={formData.textBgEnabled ?? true}
                   onChange={(e) => updateField('textBgEnabled', e.target.checked)}
                   className="w-4 h-4 rounded text-amber-500 bg-transparent border-amber-500/60 cursor-pointer"
                 />
               </div>
 
-              {formData.textBgEnabled && (
+              {(formData.textBgEnabled ?? true) && (
                 <>
                   {/* Scope Selection */}
                   <div className="space-y-1">
@@ -915,7 +918,7 @@ export const HeroEditor: React.FC<{
                         { id: 'text-card', label: 'תיבת הטקסט בלבד', desc: 'רקע ממוסגר ישירות מאחורי הטקסט' },
                         { id: 'full-section', label: 'כל אזור ההירו', desc: 'רקע מלא מאחורי כל האזור' },
                       ].map((sc) => {
-                        const isSel = (formData.textBgScope || 'text-card') === sc.id;
+                        const isSel = (formData.textBgScope || 'full-section') === sc.id;
                         return (
                           <button
                             key={sc.id}
@@ -959,12 +962,18 @@ export const HeroEditor: React.FC<{
                     </select>
                   </div>
 
-                  {/* Background Image Upload */}
-                  <div className="space-y-0.5">
+                  {/* Background Image / Video Upload */}
+                  <div className="space-y-2">
                     <PageBuilderImageUpload
                       label="תמונת רקע מאחורי הטקסט (אם ריק – ישתמש בתמונת ההירו הראשית)"
                       value={formData.textBgImageUrl || ''}
                       onChange={(url) => updateField('textBgImageUrl', url)}
+                    />
+                    <PageBuilderImageUpload
+                      label="וידאו רקע מאחורי הטקסט (רץ בלופ ללא סאונד, MP4 / WebM)"
+                      value={formData.videoBgUrl || ''}
+                      onChange={(url) => updateField('videoBgUrl', url)}
+                      allowedMimeTypes={['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']}
                     />
                   </div>
 
