@@ -36,14 +36,16 @@ export * from './components/MobileDriveBottomNav';
 
 // UI Capability Slots Registration (Zero Cross-Module UI Bridge)
 import { registerCapabilityUI } from '../../core/bridge/CapabilitySlot';
+import { KOSCLOUD_BRANDING_ICONS_CAPABILITY } from '../../core/contracts';
 import { MediaPickerModal } from './components/MediaPickerModal';
 import { MediaGalleryGrid } from './components/MediaGalleryGrid';
-import { LuxuryIconsGallery } from './components/LuxuryIconsGallery';
+import { LuxuryIconsGallery, LUXURY_ICONS_LIST } from './components/LuxuryIconsGallery';
 
 registerCapabilityUI('media-picker', MediaPickerModal);
 registerCapabilityUI('media-gallery', MediaGalleryGrid);
 registerCapabilityUI('luxury-icons-gallery', LuxuryIconsGallery);
 registerCapabilityUI('community-gallery-picker', MediaPickerModal);
+registerCapabilityUI(KOSCLOUD_BRANDING_ICONS_CAPABILITY, LUXURY_ICONS_LIST);
 
 export {
   KosCloudStoreStandaloneView,

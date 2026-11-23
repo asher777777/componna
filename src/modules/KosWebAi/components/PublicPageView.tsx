@@ -5,7 +5,7 @@ import { pageBuilderFirestore, ensureHeaderSection } from '../services/pageBuild
 import { PageBuilderRenderer } from '../PageBuilderRenderer';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
-import { Loader2, Globe, AlertTriangle, ArrowRight, Eye, Home, Lock, X, KeyRound, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Loader2, Globe, AlertTriangle, ArrowRight, Eye, Home, Lock, X, KeyRound, ShieldCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { KosWebAiFrontDock } from './KosWebAiFrontDock';
 import { useKosai } from '../../KosAi';
 import { pageAnalyticsService } from '../services/pageAnalyticsService';
@@ -126,6 +126,8 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
   );
 
   const [firebaseAuthed, setFirebaseAuthed] = useState<boolean>(false);
+  const [isPublishingInPlace, setIsPublishingInPlace] = useState<boolean>(false);
+  const [publishFeedback, setPublishFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     if (!firebaseApp) return;
@@ -966,12 +968,55 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
       {/* If in preview mode of an unpublished draft, show top subtle banner */}
       {!page.published && isPreviewMode && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500/90 backdrop-blur text-slate-950 px-4 py-2 text-xs font-bold text-center flex items-center justify-center gap-2 shadow-lg">
-          <AlertTriangle className="w-4 h-4" />
-          <span>מצב תצוגה מקדימה (העמוד טרם פורסם לאוויר)</span>
-          <Link to="/KosWebAi" className="underline mr-2 text-black hover:text-slate-800">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500/95 backdrop-blur text-slate-950 px-4 py-2 text-xs font-bold text-center flex items-center justify-center flex-wrap gap-3 shadow-lg" dir="rtl">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>מצב תצוגה מקדימה (העמוד טרם פורסם לאוויר)</span>
+          </div>
+          <button
+            type="button"
+            disabled={isPublishingInPlace}
+            onClick={async () => {
+              if (!page || isPublishingInPlace) return;
+              setIsPublishingInPlace(true);
+              try {
+                const updated = await pageBuilderFirestore.togglePublish(page, db, tenantId);
+                setPage(updated);
+                setPublishFeedback('העמוד פורסם לאוויר בהצלחה!');
+                setTimeout(() => setPublishFeedback(null), 4000);
+              } catch (err) {
+                console.error('[PublicPageView] In-place publish failed:', err);
+              } finally {
+                setIsPublishingInPlace(false);
+              }
+            }}
+            className="px-3.5 py-1 rounded-full bg-slate-950 hover:bg-slate-800 text-white text-xs font-black shadow transition-all flex items-center gap-1.5 disabled:opacity-60 cursor-pointer"
+          >
+            {isPublishingInPlace ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>מפרסם...</span>
+              </>
+            ) : (
+              <>
+                <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                <span>פרסם עכשיו לאוויר</span>
+              </>
+            )}
+          </button>
+          <Link to="/KosWebAi" className="underline text-black hover:text-slate-800">
             ערוך ופרסם ב-KWB
           </Link>
+        </div>
+      )}
+
+      {publishFeedback && (
+        <div
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] px-4 py-2.5 rounded-full bg-emerald-600 text-white text-xs font-bold shadow-xl flex items-center gap-2 animate-in fade-in"
+          dir="rtl"
+        >
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{publishFeedback}</span>
         </div>
       )}
 

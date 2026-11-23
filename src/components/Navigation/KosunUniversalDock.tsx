@@ -25,6 +25,7 @@ import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/t
 import { useKosai } from '../../modules/KosAi';
 import { KosNevModal } from './KosNevModal';
 import { TenantSettingsHubModal } from './TenantSettingsHubModal';
+import { CapabilitySlot } from '../../core/bridge/CapabilitySlot';
 
 export type DockMode = 'backoffice' | 'front';
 
@@ -141,6 +142,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   const [isKosNevOpen, setIsKosNevOpen] = useState<boolean>(false);
   const [isSettingsHubOpen, setIsSettingsHubOpen] = useState<boolean>(false);
   const [isNavModalOpen, setIsNavModalOpen] = useState<boolean>(false);
+  const [isQuickPageModelOpen, setIsQuickPageModelOpen] = useState<boolean>(false);
   const [internalIsEditing, setInternalIsEditing] = useState<boolean>(false);
   const isEditing = controlledIsEditing !== undefined ? controlledIsEditing : internalIsEditing;
   const [isDashboardEditing, setIsDashboardEditing] = useState<boolean>(false);
@@ -675,18 +677,18 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
                 <span className="text-[10px] text-slate-500 dark:text-slate-400">קטלוג אזורים ובלוקים</span>
               </button>
 
-              {/* 4. Go to Homepage */}
+              {/* 4. Quick Page Model (KOSAI + KOSCLOUD + CRM) */}
               <button
                 type="button"
                 onClick={() => {
                   setIsNavModalOpen(false);
-                  handleNavigateHome();
+                  setIsQuickPageModelOpen(true);
                 }}
                 className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-cyan-500 hover:bg-cyan-50/50 dark:hover:bg-slate-800 text-right flex flex-col gap-1.5 transition-all cursor-pointer group"
               >
-                <Globe className="w-5 h-5 text-cyan-500 group-hover:scale-110 transition-transform" />
-                <span className="text-xs font-bold text-slate-900 dark:text-white">מעבר לעמוד הבית</span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400">עמוד הראשי של הטננט</span>
+                <Sparkles className="w-5 h-5 text-cyan-500 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-bold text-slate-900 dark:text-white">מודל יצירת דף חכם</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">KOSAI + איקוני KOSCLOUD + CRM</span>
               </button>
             </div>
           </div>
@@ -705,6 +707,19 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
       <TenantSettingsHubModal
         isOpen={isSettingsHubOpen}
         onClose={() => setIsSettingsHubOpen(false)}
+      />
+
+      <CapabilitySlot
+        name="kosweb-quick-page-model"
+        props={{
+          isOpen: isQuickPageModelOpen,
+          onClose: () => setIsQuickPageModelOpen(false),
+          tenantId: effectiveTenantId,
+          onPageGenerated: (pageConfig: any) => {
+            window.dispatchEvent(new CustomEvent('kosweb_quick_page_generated', { detail: pageConfig }));
+            setIsQuickPageModelOpen(false);
+          },
+        }}
       />
     </>
   );

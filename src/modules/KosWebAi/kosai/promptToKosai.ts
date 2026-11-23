@@ -521,3 +521,96 @@ export async function dispatchHeroImageToKosai(
   const res = await kosaiWebAiContract.generateHeroImage(params, options);
   return res.data || null;
 }
+
+export interface KoswebModelPromptContext {
+  title: string;
+  description: string;
+  goal: string;
+  extractedDocumentText?: string;
+  formRequirement: 'auto' | 'none' | 'registration' | 'payment';
+  paymentAmount?: number;
+  companyName: string;
+  voiceTone?: string;
+  stylePreset: string;
+  primaryColor?: string;
+  availableBrandIcons: Array<{ name: string; labelHe: string; category: string }>;
+  availableCrmFields: Array<{ crmFieldKey: string; labelHe: string }>;
+}
+
+export const GENERATE_KOSWEB_MODEL_PAGE_PROMPT = (ctx: KoswebModelPromptContext) => `
+אתה אדריכל דפי נחיתה ומומחה קופירייטינג עברי עבור המותג "${ctx.companyName}".
+סגנון המיתוג של העסק: "${ctx.stylePreset}" | טון דיבור: "${ctx.voiceTone || 'מקצועי, ברור ומניע לפעולה'}".
+
+פרטי הקלט מהמשתמש:
+- כותרת מבוקשת: "${ctx.title}"
+- תיאור: "${ctx.description}"
+- מטרת העמוד: "${ctx.goal}"
+- דרישת טופס: "${ctx.formRequirement}"${ctx.paymentAmount ? ` (סכום מוצע לתשלום: ₪${ctx.paymentAmount})` : ''}
+${ctx.extractedDocumentText ? `\nתוכן שחולץ ממסמך / תמונה שצורפו:\n"""\n${ctx.extractedDocumentText.slice(0, 4500)}\n"""\n` : ''}
+
+רשימת האיקונים המאושרים מתוך סגנון המיתוג ב-KOSCLOUD (חובה לבחור שמות איקונים אך ורק מתוך רשימה זו!):
+${ctx.availableBrandIcons.map((ic) => `- "${ic.name}" (${ic.labelHe})`).join('\n')}
+
+רשימת מזהי השדות המסונכרנים מול ה-CRM (חובה לבחור מתוך מפתחות אלה בלבד במידה ויש טופס):
+${ctx.availableCrmFields.map((f) => `- "${f.crmFieldKey}" (${f.labelHe})`).join('\n')}
+
+הנחיות פלט מחייבות:
+1. צור אזור הירו (Hero) חד, מושך וברור בעברית טבעית עם כותרת, תת-כותרת, תיאור קצר, תגית עליונה, כפתור פעולה ראשי, ו-imagePrompt קצר באנגלית.
+2. צור רשימת 4 עד 6 פריטי מידע/יתרונות של העמוד ("iconDetails"), כאשר לכל פריט נבחר איקון מתוך רשימת האיקונים של KOSCLOUD שלמעלה (שם ה-icon חייב להיות זהה במדויק לאחד השמות ברשימה).
+3. קבע האם העמוד כולל טופס הרשמה או טופס תשלום:
+   - אם formRequirement הוא "registration" או "payment" — חובה לכלול טופס מסוג זה.
+   - אם formRequirement הוא "auto" — כלול טופס אם המטרה/התיאור/המסמך מזכירים הרשמה, השארת פרטים, לידים, תיאום, רכישה או תשלום.
+   - אם formRequirement הוא "none" — אל תכלול טופס (includeForm: false).
+   - בכל טופס שנכלל, ספק מערך crmFieldKeys מתוך מזהי ה-CRM המורשים למעלה (כולל לפחות kosun_crm_name ו-kosun_crm_phone, ובטופס תשלום גם kosun_crm_email ו-kosun_crm_gov_id לפי הצורך).
+
+החזר אובייקט JSON תקני בלבד ללא סימני markdown:
+{
+  "pageTitle": "כותרת העמוד",
+  "slug": "english-kebab-slug",
+  "hero": {
+    "badge": "תגית קצרה",
+    "title": "כותרת הירו ראשית",
+    "subtitle": "תת כותרת משלימה",
+    "description": "פסקת פתיחה ממירה ומדויקת",
+    "ctaPrimaryText": "טקסט כפתור ראשי",
+    "ctaSecondaryText": "טקסט כפתור משני",
+    "imagePrompt": "Clean modern editorial hero visual matching the topic"
+  },
+  "iconDetails": {
+    "badge": "תגית מקטע",
+    "title": "כותרת מקטע פרטי העמוד",
+    "subtitle": "משפט הסבר קצר למקטע האיקונים",
+    "items": [
+      {
+        "icon": "IconNameFromKoscloudList",
+        "number": "01",
+        "title": "כותרת הפריט",
+        "description": "הסבר תמציתי וברור מתוך פרטי העמוד והמסמך"
+      }
+    ]
+  },
+  "form": {
+    "includeForm": true,
+    "formMode": "registration",
+    "sectionTitle": "כותרת הטופס",
+    "sectionSubtitle": "תת כותרת לטופס",
+    "submitButtonText": "טקסט כפתור שליחה",
+    "paymentAmount": 0,
+    "paymentItemTitle": "",
+    "crmFieldKeys": ["kosun_crm_name", "kosun_crm_phone", "kosun_crm_email"]
+  }
+}
+`;
+
+export async function dispatchKoswebModelPageToKosai(
+  ctx: KoswebModelPromptContext,
+  options?: { apiKey?: string; tenantId?: string }
+): Promise<any> {
+  const prompt = GENERATE_KOSWEB_MODEL_PAGE_PROMPT(ctx);
+  const res = await kosaiWebAiContract.generatePageStructure(
+    prompt,
+    'אתה מנוע בניית דפים של KOSWEB הפועל דרך KOSAI. החזר אך ורק JSON תקני.',
+    options
+  );
+  return res.data;
+}

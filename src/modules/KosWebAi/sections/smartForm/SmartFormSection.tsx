@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { BaseSectionConfig } from '../../types/pageBuilder.types';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { eventBus } from '../../../../core/bridge/EventBus';
-import { Check, Send } from 'lucide-react';
+import { Check, CreditCard, Send } from 'lucide-react';
+import { KesherCheckoutModal } from '../../components/KesherCheckoutModal';
 
 export interface SmartFormCrmField {
   crmFieldKey: string;
@@ -20,6 +21,11 @@ export interface SmartFormSectionConfig extends BaseSectionConfig {
   containerWidth?: 'sm' | 'md' | 'lg' | 'full';
   backgroundColor?: string;
   crmFields?: SmartFormCrmField[];
+  formMode?: 'registration' | 'payment';
+  paymentAmount?: number;
+  paymentCurrency?: string;
+  paymentItemTitle?: string;
+  submitButtonText?: string;
 }
 
 export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({ config }) => {
@@ -32,6 +38,9 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
   const [notes, setNotes] = useState('');
   const [dynamicValues, setDynamicValues] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+
+  const isPaymentMode = config.formMode === 'payment' && typeof config.paymentAmount === 'number' && config.paymentAmount > 0;
 
   const widthClasses = {
     sm: 'max-w-xl',
@@ -74,6 +83,9 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
       });
 
       setIsSubmitted(true);
+      if (isPaymentMode) {
+        setIsCheckoutOpen(true);
+      }
       return;
     }
 
@@ -106,6 +118,9 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
     });
 
     setIsSubmitted(true);
+    if (isPaymentMode) {
+      setIsCheckoutOpen(true);
+    }
   };
 
   return (
@@ -249,14 +264,54 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
               </>
             )}
 
+            {isPaymentMode && (
+              <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <CreditCard className="w-5 h-5 text-indigo-500 shrink-0" />
+                  <div>
+                    <div className="text-xs font-black text-slate-900 dark:text-white">
+                      {config.paymentItemTitle || config.sectionTitle || 'תשלום מאובטח'}
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      פרטי המשלם מסונכרנים אוטומטית ל-CRM
+                    </div>
+                  </div>
+                </div>
+                <div className="text-base font-black text-indigo-600 dark:text-indigo-400">
+                  ₪{config.paymentAmount}
+                </div>
+              </div>
+            )}
+
             <button
               type="submit"
               className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-sm shadow-xl shadow-indigo-600/30 hover:opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Send className="w-4 h-4" />
-              <span>שליחה וקבלת מענה מהיר</span>
+              {isPaymentMode ? <CreditCard className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+              <span>
+                {config.submitButtonText ||
+                  (isPaymentMode ? `המשך לתשלום מאובטח (₪${config.paymentAmount})` : 'שליחה וקבלת מענה מהיר')}
+              </span>
             </button>
           </form>
+        )}
+
+        {isPaymentMode && isCheckoutOpen && (
+          <KesherCheckoutModal
+            isOpen={isCheckoutOpen}
+            onClose={() => setIsCheckoutOpen(false)}
+            isYearly={false}
+            pageTitle={config.sectionTitle}
+            pkg={{
+              id: config.formId || `form_pkg_${config.id}`,
+              name: config.paymentItemTitle || config.sectionTitle || 'הזמנה / תשלום',
+              priceMonthly: String(config.paymentAmount || 0),
+              priceYearly: String(config.paymentAmount || 0),
+              description: config.sectionSubtitle || 'תשלום מאובטח מסונכרן CRM',
+              features: [],
+              buttonText: 'השלמת תשלום',
+            }}
+          />
         )}
       </div>
     </section>

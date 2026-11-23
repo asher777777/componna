@@ -2330,6 +2330,16 @@ export interface ProjectTaskSummary {
   updatedAt?: string;
 }
 
+export interface BrandStyleIconDef {
+  name: string;
+  labelHe: string;
+  archetype: TenantStylePreset;
+  category: 'luxury' | 'business' | 'trust' | 'tech' | 'nature' | 'wellness' | 'analytics';
+  keywords?: string[];
+}
+
+export const KOSCLOUD_BRANDING_ICONS_CAPABILITY = 'koscloud-branding-icons';
+
 export interface KosProjectsContract {
   listProjects: (filters?: {
     status?: string;

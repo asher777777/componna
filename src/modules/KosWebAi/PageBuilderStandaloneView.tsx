@@ -8,6 +8,7 @@ import { PublicPageView } from './components/PublicPageView';
 import { PagesDashboardTab } from './components/PagesDashboardTab';
 import { PageCreationOptions } from './components/CreatePageWizardModal';
 import { AiLivePageBuilderModal } from './components/AiLivePageBuilderModal';
+import { KoswebQuickPageModelModal } from './components/KoswebQuickPageModelModal';
 import { UrlShortenerModal } from './components/UrlShortenerModal';
 import { pageBuilderFirestore } from './services/pageBuilderFirestore';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
@@ -118,7 +119,23 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<PageBuilderConfig>(() => getInitialCleanPageConfig(brandDna, tenantId));
 
   const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(() => isAiWizardOpenPersisted());
+  const [isQuickModelOpen, setIsQuickModelOpen] = useState(false);
   const [isMarketingDrawerOpen, setIsMarketingDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    const handleQuickPageGenerated = async (e: Event) => {
+      const generatedConfig = (e as CustomEvent<PageBuilderConfig>).detail;
+      if (!generatedConfig?.pageId) return;
+      await pageBuilderFirestore.savePage(generatedConfig, db, tenantId);
+      const all = await pageBuilderFirestore.getAllPages(db, tenantId);
+      setPages(all);
+      setCurrentPage(generatedConfig);
+      setIsQuickModelOpen(false);
+      setViewMode('editor');
+    };
+    window.addEventListener('kosweb_quick_page_generated', handleQuickPageGenerated);
+    return () => window.removeEventListener('kosweb_quick_page_generated', handleQuickPageGenerated);
+  }, [db, tenantId]);
   const [isShortenerModalOpen, setIsShortenerModalOpen] = useState(false);
   const [selectedShortPage, setSelectedShortPage] = useState<PageBuilderConfig | null>(null);
 
@@ -649,6 +666,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
           }}
           onNewPage={handleCreateNewPage}
           onOpenAiBuilder={() => setIsAiModalOpen(true)}
+          onOpenQuickPageModel={() => setIsQuickModelOpen(true)}
           onDuplicatePage={handleDuplicatePage}
           onDeletePage={handleDeletePage}
           onSetHomePage={handleSetHomePage}
@@ -705,7 +723,22 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
 
       {/* AI Live Page Generator Modal (Dashboard view only) */}
       {viewMode === 'pages' && (
-        <AiLivePageBuilderModal
+        <>
+          <KoswebQuickPageModelModal
+            isOpen={isQuickModelOpen}
+            onClose={() => setIsQuickModelOpen(false)}
+            brandDna={brandDna}
+            tenantId={tenantId}
+            onPageGenerated={async (generatedConfig) => {
+              await pageBuilderFirestore.savePage(generatedConfig, db, tenantId);
+              const all = await pageBuilderFirestore.getAllPages(db, tenantId);
+              setPages(all);
+              setCurrentPage(generatedConfig);
+              setIsQuickModelOpen(false);
+              setViewMode('editor');
+            }}
+          />
+          <AiLivePageBuilderModal
           isOpen={isAiModalOpen}
           onClose={() => {
             setAiWizardOpenState(false);
@@ -727,6 +760,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
             setIsMarketingDrawerOpen(true);
           }}
         />
+        </>
       )}
 
       {/* URL Shortener Modal */}

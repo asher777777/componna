@@ -31,6 +31,7 @@ import {
   Youtube,
   ShieldCheck,
   BarChart3,
+  Wand2,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { CreatePageWizardModal, PageCreationOptions } from './CreatePageWizardModal';
@@ -42,6 +43,7 @@ interface PagesDashboardTabProps {
   onSelectPage: (page: PageBuilderConfig) => void;
   onNewPage: (options: PageCreationOptions | PageCategory) => void;
   onOpenAiBuilder: () => void;
+  onOpenQuickPageModel?: () => void;
   onDuplicatePage: (page: PageBuilderConfig) => void;
   onDeletePage: (pageId: string) => void;
   onSetHomePage: (pageId: string) => void;
@@ -63,6 +65,7 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
   onSelectPage,
   onNewPage,
   onOpenAiBuilder,
+  onOpenQuickPageModel,
   onDuplicatePage,
   onDeletePage,
   onSetHomePage,
@@ -441,6 +444,19 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
 
           {/* Action Icon Buttons */}
           <div className="flex items-center gap-2">
+            {onOpenQuickPageModel && (
+              <button
+                type="button"
+                onClick={onOpenQuickPageModel}
+                className="px-3 py-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-md shadow-indigo-500/20 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                title="מודל יצירת דף מהיר (KOSAI + איקוני KOSCLOUD + CRM)"
+                aria-label="מודל יצירת דף מהיר"
+              >
+                <Wand2 className="w-4 h-4" />
+                <span className="hidden sm:inline">מודל יצירת דף</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onOpenAiBuilder}

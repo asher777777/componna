@@ -35,3 +35,9 @@ export * from './components/KosWebAiHostBridge';
 export * from './components/KosWebAiFrontDock';
 export * from './components/CookieConsentBanner';
 export * from './components/GoogleAnalyticsConsoleHub';
+export * from './components/KoswebQuickPageModelModal';
+
+import { registerCapabilityUI } from '../../core/bridge/CapabilitySlot';
+import { KoswebQuickPageModelModal } from './components/KoswebQuickPageModelModal';
+
+registerCapabilityUI('kosweb-quick-page-model', KoswebQuickPageModelModal);

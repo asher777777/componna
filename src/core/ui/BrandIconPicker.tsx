@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { Search, X } from 'lucide-react';
+import { getRegisteredCapabilityUI } from '../bridge/CapabilitySlot';
+import {
+  BrandStyleIconDef,
+  KOSCLOUD_BRANDING_ICONS_CAPABILITY,
+  TenantStylePreset,
+} from '../contracts';
 
 export const BRAND_ICON_LIBRARY = [
   'Sparkles', 'Heart', 'HeartHandshake', 'Shield', 'ShieldCheck', 'Star', 'Award', 'Crown', 'Gem', 'Zap',
@@ -128,3 +134,75 @@ export const IconPickerPopover: React.FC<{
     </div>
   );
 };
+
+const CORE_BRAND_STYLE_ICONS_FALLBACK: BrandStyleIconDef[] = [
+  // feminine
+  { name: 'Sparkles', labelHe: 'ניצוצות זוהר', archetype: 'feminine', category: 'wellness' },
+  { name: 'Heart', labelHe: 'לב אוהב', archetype: 'feminine', category: 'wellness' },
+  { name: 'Flower2', labelHe: 'פרח מלבלב', archetype: 'feminine', category: 'nature' },
+  { name: 'Feather', labelHe: 'נוצה עדינה', archetype: 'feminine', category: 'wellness' },
+  { name: 'Gem', labelHe: 'אבן חן יוקרתית', archetype: 'feminine', category: 'luxury' },
+  { name: 'Crown', labelHe: 'כתר מלכותי', archetype: 'feminine', category: 'luxury' },
+  { name: 'Sun', labelHe: 'שמש חמימה', archetype: 'feminine', category: 'nature' },
+  { name: 'HeartHandshake', labelHe: 'אכפתיות וחיבור', archetype: 'feminine', category: 'trust' },
+  // masculine
+  { name: 'Shield', labelHe: 'מגן פלדה חזק', archetype: 'masculine', category: 'trust' },
+  { name: 'ShieldCheck', labelHe: 'מגן מאומת 100%', archetype: 'masculine', category: 'trust' },
+  { name: 'Trophy', labelHe: 'גביע ניצחון', archetype: 'masculine', category: 'luxury' },
+  { name: 'Target', labelHe: 'פגיעה במטרה', archetype: 'masculine', category: 'business' },
+  { name: 'Briefcase', labelHe: 'תיק מנהלים', archetype: 'masculine', category: 'business' },
+  { name: 'Rocket', labelHe: 'זינוק והמראה', archetype: 'masculine', category: 'business' },
+  { name: 'Anchor', labelHe: 'עוגן יציבות', archetype: 'masculine', category: 'trust' },
+  { name: 'Award', labelHe: 'מדליית הוקרה', archetype: 'masculine', category: 'luxury' },
+  // spiritual
+  { name: 'Infinity', labelHe: 'אינסוף אפשרויות', archetype: 'spiritual', category: 'luxury' },
+  { name: 'Compass', labelHe: 'מצפן דרך וייעוד', archetype: 'spiritual', category: 'luxury' },
+  { name: 'Eye', labelHe: 'עין הראייה הפנימית', archetype: 'spiritual', category: 'trust' },
+  { name: 'BookOpen', labelHe: 'ספר חוכמה ומודעות', archetype: 'spiritual', category: 'wellness' },
+  { name: 'Sunrise', labelHe: 'זריחה והתחדשות', archetype: 'spiritual', category: 'nature' },
+  { name: 'Lightbulb', labelHe: 'הארה פנימית', archetype: 'spiritual', category: 'wellness' },
+  { name: 'Sparkles', labelHe: 'ברכת שפע', archetype: 'spiritual', category: 'luxury' },
+  { name: 'Trees', labelHe: 'שורשים וצמיחה', archetype: 'spiritual', category: 'nature' },
+  // sharp
+  { name: 'Zap', labelHe: 'ברק מהירות שיא', archetype: 'sharp', category: 'tech' },
+  { name: 'Terminal', labelHe: 'מסוף פקודות חדות', archetype: 'sharp', category: 'tech' },
+  { name: 'Layers', labelHe: 'שכבות גיאומטריות', archetype: 'sharp', category: 'tech' },
+  { name: 'Diamond', labelHe: 'צורת יהלום גיאומטרית', archetype: 'sharp', category: 'luxury' },
+  { name: 'Lock', labelHe: 'הצפנה קשיחה', archetype: 'sharp', category: 'trust' },
+  { name: 'Cpu', labelHe: 'חומרת סיליקון', archetype: 'sharp', category: 'tech' },
+  { name: 'Code2', labelHe: 'בלוקי קוד טהור', archetype: 'sharp', category: 'tech' },
+  { name: 'Bot', labelHe: 'בוט אוטונומי מהיר', archetype: 'sharp', category: 'tech' },
+  // analytical
+  { name: 'BarChart3', labelHe: 'גרף עמודות אנליטי', archetype: 'analytical', category: 'analytics' },
+  { name: 'TrendingUp', labelHe: 'מגמת עלייה ומדדים', archetype: 'analytical', category: 'analytics' },
+  { name: 'Scale', labelHe: 'מאזני דיוק ואיזון', archetype: 'analytical', category: 'analytics' },
+  { name: 'Brain', labelHe: 'מודל חשיבה ובינה', archetype: 'analytical', category: 'tech' },
+  { name: 'Microscope', labelHe: 'מיקרוסקופ מחקר עמוק', archetype: 'analytical', category: 'analytics' },
+  { name: 'SearchCheck', labelHe: 'אימות נתונים Data Audit', archetype: 'analytical', category: 'analytics' },
+  { name: 'Target', labelHe: 'רמת דיוק ו-Accuracy', archetype: 'analytical', category: 'analytics' },
+  { name: 'FileText', labelHe: 'דוח מחקר מקיף', archetype: 'analytical', category: 'analytics' },
+  // standard
+  { name: 'Star', labelHe: 'כוכב איכות פרימיום', archetype: 'standard', category: 'luxury' },
+  { name: 'BadgeCheck', labelHe: 'תו תקן רשמי', archetype: 'standard', category: 'trust' },
+  { name: 'CheckCircle2', labelHe: 'אישור מושלם', archetype: 'standard', category: 'trust' },
+  { name: 'Users', labelHe: 'נבחרת מומחים מנוסה', archetype: 'standard', category: 'business' },
+  { name: 'CreditCard', labelHe: 'כרטיס תשלום בטוח', archetype: 'standard', category: 'business' },
+  { name: 'Clock', labelHe: 'עמידה בלוחות זמנים', archetype: 'standard', category: 'trust' },
+  { name: 'Calendar', labelHe: 'תיאום פגישה מראש', archetype: 'standard', category: 'business' },
+  { name: 'Rocket', labelHe: 'השקת פרויקט', archetype: 'standard', category: 'business' },
+];
+
+/**
+ * Returns the KOSCLOUD branding style icons matching the tenant's stylePreset (archetype),
+ * reading from the live KosCloudStore capability registration when loaded, with a core fallback.
+ */
+export function getKoscloudBrandingIconsForStyle(stylePreset?: TenantStylePreset): BrandStyleIconDef[] {
+  const registered = getRegisteredCapabilityUI(KOSCLOUD_BRANDING_ICONS_CAPABILITY) as BrandStyleIconDef[] | null;
+  const catalog = Array.isArray(registered) && registered.length > 0
+    ? registered
+    : CORE_BRAND_STYLE_ICONS_FALLBACK;
+
+  const targetStyle: TenantStylePreset = stylePreset || 'standard';
+  const matched = catalog.filter((icon) => icon.archetype === targetStyle);
+  return matched.length > 0 ? matched : catalog.filter((icon) => icon.archetype === 'standard');
+}
