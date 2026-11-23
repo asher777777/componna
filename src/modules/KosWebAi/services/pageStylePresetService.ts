@@ -111,6 +111,7 @@ export function applyStylePresetToPage(
   const newGlobalSettings: GlobalPageSettings = {
     ...(page.globalSettings || {}),
     ...styleTokens,
+    theme: preset,
   };
 
   // Clean up corrupted dark backgrounds and text colors

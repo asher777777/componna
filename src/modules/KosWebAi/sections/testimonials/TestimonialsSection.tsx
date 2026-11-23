@@ -2,8 +2,10 @@ import React from 'react';
 import { TestimonialsSectionConfig } from '../../types/sectionConfigs';
 import { Star, CheckCircle2, Quote, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
+import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 
 export const TestimonialsSection: React.FC<{ config: TestimonialsSectionConfig }> = ({ config }) => {
+  const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
   const {
     anchorId,
     title = 'מה הלקוחות שלנו מספרים?',
@@ -20,7 +22,7 @@ export const TestimonialsSection: React.FC<{ config: TestimonialsSectionConfig }
   return (
     <section
       id={anchorId || 'testimonials'}
-      className="w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
+      className={clsx('w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden', styleTokens.sectionWrapperClass)}
       style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
       dir="rtl"
     >
@@ -71,7 +73,10 @@ export const TestimonialsSection: React.FC<{ config: TestimonialsSectionConfig }
           {items.map((item) => (
             <div
               key={item.id}
-              className="relative bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between backdrop-blur-xl shadow-xl hover:border-indigo-500/40 hover:-translate-y-1.5 transition-all duration-300 group"
+              className={clsx(
+                'relative p-6 sm:p-8 flex flex-col justify-between backdrop-blur-xl hover:-translate-y-1.5 duration-300 group',
+                styleTokens.cardClass
+              )}
             >
               <div className="flex flex-col gap-4 text-right">
                 <div className="flex items-center justify-between">

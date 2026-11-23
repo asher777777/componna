@@ -38,6 +38,11 @@ export interface SystemApiKeysConfig {
   kesherPaymentPageId?: string;
   kesherEzCountToken?: string;
   kesherDefaultReceiptType?: number;
+  paymentProvider?: 'kesher' | 'nedarim';
+  nedarimMosadId?: string;
+  nedarimApiValid?: string;
+  nedarimApiPassword?: string;
+  nedarimGroup?: string;
   tiktokClientKey?: string;
   tiktokClientSecret?: string;
   tiktokAccessToken?: string;
@@ -63,6 +68,11 @@ export const DEFAULT_API_KEYS: SystemApiKeysConfig = {
   kesherPaymentPageId: '',
   kesherEzCountToken: '',
   kesherDefaultReceiptType: 405,
+  paymentProvider: 'kesher',
+  nedarimMosadId: '',
+  nedarimApiValid: '',
+  nedarimApiPassword: '',
+  nedarimGroup: '',
   tiktokClientKey: '',
   tiktokClientSecret: '',
   tiktokAccessToken: '',

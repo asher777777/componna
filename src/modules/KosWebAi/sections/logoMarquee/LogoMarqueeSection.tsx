@@ -1,8 +1,10 @@
 import React from 'react';
 import { LogoMarqueeSectionConfig } from '../../types/sectionConfigs';
 import { clsx } from 'clsx';
+import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 
 export const LogoMarqueeSection: React.FC<{ config: LogoMarqueeSectionConfig }> = ({ config }) => {
+  const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
   const {
     anchorId,
     title = 'נבחר על ידי הארגונים והמותגים המובילים',
@@ -19,7 +21,10 @@ export const LogoMarqueeSection: React.FC<{ config: LogoMarqueeSectionConfig }> 
   return (
     <section
       id={anchorId || 'partners'}
-      className="w-full py-10 px-4 sm:px-6 lg:px-8 border-y border-slate-200/80 dark:border-slate-800/60 overflow-hidden relative bg-slate-50/60 dark:bg-[#08080a]"
+      className={clsx(
+        'w-full py-10 px-4 sm:px-6 lg:px-8 border-y border-slate-200/80 dark:border-slate-800/60 overflow-hidden relative bg-slate-50/60 dark:bg-[#08080a]',
+        styleTokens.sectionWrapperClass
+      )}
       style={{ backgroundColor: backgroundColor !== 'transparent' && backgroundColor !== '#08080a' ? backgroundColor : undefined }}
       dir="rtl"
     >

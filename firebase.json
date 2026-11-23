@@ -67,6 +67,10 @@
         "function": "kesherProxy"
       },
       {
+        "source": "/api/nedarim-proxy",
+        "function": "nedarimProxy"
+      },
+      {
         "source": "/api/master-billing",
         "function": "kesherMasterBilling"
       },

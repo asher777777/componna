@@ -3,6 +3,14 @@ import { MediaItem } from '../types';
 export const SYSTEM_MAIN_STORAGE_BUCKET = 'glowmanage.firebasestorage.app';
 export const LEGACY_VAULT_BUCKET = 'aioffice-1426f.firebasestorage.app';
 
+function safeDecodeURIComponent(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 /**
  * Checks if a URL is an alien or invalid blob URL.
  * An alien blob is a blob: URL originating from a different origin or localhost
@@ -80,10 +88,11 @@ export function getTenantPublicMediaUrl(item?: Partial<MediaItem>, preferredHost
   }
 
   if (!mediaPath) return '';
+
   // Encode individual path segments to keep forward slashes intact for Firebase Hosting /media/** rewrite
   const cleanPath = mediaPath
     .split('/')
-    .map((seg) => encodeURIComponent(decodeURIComponent(seg)))
+    .map((seg) => encodeURIComponent(safeDecodeURIComponent(seg)))
     .join('/');
   return `${domain}/media/${cleanPath}`;
 }
@@ -99,7 +108,7 @@ export function getPermanentMediaUrl(item?: Partial<MediaItem>, bucket: string =
 
   if (item.storagePath) {
     const cleanPath = sanitizeVaultPath(item.storagePath, item.tenantId);
-    const encodedPath = encodeURIComponent(decodeURIComponent(cleanPath));
+    const encodedPath = encodeURIComponent(safeDecodeURIComponent(cleanPath));
     return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`;
   }
 
@@ -109,7 +118,7 @@ export function getPermanentMediaUrl(item?: Partial<MediaItem>, bucket: string =
     const vaultPath = timeStamp && !safeName.startsWith(`${timeStamp}_`)
       ? `${folderPrefix}/${timeStamp}_${safeName}`
       : `${folderPrefix}/${safeName}`;
-    const encodedPath = encodeURIComponent(decodeURIComponent(vaultPath));
+    const encodedPath = encodeURIComponent(safeDecodeURIComponent(vaultPath));
     return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`;
   }
 

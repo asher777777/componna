@@ -60,6 +60,7 @@ export const BrandIdentitySection: React.FC = () => {
   const [isExtractingColors, setIsExtractingColors] = useState(false);
   const [extractedColorsList, setExtractedColorsList] = useState<string[]>([]);
   const [colorsExtractedSuccess, setColorsExtractedSuccess] = useState(false);
+  const [colorExtractError, setColorExtractError] = useState<string | null>(null);
   const [logoCopied, setLogoCopied] = useState(false);
 
   // AI Shorten Vision State
@@ -86,9 +87,11 @@ export const BrandIdentitySection: React.FC = () => {
     }
     if (!url.trim()) {
       setExtractedColorsList([]);
+      setColorExtractError(null);
       return;
     }
     setIsExtractingColors(true);
+    setColorExtractError(null);
     try {
       const colors = await extractDominantColorsFromImage(url, 4);
       setExtractedColorsList(colors);
@@ -97,6 +100,8 @@ export const BrandIdentitySection: React.FC = () => {
       setTimeout(() => setColorsExtractedSuccess(false), 4000);
     } catch (err) {
       console.error('Error extracting colors from logo URL:', err);
+      setExtractedColorsList([]);
+      setColorExtractError('לא ניתן לדגום צבעים מתמונה זו (חסימת CORS או תמונה לא זמינה). נסה להעלות את קובץ הלוגו ישירות.');
       setIsExtractingColors(false);
     }
   };
@@ -229,11 +234,19 @@ export const BrandIdentitySection: React.FC = () => {
 
   const handleExtractColorsFromVibeImage = async (url: string) => {
     setIsExtractingColors(true);
-    const colors = await extractDominantColorsFromImage(url, 4);
-    setExtractedColorsList(colors);
-    setIsExtractingColors(false);
-    setColorsExtractedSuccess(true);
-    setTimeout(() => setColorsExtractedSuccess(false), 4000);
+    setColorExtractError(null);
+    try {
+      const colors = await extractDominantColorsFromImage(url, 4);
+      setExtractedColorsList(colors);
+      setIsExtractingColors(false);
+      setColorsExtractedSuccess(true);
+      setTimeout(() => setColorsExtractedSuccess(false), 4000);
+    } catch (err) {
+      console.error('Error extracting colors from vibe image:', err);
+      setExtractedColorsList([]);
+      setColorExtractError('לא ניתן לדגום צבעים מתמונה זו (חסימת CORS או תמונה לא זמינה).');
+      setIsExtractingColors(false);
+    }
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -511,7 +524,11 @@ export const BrandIdentitySection: React.FC = () => {
                     {isExtractingColors && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
                   </div>
 
-                  {extractedColorsList.length > 0 ? (
+                  {colorExtractError ? (
+                    <p className="text-[11px] text-rose-600 dark:text-rose-400 py-1 text-center font-medium">
+                      {colorExtractError}
+                    </p>
+                  ) : extractedColorsList.length > 0 ? (
                     <div className="space-y-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {extractedColorsList.map((hex, idx) => (

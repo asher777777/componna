@@ -16,6 +16,7 @@ import {
 import { clsx } from 'clsx';
 import { BrandDna, MediaPickerContract } from '../../../core/contracts';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { CapabilitySlot } from '../../../core/bridge/CapabilitySlot';
 import { getKoscloudBrandingIconsForStyle } from '../../../core/ui/BrandIconPicker';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
@@ -95,6 +96,7 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
   onPageGenerated,
 }) => {
   const { getCapability } = useHostCapabilities();
+  const { db } = useSystemConnection();
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
 
   const [step, setStep] = useState(1);
@@ -209,7 +211,8 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
           saveGeneratedImageToKoscloud: mediaPicker?.saveGeneratedImage,
         },
         liveDna,
-        tenantId
+        tenantId,
+        db
       );
 
       onPageGenerated(result.pageConfig);
@@ -487,6 +490,7 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
                 <CapabilitySlot
                   name="luxury-icons-gallery"
                   props={{
+                    defaultArchetype: activeStylePreset,
                     selectedIconName: selectedIcons[selectedIcons.length - 1],
                     onSelectIconSvg: (_svgDataUrl: string, iconName: string) => {
                       if (iconName) toggleIconSelection(iconName);

@@ -1,6 +1,7 @@
 import React from 'react';
 import { LiveAnalyticsSectionConfig } from '../../types/sectionConfigs';
 import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
+import { SectionStylePresetSelector } from '../../ui/SectionStylePresetSelector';
 import { eventBus } from '../../../../core/bridge/EventBus';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../../core/tenant';
@@ -107,6 +108,10 @@ export const LiveAnalyticsEditor: React.FC<{
 
   return (
     <div className="flex flex-col gap-6 text-right" dir="rtl">
+      <SectionStylePresetSelector
+        value={(config as any).stylePreset}
+        onChange={(preset) => onChange({ ...config, stylePreset: preset } as any)}
+      />
       {/* Scope and Info Banner */}
       <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex items-start gap-3">
         <Activity className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />

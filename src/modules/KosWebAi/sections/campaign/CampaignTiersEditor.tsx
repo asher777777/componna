@@ -4,6 +4,7 @@ import { PageBuilderInput, PageBuilderTextarea } from '../../ui/PageBuilderInput
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderAccordion } from '../../ui/PageBuilderAccordion';
 import { PageBuilderButton } from '../../ui/PageBuilderButton';
+import { SectionStylePresetSelector } from '../../ui/SectionStylePresetSelector';
 import { Plus, Trash2, Edit2, Heart, Sliders } from 'lucide-react';
 
 interface CampaignTiersEditorProps {
@@ -45,6 +46,10 @@ export const CampaignTiersEditor: React.FC<CampaignTiersEditorProps> = ({ config
 
   return (
     <div className="flex flex-col gap-4 text-right" dir="rtl">
+      <SectionStylePresetSelector
+        value={(config as any).stylePreset}
+        onChange={(preset) => onChange({ ...config, stylePreset: preset } as any)}
+      />
       <PageBuilderAccordion title="כותרות ואופן תרומה" icon={<Heart className="w-4 h-4 text-pink-400" />} defaultOpen={true}>
         <PageBuilderInput
           label="כותרת האזור"

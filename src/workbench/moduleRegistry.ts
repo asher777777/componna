@@ -6,6 +6,9 @@ const BrandDnaHubStandaloneView = React.lazy(() =>
 const KosPayStandaloneView = React.lazy(() =>
   import('../modules/KosPay').then((m) => ({ default: m.KesherPaymentsStandaloneView }))
 );
+const KosNedarimStandaloneView = React.lazy(() =>
+  import('../modules/KosNedarim').then((m) => ({ default: m.KosNedarimStandaloneView }))
+);
 const KosWhatsUpStandaloneView = React.lazy(() =>
   import('../modules/KosWhatsUp').then((m) => ({ default: m.KosWhatsUpStandaloneView }))
 );
@@ -235,6 +238,14 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     component: KosPayStandaloneView,
     route: '/kesher-payments',
     collectionPrefix: 'kesher_',
+  },
+  {
+    id: 'KosNedarim',
+    name: 'KosNedarim - קושנדרים (נדרים פלוס)',
+    description: 'סליקת אשראי, הוראות קבע, Bit והפקת קבלות מול נדרים פלוס',
+    component: KosNedarimStandaloneView,
+    route: '/KosNedarim',
+    collectionPrefix: 'nedarim_',
   },
   {
     id: 'KosWhatsUp',

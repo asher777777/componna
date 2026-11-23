@@ -1,5 +1,6 @@
 import React from 'react';
 import { EventRsvpSectionConfig } from '../../types/sectionConfigs';
+import { SectionStylePresetSelector } from '../../ui/SectionStylePresetSelector';
 import {
   Calendar,
   Clock,
@@ -28,6 +29,10 @@ export const EventRsvpEditor: React.FC<EventRsvpEditorProps> = ({ config, onChan
 
   return (
     <div className="flex flex-col gap-6 text-right" dir="rtl">
+      <SectionStylePresetSelector
+        value={(config as any).stylePreset}
+        onChange={(preset) => onChange({ ...config, stylePreset: preset } as any)}
+      />
       {/* 1. General Event Details */}
       <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-4">
         <h4 className="text-sm font-black text-white flex items-center gap-2 border-b border-slate-800 pb-2">

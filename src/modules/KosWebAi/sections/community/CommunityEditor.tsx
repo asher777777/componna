@@ -4,6 +4,7 @@ import { PageBuilderInput, PageBuilderTextarea } from '../../ui/PageBuilderInput
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { PageBuilderAccordion } from '../../ui/PageBuilderAccordion';
+import { SectionStylePresetSelector } from '../../ui/SectionStylePresetSelector';
 import { Users, MessageCircle, Sliders, Shield, Calendar, Heart, Eye } from 'lucide-react';
 import { CapabilitySlot } from '../../../../core/bridge/CapabilitySlot';
 
@@ -21,6 +22,10 @@ export const CommunityEditor: React.FC<CommunityEditorProps> = ({ config, onChan
 
   return (
     <div className="flex flex-col gap-4 text-right" dir="rtl">
+      <SectionStylePresetSelector
+        value={(config as any).stylePreset}
+        onChange={(preset) => onChange({ ...config, stylePreset: preset } as any)}
+      />
       {/* Community Connection & Gate Simulation */}
       <PageBuilderAccordion
         title="חיבור קהילה והפרדת הרשאות (Gate)"

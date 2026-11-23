@@ -9,9 +9,11 @@ import { StatsBentoSection } from '../sections/statsBento/StatsBentoSection';
 import { BeforeAfterSection } from '../sections/beforeAfter/BeforeAfterSection';
 import { GeoLocalSection } from '../sections/geoLocal/GeoLocalSection';
 import { CourseBannerSection } from '../sections/courseBanner/CourseBannerSection';
+import { ServicesGridSection } from '../sections/servicesGrid/ServicesGridSection';
 import { CampaignHeaderSection } from '../sections/campaign/CampaignHeaderSection';
 import { CampaignTiersSection } from '../sections/campaign/CampaignTiersSection';
 import { CampaignDonorsSection } from '../sections/campaign/CampaignDonorsSection';
+import { LiveDonationAlertSection } from '../sections/liveDonationAlert/LiveDonationAlertSection';
 import { VideoGallerySection } from '../sections/videoGallery/VideoGallerySection';
 import { ImageListingSection } from '../sections/imageListing/ImageListingSection';
 import { FaqSection } from '../sections/faq/FaqSection';
@@ -56,9 +58,11 @@ import { StatsBentoEditor } from '../sections/statsBento/StatsBentoEditor';
 import { BeforeAfterEditor } from '../sections/beforeAfter/BeforeAfterEditor';
 import { GeoLocalEditor } from '../sections/geoLocal/GeoLocalEditor';
 import { CourseBannerEditor } from '../sections/courseBanner/CourseBannerEditor';
+import { ServicesGridEditor } from '../sections/servicesGrid/ServicesGridEditor';
 import { CampaignHeaderEditor } from '../sections/campaign/CampaignHeaderEditor';
 import { CampaignTiersEditor } from '../sections/campaign/CampaignTiersEditor';
 import { CampaignDonorsEditor } from '../sections/campaign/CampaignDonorsEditor';
+import { LiveDonationAlertEditor } from '../sections/liveDonationAlert/LiveDonationAlertEditor';
 import { VideoGalleryEditor } from '../sections/videoGallery/VideoGalleryEditor';
 import { ImageListingEditor } from '../sections/imageListing/ImageListingEditor';
 import { FaqSectionEditor } from '../sections/faq/FaqSectionEditor';
@@ -431,6 +435,50 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       imageSrc: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80',
       bottomStripeColor: '#4f46e5',
       backgroundColor: 'transparent',
+    },
+  },
+
+  services: {
+    type: 'services',
+    name: 'רשת שירותים וכרטיסים',
+    category: 'content',
+    description: 'רשת כרטיסי שירותים, תכניות ודפים עם אייקונים ותמונות',
+    icon: Sparkles,
+    viewComponent: ServicesGridSection,
+    editorComponent: ServicesGridEditor,
+    defaultConfig: {
+      type: 'services',
+      visible: true,
+      anchorId: 'services',
+      title: 'השירותים והתכניות שלנו',
+      description: 'בחרו את המסלול או השירות המתאים לכם',
+      layout: 'grid',
+      columns: 3,
+      backgroundColor: 'transparent',
+      items: [],
+    },
+  },
+
+  liveDonationAlert: {
+    type: 'liveDonationAlert',
+    name: 'מודל התראות תורמים חיים',
+    category: 'campaign',
+    description: 'חלונית צפה המעדכנת בזמן אמת על תורמים אחרונים וחדשים עם צליל והגדרות מיקום',
+    icon: Sparkles,
+    viewComponent: LiveDonationAlertSection,
+    editorComponent: LiveDonationAlertEditor,
+    defaultConfig: {
+      type: 'liveDonationAlert',
+      visible: true,
+      anchorId: 'liveDonationAlert',
+      campaignId: 'home',
+      position: 'top-right',
+      displayDurationMs: 3500,
+      initialCount: 3,
+      playSound: true,
+      showProgressBar: true,
+      enableDemoMode: false,
+      accentColor: '#036846',
     },
   },
 

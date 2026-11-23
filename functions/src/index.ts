@@ -1319,6 +1319,280 @@ export const kesherProxy = functions.https.onRequest((req, res) => {
   });
 });
 
+function encodeToWindows1255Url(str: string): string {
+  if (!str) return '';
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    const charCode = str.charCodeAt(i);
+    if (charCode >= 0x05D0 && charCode <= 0x05EA) {
+      const win1255Code = charCode - 0x05D0 + 0xE0;
+      result += '%' + win1255Code.toString(16).toUpperCase();
+    } else if (charCode === 0x20) {
+      result += '+';
+    } else {
+      result += encodeURIComponent(str.charAt(i));
+    }
+  }
+  return result;
+}
+
+/**
+ * Nedarim Plus Proxy Endpoint (/api/nedarim-proxy)
+ * Server-side proxy for Nedarim Plus (נדרים פלוס) API actions per tenant.
+ * Reads credentials from tenants/{tenantId}/settings/api_keys (no browser secret exposure).
+ */
+export const nedarimProxy = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    try {
+      const { action, tenantId = '_master', payload = {}, credentials } = req.body || {};
+      if (!action) {
+        res.status(400).json({ success: false, error: 'Missing action parameter' });
+        return;
+      }
+
+      const cleanTenant = String(tenantId || '_master').toLowerCase().trim() || '_master';
+      const keysSnap = await admin.firestore().doc(`tenants/${cleanTenant}/settings/api_keys`).get();
+      const stored = keysSnap.exists ? keysSnap.data() || {} : {};
+
+      const mosadid = String(credentials?.mosadid || stored.nedarimMosadId || '').trim();
+      const apivalid = String(credentials?.apivalid || stored.nedarimApiValid || '').trim();
+      const apipassword = String(credentials?.apipassword || stored.nedarimApiPassword || '').trim();
+      const group = String(credentials?.group ?? stored.nedarimGroup ?? '').trim();
+
+      if (!mosadid || !apivalid) {
+        res.status(200).json({
+          success: false,
+          error: 'לא הוגדרו פרטי חיבור לנדרים פלוס (Mosad ID / API Valid) עבור טננט זה.',
+        });
+        return;
+      }
+
+      if (action === 'createTransaction') {
+        const isBit = payload.paymentType === 'bit';
+        const endpoint = isBit ? 'DebitBit.aspx' : 'DebitIframe.aspx';
+        const url = `https://www.matara.pro/nedarimplus/v6/Files/WebServices/${endpoint}?Action=CreateTransaction`;
+
+        const body = new URLSearchParams();
+        body.append('Mosad', mosadid);
+        body.append('ApiValid', apivalid);
+        body.append('Amount', String(payload.amount || 0));
+
+        const installments = Number(payload.installments || 0);
+        if (payload.isRecurring) {
+          body.append('Tashlumim', installments > 0 ? String(installments) : '0');
+          body.append('Keva', '1');
+        } else {
+          body.append('Tashlumim', installments > 0 ? String(installments) : '1');
+        }
+
+        body.append('Currency', '1');
+        body.append('Phone', String(payload.phone || ''));
+        body.append('Mail', String(payload.mail || ''));
+        if (payload.receiptType) {
+          body.append('TamalType', String(payload.receiptType));
+        } else if (group) {
+          body.append('Groupe', group);
+        }
+
+        const clientName = String(payload.clientName || 'לקוח').trim();
+        if (!isBit) {
+          const [firstName = '', ...lastNameParts] = clientName.split(' ');
+          body.append('FirstName', firstName);
+          body.append('LastName', lastNameParts.join(' '));
+          body.append('PaymentType', payload.isRecurring ? 'HK' : 'Ragil');
+        } else {
+          body.append('ClientName', clientName);
+        }
+        if (payload.redirectUrl) {
+          body.append('CallBack', String(payload.redirectUrl));
+        }
+
+        const upstream = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8' },
+          body: body.toString(),
+        });
+        const text = await upstream.text();
+        try {
+          res.status(200).json(JSON.parse(text));
+        } catch {
+          res.status(200).json({ Status: 'Error', Message: text.slice(0, 300) });
+        }
+        return;
+      }
+
+      if (action === 'checkBitTransaction') {
+        const txId = encodeURIComponent(String(payload.transactionId || ''));
+        const url = `https://www.matara.pro/nedarimplus/v6/Files/WebServices/DebitBit.aspx?Action=CheckTransaction&MosadId=${encodeURIComponent(mosadid)}&TransactionId=${txId}`;
+        const upstream = await fetch(url);
+        const json = await upstream.json();
+        res.status(200).json(json);
+        return;
+      }
+
+      if (action === 'getKupot' || action === 'testConnection') {
+        const body = new URLSearchParams();
+        body.append('Action', 'GetStoresList');
+        body.append('MosadId', mosadid);
+        body.append('ApiPassword', apipassword || apivalid);
+
+        const upstream = await fetch('https://www.matara.pro/nedarimplus/Mechubad/Reports/ManageReports.aspx', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8' },
+          body: body.toString(),
+        });
+        const text = await upstream.text();
+        try {
+          const data = JSON.parse(text);
+          if (data.Result === 'Error') {
+            res.status(200).json({ success: false, error: data.Message || 'Error fetching Kupot' });
+            return;
+          }
+          const stores = Array.isArray(data)
+            ? data.filter((s: any) => s.Enabled === 'True' || s.Enabled === true)
+            : Array.isArray(data.Stores)
+              ? data.Stores
+              : data;
+          res.status(200).json({ success: true, data: stores });
+        } catch {
+          res.status(200).json({ success: false, error: text.slice(0, 300) });
+        }
+        return;
+      }
+
+      if (action === 'createManualInvoice') {
+        if (!apipassword) {
+          res.status(200).json({ success: false, error: 'לא הוגדרה סיסמת API לדוחות בהגדרות נדרים פלוס.' });
+          return;
+        }
+
+        const methodTypeMap: Record<string, string> = {
+          Cash: '1',
+          Check: '2',
+          BankTransfer: '3',
+          Credit: '4',
+        };
+        const payTypeCode = methodTypeMap[payload.paymentType] || '1';
+        let dateStr = String(payload.date || '');
+        if (dateStr.includes('-')) {
+          const parts = dateStr.split('-');
+          if (parts.length === 3) dateStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        let asmahta = '';
+        let asmahta2 = '';
+        if (payload.paymentType === 'Cash') {
+          asmahta = '6';
+        } else if (payload.paymentType === 'Check') {
+          if (payload.checkNumber) asmahta = String(payload.checkNumber);
+          if (payload.bankName && payload.branchNumber && payload.accountNumber) {
+            asmahta2 = `${payload.bankName}-${payload.branchNumber}-${payload.accountNumber}`;
+          }
+        } else if (payload.paymentType === 'BankTransfer') {
+          if (payload.transferRef) asmahta = String(payload.transferRef);
+          if (payload.bankName && payload.branchNumber && payload.accountNumber) {
+            asmahta2 = `${payload.bankName}-${payload.branchNumber}-${payload.accountNumber}`;
+          }
+        } else if (payload.paymentType === 'Credit') {
+          if (payload.cardType) asmahta = String(payload.cardType);
+          if (payload.last4Digits) asmahta2 = String(payload.last4Digits);
+        }
+
+        const saveBody = new URLSearchParams();
+        saveBody.append('Action', 'SaveAchnasot');
+        saveBody.append('MosadNumber', mosadid);
+        saveBody.append('ApiPassword', apipassword);
+        saveBody.append('Type', payTypeCode);
+        saveBody.append('TypeName', payTypeCode);
+        saveBody.append('Zeout', String(payload.zeout || '000000000'));
+        saveBody.append('Amount', String(payload.amount || 0));
+        saveBody.append('Date', dateStr || '01/01/2026');
+        saveBody.append('Currency', '1');
+        saveBody.append('Asmahta', asmahta);
+        saveBody.append('Asmahta2', asmahta2);
+
+        let saveBodyString = saveBody.toString();
+        saveBodyString += '&SpecialName=' + encodeToWindows1255Url(String(payload.clientName || ''));
+        if (payload.details) {
+          saveBodyString += '&Avour=' + encodeToWindows1255Url(String(payload.details));
+        }
+
+        const saveRes = await fetch('https://matara.pro/nedarimplus/Reports/Manage3.aspx', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: saveBodyString,
+        });
+        const saveText = await saveRes.text();
+        let saveData: any;
+        try {
+          saveData = JSON.parse(saveText);
+        } catch {
+          res.status(200).json({ success: false, error: 'שגיאה בשמירת התנועה בנדרים פלוס (תשובה לא תקינה).' });
+          return;
+        }
+        if (saveData.Result === 'Error' || saveData.Status === 'Error' || !saveData.ID) {
+          res.status(200).json({ success: false, error: saveData.Message || 'שגיאה בשמירת התנועה.' });
+          return;
+        }
+
+        const invoiceBody = new URLSearchParams();
+        invoiceBody.append('Action', 'CreateInvoice');
+        invoiceBody.append('MosadNumber', mosadid);
+        invoiceBody.append('ApiPassword', apipassword);
+        invoiceBody.append('ID', String(saveData.ID));
+        invoiceBody.append('Type', 'Achnasot');
+        invoiceBody.append('TamalType', String(payload.receiptType || '405'));
+
+        await new Promise((r) => setTimeout(r, 1500));
+
+        let invData: any = {};
+        let retries = 3;
+        while (retries > 0) {
+          const invRes = await fetch('https://matara.pro/nedarimplus/Reports/Tamal3.aspx', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: invoiceBody.toString(),
+          });
+          const invText = await invRes.text();
+          try {
+            invData = JSON.parse(invText);
+          } catch {
+            res.status(200).json({ success: false, error: 'שגיאה בהפקת הקבלה (תשובה לא תקינה).' });
+            return;
+          }
+          if (invData.Result === 'Error' || invData.Status === 'Error') {
+            if (invData.Message === 'שגיאה באיתור הכנסה. פנה לתמיכה.' && retries > 1) {
+              retries--;
+              await new Promise((r) => setTimeout(r, 1500));
+              continue;
+            }
+            res.status(200).json({ success: false, error: invData.Message || 'שגיאה בהפקת הקבלה.' });
+            return;
+          }
+          break;
+        }
+
+        res.status(200).json({
+          success: true,
+          message: invData.Message || 'הקבלה הופקה בהצלחה.',
+          achnasotId: saveData.ID,
+        });
+        return;
+      }
+
+      res.status(400).json({ success: false, error: `Unknown Nedarim action: ${action}` });
+    } catch (err: any) {
+      console.error('[nedarimProxy] Error:', err);
+      res.status(200).json({ success: false, error: err?.message || 'Nedarim proxy error' });
+    }
+  });
+});
+
 /**
  * Master-Centralized Kesher Billing Endpoint (/api/master-billing)
  * Routes KOSUN SaaS subscription charges & Master-billed Hub tenants (e.g. kesem with useMasterKesherBilling=true)

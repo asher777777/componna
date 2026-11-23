@@ -5,8 +5,10 @@ import { clsx } from 'clsx';
 import { KesherCheckoutModal } from '../../components/KesherCheckoutModal';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { eventBus } from '../../../../core/bridge/EventBus';
+import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 
 export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ config }) => {
+  const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
   const {
     anchorId,
     title = 'תוכניות ומחירים שקופים ומותאמים',
@@ -42,7 +44,7 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
   return (
     <section
       id={anchorId || 'pricing'}
-      className="w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
+      className={clsx('w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden', styleTokens.sectionWrapperClass)}
       style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
       dir="rtl"
     >
@@ -108,10 +110,10 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
               <div
                 key={pkg.id}
                 className={clsx(
-                  'relative flex flex-col justify-between rounded-3xl p-8 transition-all duration-300',
+                  'relative flex flex-col justify-between p-8 transition-all duration-300',
                   pkg.isFeatured
-                    ? 'bg-gradient-to-b from-indigo-50/80 via-white to-indigo-50/50 dark:from-indigo-950/40 dark:via-slate-900/90 dark:to-slate-900/90 border-2 border-indigo-500/80 shadow-2xl shadow-indigo-500/10 scale-105 z-10'
-                    : 'bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                    ? clsx(styleTokens.featuredCardClass, 'scale-105 z-10')
+                    : styleTokens.cardClass
                 )}
               >
                 {pkg.isFeatured && pkg.badge && (
@@ -162,10 +164,10 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
                     type="button"
                     onClick={() => handleSelectPackage(pkg)}
                     className={clsx(
-                      'w-full py-3.5 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg',
+                      'w-full py-3.5 text-xs transition-all flex items-center justify-center gap-2 cursor-pointer',
                       pkg.isFeatured
-                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white shadow-indigo-600/30 hover:scale-[1.02]'
-                        : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white'
+                        ? clsx(styleTokens.buttonClass, 'hover:scale-[1.02]')
+                        : styleTokens.secondaryButtonClass
                     )}
                   >
                     <span>{pkg.buttonText || 'בחר מסלול זה'}</span>

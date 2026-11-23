@@ -8,6 +8,7 @@ import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { PageBuilderAccordion } from '../../ui/PageBuilderAccordion';
+import { SectionStylePresetSelector } from '../../ui/SectionStylePresetSelector';
 import {
   PlayCircle,
   Video,
@@ -67,6 +68,10 @@ export const FlowPlayerEditor: React.FC<{
 
   return (
     <div className="flex flex-col gap-5 text-right" dir="rtl">
+      <SectionStylePresetSelector
+        value={(config as any).stylePreset}
+        onChange={(preset) => onChange({ ...config, stylePreset: preset } as any)}
+      />
       {/* 1. Project Selection */}
       <PageBuilderAccordion
         title="פרויקט זרימה אינטראקטיבי להצגה"

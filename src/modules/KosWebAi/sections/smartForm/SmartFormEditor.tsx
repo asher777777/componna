@@ -5,6 +5,7 @@ import { FormBuilderContract, FormItemSummary } from '../../../../core/contracts
 import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderAccordion } from '../../ui/PageBuilderAccordion';
+import { SectionStylePresetSelector } from '../../ui/SectionStylePresetSelector';
 import { FileText, Sparkles, RefreshCw, Layers } from 'lucide-react';
 
 export const SmartFormEditor: React.FC<{
@@ -39,6 +40,20 @@ export const SmartFormEditor: React.FC<{
 
   return (
     <div className="flex flex-col gap-4 text-right" dir="rtl">
+      <SectionStylePresetSelector
+        value={(config as any).stylePreset}
+        onChange={(preset) => onChange({ ...config, stylePreset: preset } as any)}
+      />
+      {Array.isArray(config.crmFields) && config.crmFields.length > 0 && (
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs flex flex-wrap items-center gap-1.5">
+          <span className="font-bold text-emerald-700 dark:text-emerald-300 ml-1">שדות מחוברים ל-CRM:</span>
+          {config.crmFields.map((f) => (
+            <span key={f.crmFieldKey} className="px-2 py-0.5 rounded-md bg-white/80 dark:bg-slate-900 text-[10px] font-mono text-slate-700 dark:text-slate-300 border border-emerald-500/20">
+              {f.labelHe} ({f.crmFieldKey})
+            </span>
+          ))}
+        </div>
+      )}
       <PageBuilderAccordion title="טקסטים וכותרות" defaultOpen>
         <div className="flex flex-col gap-3">
           <PageBuilderInput

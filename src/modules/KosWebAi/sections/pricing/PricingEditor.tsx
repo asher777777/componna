@@ -1,6 +1,7 @@
 import React from 'react';
 import { PricingSectionConfig, PricingPackageItem } from '../../types/sectionConfigs';
 import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
+import { SectionStylePresetSelector } from '../../ui/SectionStylePresetSelector';
 import { Plus, Trash2 } from 'lucide-react';
 
 export const PricingEditor: React.FC<{
@@ -38,6 +39,10 @@ export const PricingEditor: React.FC<{
 
   return (
     <div className="flex flex-col gap-6 text-right" dir="rtl">
+      <SectionStylePresetSelector
+        value={(config as any).stylePreset || (config as any).layout}
+        onChange={(preset) => onChange({ ...config, stylePreset: preset } as any)}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <PageBuilderInput
           label="כותרת מחירון"

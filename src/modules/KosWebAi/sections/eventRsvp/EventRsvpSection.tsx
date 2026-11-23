@@ -23,12 +23,15 @@ import {
   PartyPopper,
 } from 'lucide-react';
 import { doc, getDoc, setDoc, updateDoc, increment, onSnapshot } from 'firebase/firestore';
+import { clsx } from 'clsx';
+import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 
 interface EventRsvpSectionProps {
   config: EventRsvpSectionConfig;
 }
 
 export const EventRsvpSection: React.FC<EventRsvpSectionProps> = ({ config }) => {
+  const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const { getCapability } = useHostCapabilities();
@@ -242,7 +245,10 @@ export const EventRsvpSection: React.FC<EventRsvpSectionProps> = ({ config }) =>
   return (
     <section
       id={anchorId || 'event-rsvp'}
-      className="relative w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white selection:bg-indigo-500 selection:text-white transition-colors duration-300"
+      className={clsx(
+        'relative w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white selection:bg-indigo-500 selection:text-white transition-colors duration-300',
+        styleTokens.sectionWrapperClass
+      )}
       dir="rtl"
     >
       {/* Background Decorative Ambient Lighting */}

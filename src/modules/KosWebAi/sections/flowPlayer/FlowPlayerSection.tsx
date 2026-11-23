@@ -2,8 +2,11 @@ import React from 'react';
 import { FlowPlayerSectionConfig } from '../../types/sectionConfigs';
 import { CapabilitySlot } from '../../../../core/bridge/CapabilitySlot';
 import { Loader2, Play } from 'lucide-react';
+import { clsx } from 'clsx';
+import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 
 export const FlowPlayerSection: React.FC<{ config: FlowPlayerSectionConfig }> = ({ config }) => {
+  const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
   const targetCampaignId = config.campaignId || config.campaignSlug || 'demo-living-page';
 
   const widthClasses = {
@@ -18,9 +21,11 @@ export const FlowPlayerSection: React.FC<{ config: FlowPlayerSectionConfig }> = 
   return (
     <section
       id={`section-${config.id || 'flow-player'}`}
-      className={`relative py-8 sm:py-14 px-2 sm:px-4 overflow-hidden transition-all ${
+      className={clsx(
+        'relative py-8 sm:py-14 px-2 sm:px-4 overflow-hidden transition-all',
+        styleTokens.sectionWrapperClass,
         config.mobileHidden ? 'hidden md:block' : ''
-      }`}
+      )}
       style={{ backgroundColor: config.backgroundColor || 'transparent' }}
       dir="rtl"
     >

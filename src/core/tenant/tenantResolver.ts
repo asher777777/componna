@@ -57,6 +57,10 @@ export const MODULE_ALIAS_MAP: Record<string, string> = {
   'kesher-payments-hub': 'KosPay',
   'kesher-payments': 'KosPay',
 
+  // KosNedarim
+  'kosnedarim': 'KosNedarim',
+  'nedarim': 'KosNedarim',
+
   // KosWhatsUp
   'koswhatsup': 'KosWhatsUp',
   'whatsapp-green-api-hub': 'KosWhatsUp',

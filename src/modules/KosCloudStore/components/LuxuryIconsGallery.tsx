@@ -36,6 +36,8 @@ import {
 import { clsx } from 'clsx';
 import { useOptionalMediaGallery } from '../context/MediaGalleryContext';
 import { TenantStylePreset } from '../../../core/contracts';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { syncBrandIconsToPublicFirebase } from '../../../core/ui/publicBrandIconsService';
 
 export type IconStyleArchetype =
   | 'all'
@@ -252,6 +254,7 @@ export interface LuxuryIconsGalleryProps {
   onSelectIconSvg?: (svgDataUrl: string, iconName: string) => void;
   onSelectIcon?: (svgDataUrl: string, iconName: string) => void;
   selectedIconName?: string;
+  defaultArchetype?: TenantStylePreset;
   className?: string;
 }
 
@@ -319,14 +322,25 @@ export const LuxuryIconsGallery: React.FC<LuxuryIconsGalleryProps> = ({
   onSelectIconSvg,
   onSelectIcon,
   selectedIconName,
+  defaultArchetype,
   className,
 }) => {
   const gallery = useOptionalMediaGallery();
+  const { firebaseApp, db } = useSystemConnection();
   const [search, setSearch] = useState('');
-  const [selectedArchetype, setSelectedArchetype] = useState<IconStyleArchetype>('all');
-  const [activeFinishPreset, setActiveFinishPreset] = useState<TenantStylePreset>('standard');
+  const [selectedArchetype, setSelectedArchetype] = useState<IconStyleArchetype>(defaultArchetype || 'all');
+  const [activeFinishPreset, setActiveFinishPreset] = useState<TenantStylePreset>(defaultArchetype || 'standard');
   const [savingIconName, setSavingIconName] = useState<string | null>(null);
   const [successSavedName, setSuccessSavedName] = useState<string | null>(null);
+  const [isSyncingPublic, setIsSyncingPublic] = useState(false);
+  const [syncProgressText, setSyncProgressText] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (defaultArchetype) {
+      setSelectedArchetype(defaultArchetype);
+      setActiveFinishPreset(defaultArchetype);
+    }
+  }, [defaultArchetype]);
 
   // Active finish style
   const currentArchetypeStyle = ARCHETYPE_CONFIG[activeFinishPreset];
@@ -476,8 +490,8 @@ export const LuxuryIconsGallery: React.FC<LuxuryIconsGalleryProps> = ({
         </div>
       </div>
 
-      {/* 2. 6 Archetype Category Filter Pills */}
-      <div className="flex flex-col sm:flex-row items-center gap-2.5">
+      {/* 2. 6 Archetype Category Filter Pills + Public Firebase Sync */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
         <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto no-scrollbar py-0.5">
           <button
             type="button"
@@ -520,6 +534,47 @@ export const LuxuryIconsGallery: React.FC<LuxuryIconsGalleryProps> = ({
             );
           })}
         </div>
+
+        {firebaseApp && db && (
+          <button
+            type="button"
+            disabled={isSyncingPublic}
+            onClick={async () => {
+              setIsSyncingPublic(true);
+              setSyncProgressText('מסנכרן לתיקייה פומבית...');
+              try {
+                const res = await syncBrandIconsToPublicFirebase(
+                  firebaseApp,
+                  db,
+                  LUXURY_ICONS_LIST,
+                  generateIconSvgDataUrl,
+                  (done, total) => setSyncProgressText(`מסנכרן (${done}/${total})...`)
+                );
+                if (res.syncedCount === 0 && res.failedCount > 0) {
+                  setSyncProgressText(`שגיאת סנכרון (${res.failedCount} נכשלו): ${res.lastError || 'בדוק הרשאות Master Admin'}`);
+                  setTimeout(() => setSyncProgressText(null), 6000);
+                } else {
+                  setSyncProgressText(`סונכרנו ${res.syncedCount} איקונים ל-Firebase!`);
+                  setTimeout(() => setSyncProgressText(null), 4000);
+                }
+              } catch (err) {
+                console.warn('[LuxuryIconsGallery] Public sync error:', err);
+                setSyncProgressText(null);
+              } finally {
+                setIsSyncingPublic(false);
+              }
+            }}
+            className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold shrink-0 flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
+            title="מעלה את כל האיקונים לתיקייה פומבית public_brand_icons ב-Firebase Storage ו-Firestore"
+          >
+            {isSyncingPublic ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FolderPlus className="w-3.5 h-3.5" />
+            )}
+            <span>{syncProgressText || 'סנכרן לתיקייה פומבית ב-Firebase'}</span>
+          </button>
+        )}
 
         {/* Search Input */}
         <div className="relative flex items-center w-full sm:w-56 sm:mr-auto">

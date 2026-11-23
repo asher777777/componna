@@ -3,6 +3,8 @@ import { BaseSectionConfig } from '../../types/pageBuilder.types';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { eventBus } from '../../../../core/bridge/EventBus';
 import { Check, CreditCard, Send } from 'lucide-react';
+import { clsx } from 'clsx';
+import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 import { KesherCheckoutModal } from '../../components/KesherCheckoutModal';
 
 export interface SmartFormCrmField {
@@ -31,6 +33,7 @@ export interface SmartFormSectionConfig extends BaseSectionConfig {
 export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({ config }) => {
   const { getCapability } = useHostCapabilities();
   const formBuilder = getCapability<any>('form-builder');
+  const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -159,7 +162,7 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
         ) : (
           <form
             onSubmit={handleSubmit}
-            className="p-6 sm:p-8 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-4 backdrop-blur-sm shadow-xl"
+            className={clsx('p-6 sm:p-8 space-y-4 backdrop-blur-sm', styleTokens.cardClass)}
           >
             {hasDynamicCrmFields && config.crmFields ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -285,7 +288,10 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-sm shadow-xl shadow-indigo-600/30 hover:opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className={clsx(
+                'w-full py-3.5 text-sm transition-all flex items-center justify-center gap-2 cursor-pointer',
+                styleTokens.buttonClass
+              )}
             >
               {isPaymentMode ? <CreditCard className="w-4 h-4" /> : <Send className="w-4 h-4" />}
               <span>

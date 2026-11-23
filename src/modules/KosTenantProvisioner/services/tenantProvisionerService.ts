@@ -88,6 +88,16 @@ export const AVAILABLE_MODULES_CATALOG: AvailableModuleOption[] = [
     defaultIncluded: false,
   },
   {
+    id: 'KosNedarim',
+    name: 'סליקה וקבלות נדרים פלוס (קושנדרים)',
+    englishPrefix: 'Kos',
+    englishRest: 'Nedarim',
+    description: 'סליקת אשראי, הוראות קבע, ביט והפקת קבלות תמ״ל מול נדרים פלוס',
+    category: 'sales',
+    badgeColor: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
+    defaultIncluded: false,
+  },
+  {
     id: 'KosTogether',
     name: 'קהילות וקבוצות חכמות',
     englishPrefix: 'Kos',

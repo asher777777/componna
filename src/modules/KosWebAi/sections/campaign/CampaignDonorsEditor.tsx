@@ -3,6 +3,7 @@ import { CampaignDonorsSectionConfig } from '../../types/sectionConfigs';
 import { PageBuilderInput } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderAccordion } from '../../ui/PageBuilderAccordion';
+import { SectionStylePresetSelector } from '../../ui/SectionStylePresetSelector';
 import { Users, Sliders } from 'lucide-react';
 
 interface CampaignDonorsEditorProps {
@@ -17,6 +18,10 @@ export const CampaignDonorsEditor: React.FC<CampaignDonorsEditorProps> = ({ conf
 
   return (
     <div className="flex flex-col gap-4 text-right" dir="rtl">
+      <SectionStylePresetSelector
+        value={(config as any).stylePreset}
+        onChange={(preset) => onChange({ ...config, stylePreset: preset } as any)}
+      />
       <PageBuilderAccordion title="הגדרות כרטיסיות תורמים" icon={<Users className="w-4 h-4 text-indigo-400" />} defaultOpen={true}>
         <PageBuilderInput
           label="כותרת האזור"

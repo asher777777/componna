@@ -1,6 +1,7 @@
 import React from 'react';
 import { GeoLocalSectionConfig } from '../../types/sectionConfigs';
 import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
+import { SectionStylePresetSelector } from '../../ui/SectionStylePresetSelector';
 
 export const GeoLocalEditor: React.FC<{
   config: GeoLocalSectionConfig;
@@ -8,6 +9,10 @@ export const GeoLocalEditor: React.FC<{
 }> = ({ config, onChange }) => {
   return (
     <div className="flex flex-col gap-6 text-right" dir="rtl">
+      <SectionStylePresetSelector
+        value={(config as any).stylePreset}
+        onChange={(preset) => onChange({ ...config, stylePreset: preset } as any)}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <PageBuilderInput
           label="כותרת אזור הסניף המקומי"

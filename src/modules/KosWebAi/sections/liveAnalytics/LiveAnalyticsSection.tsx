@@ -8,6 +8,8 @@ import {
   extractGscVerificationToken,
 } from '../../services/pageAnalyticsService';
 import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
+import { clsx } from 'clsx';
+import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 import {
   Activity,
   Eye,
@@ -34,6 +36,7 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
   config,
   isEditing = false,
 }) => {
+  const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const [telemetry, setTelemetry] = useState<PageAnalyticsTelemetry | null>(null);
@@ -204,7 +207,10 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
 
   return (
     <section
-      className="w-full py-12 px-4 relative overflow-hidden bg-slate-50 dark:bg-[#0c0d12] text-slate-900 dark:text-white transition-colors duration-300"
+      className={clsx(
+        'w-full py-12 px-4 relative overflow-hidden bg-slate-50 dark:bg-[#0c0d12] text-slate-900 dark:text-white transition-colors duration-300',
+        styleTokens.sectionWrapperClass
+      )}
       dir="rtl"
     >
       {/* Background ambient lighting */}

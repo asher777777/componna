@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { CampaignTiersSectionConfig } from '../../types/sectionConfigs';
 import { Heart, Sparkles, Check } from 'lucide-react';
 import { clsx } from 'clsx';
+import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 
 export const CampaignTiersSection: React.FC<{
   config: CampaignTiersSectionConfig;
   onSelectAmount?: (amount: number, type: 'one_time' | 'recurring') => void;
 }> = ({ config, onSelectAmount }) => {
+  const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
   const {
     anchorId,
     title = 'בחרו סכום לתרומה',
@@ -22,6 +24,9 @@ export const CampaignTiersSection: React.FC<{
 
   const [activeType, setActiveType] = useState<'one_time' | 'recurring'>('one_time');
   const [customAmount, setCustomAmount] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+
+  const hasTierImages = tiers.some((t: any) => Boolean(t?.imageSrc));
 
   const handleDonate = (amount: number) => {
     if (onSelectAmount) {
@@ -31,10 +36,133 @@ export const CampaignTiersSection: React.FC<{
     }
   };
 
+  if (hasTierImages) {
+    return (
+      <section
+        id={anchorId || 'campaign-tiers'}
+        className="w-full py-10 px-4 md:px-8 flex flex-col items-center justify-center border-b border-slate-100"
+        style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : '#ffffff' }}
+        dir="rtl"
+      >
+        <div className="max-w-4xl w-full flex flex-col items-center gap-6">
+          {title && (
+            <h2 className="text-2xl md:text-3xl font-black text-center text-slate-800">
+              {title}
+            </h2>
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 w-full">
+            {tiers.map((tier: any) => {
+              const displayAmount = Number(tier.amount ?? tier.monthlyAmount ?? 0);
+              return (
+                <button
+                  key={tier.id}
+                  type="button"
+                  onClick={() => handleDonate(displayAmount)}
+                  className="group relative aspect-square rounded-2xl border border-slate-200 bg-white hover:border-emerald-600 hover:shadow-xl transition-all p-3 flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden"
+                >
+                  {tier.imageSrc ? (
+                    <img
+                      src={tier.imageSrc}
+                      alt={tier.title}
+                      className="w-24 h-24 sm:w-28 sm:h-28 object-contain group-hover:scale-105 transition-transform"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-600 flex items-center justify-center text-emerald-800 font-black text-xl">
+                      ₪{displayAmount.toLocaleString()}
+                    </div>
+                  )}
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-800 line-clamp-1">
+                    {tier.title}
+                  </span>
+                  <span className="text-xs font-bold text-emerald-700">
+                    ₪{displayAmount.toLocaleString()} {tier.monthlyAmount ? '× 12' : ''}
+                  </span>
+                </button>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={() => setShowCustomInput((v) => !v)}
+              className="group aspect-square rounded-2xl border border-sky-200 bg-sky-100 hover:bg-sky-200/80 hover:border-sky-400 transition-all p-3 flex flex-col items-center justify-center gap-2 cursor-pointer"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-white/80 text-sky-700 flex items-center justify-center shadow-sm">
+                <Heart className="w-8 h-8" />
+              </div>
+              <span className="text-sm font-black text-sky-900">סכום אחר</span>
+              <span className="text-[11px] font-semibold text-sky-700">בחר סכום חופשי</span>
+            </button>
+          </div>
+
+          {showCustomInput && (
+            <div className="w-full max-w-md bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+              <input
+                type="number"
+                placeholder="הזן סכום לתרומה (₪)..."
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                className="flex-1 bg-white border border-slate-200 text-slate-900 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-600"
+              />
+              <button
+                type="button"
+                disabled={!customAmount || parseInt(customAmount) <= 0}
+                onClick={() => handleDonate(parseInt(customAmount))}
+                className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-bold text-sm cursor-pointer transition-all shrink-0"
+              >
+                תרום
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Floating Bottom Campaign Buttons (no full-width strip) */}
+        <div className="fixed bottom-4 inset-x-0 z-30 pointer-events-none px-4">
+          <div className="max-w-3xl mx-auto flex items-center justify-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.share) {
+                  navigator.share({ title: document.title, url: window.location.href }).catch(() => {});
+                } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                  navigator.clipboard.writeText(window.location.href);
+                }
+              }}
+              className="pointer-events-auto px-4 py-2.5 rounded-full bg-white/95 hover:bg-slate-100 text-slate-800 border border-slate-200 shadow-lg font-bold text-xs sm:text-sm cursor-pointer transition-colors"
+            >
+              שתף
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById(anchorId || 'campaign-tiers');
+                el?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="pointer-events-auto px-4 py-2.5 rounded-full bg-[#0B132B] hover:bg-slate-900 text-[#00D2D2] shadow-lg font-bold text-xs sm:text-sm cursor-pointer transition-colors"
+            >
+              תרומה ב-bit
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById(anchorId || 'campaign-tiers');
+                el?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="pointer-events-auto px-6 py-2.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-xl cursor-pointer transition-colors"
+            >
+              <Heart className="w-4 h-4 fill-white" />
+              <span>תרום</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section
       id={anchorId || 'campaignTiers'}
-      className="w-full py-12 px-4 sm:px-6 lg:px-8"
+      className={clsx('w-full py-12 px-4 sm:px-6 lg:px-8', styleTokens.sectionWrapperClass)}
       style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
       dir="rtl"
     >

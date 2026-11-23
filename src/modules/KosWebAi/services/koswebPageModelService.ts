@@ -1,6 +1,8 @@
 import { PageBuilderConfig, PageCategory } from '../types/pageBuilder.types';
+import { Firestore } from 'firebase/firestore';
 import { BrandDna, KOSUN_CRM_FIELD_KEYS, TenantStylePreset } from '../../../core/contracts';
 import { getKoscloudBrandingIconsForStyle } from '../../../core/ui/BrandIconPicker';
+import { fetchPublicBrandIcons } from '../../../core/ui/publicBrandIconsService';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import { resolveLiveBrandDna, hydrateSectionWithBrandDna } from './brandSectionHydrator';
 import { applyStylePresetToPage } from './pageStylePresetService';
@@ -68,7 +70,8 @@ function resolveKoscloudIconName(
 export async function generatePageWithKoswebModel(
   input: KoswebPageModelInput,
   brandDna?: BrandDna | null,
-  tenantId?: string
+  tenantId?: string,
+  db?: Firestore | null
 ): Promise<KoswebPageModelResult> {
   const liveDna = resolveLiveBrandDna(brandDna, tenantId);
   const companyName = liveDna?.identity?.companyName || 'קושאן';
@@ -78,7 +81,9 @@ export async function generatePageWithKoswebModel(
     ? `רשמיות ${liveDna.voice.personality.formality}/100, חמימות ${liveDna.voice.personality.warmth}/100, יוקרתיות ${liveDna.voice.personality.luxury}/100, אנרגיה ${liveDna.voice.personality.energy}/100`
     : 'מקצועי, ברור ומניע לפעולה';
 
-  const brandingIcons = getKoscloudBrandingIconsForStyle(stylePreset);
+  const publicIcons = await fetchPublicBrandIcons(db, stylePreset);
+  const brandingIcons =
+    publicIcons.length > 0 ? publicIcons : getKoscloudBrandingIconsForStyle(stylePreset);
   const apiKey = resolveApiKey() || undefined;
 
   let aiData: any = null;

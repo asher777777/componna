@@ -4,8 +4,11 @@ import { MapPin, Phone, Mail, Clock, MessageCircle, Navigation, Sparkles } from 
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../../core/contracts';
 import { resolveLiveBrandDna } from '../../generators/pageGenerator';
+import { clsx } from 'clsx';
+import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 
 export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ config }) => {
+  const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
   const { getCapability } = useHostCapabilities();
   const rawBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
   const brandDna = resolveLiveBrandDna(rawBrandDna);
@@ -46,7 +49,7 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
   return (
     <section
       id={anchorId || 'location'}
-      className="w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 relative"
+      className={clsx('w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 relative', styleTokens.sectionWrapperClass)}
       style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
       dir="rtl"
     >
@@ -65,7 +68,7 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
           {/* Info Card Column */}
-          <div className="lg:col-span-5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between backdrop-blur-xl shadow-2xl text-right">
+          <div className={clsx('lg:col-span-5 p-6 sm:p-8 flex flex-col justify-between backdrop-blur-xl text-right', styleTokens.cardClass)}>
             <div className="flex flex-col gap-6">
               <div>
                 <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 block mb-1">סניף מרכזי</span>

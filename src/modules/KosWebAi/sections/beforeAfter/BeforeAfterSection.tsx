@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { BeforeAfterSectionConfig } from '../../types/sectionConfigs';
 import { Sparkles, SlidersHorizontal } from 'lucide-react';
+import { clsx } from 'clsx';
+import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 
 export const BeforeAfterSection: React.FC<{ config: BeforeAfterSectionConfig }> = ({ config }) => {
+  const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
   const {
     anchorId,
     title = 'השפעה ושינוי: לפני ואחרי',
@@ -21,7 +24,7 @@ export const BeforeAfterSection: React.FC<{ config: BeforeAfterSectionConfig }> 
   return (
     <section
       id={anchorId || 'beforeAfter'}
-      className="w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 relative"
+      className={clsx('w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 relative', styleTokens.sectionWrapperClass)}
       style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
       dir="rtl"
     >
@@ -43,7 +46,7 @@ export const BeforeAfterSection: React.FC<{ config: BeforeAfterSectionConfig }> 
         </div>
 
         {/* Interactive Slider Box */}
-        <div className="relative w-full max-w-4xl aspect-[16/10] sm:aspect-[16/9] rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl select-none group">
+        <div className={clsx('relative w-full max-w-4xl aspect-[16/10] sm:aspect-[16/9] overflow-hidden select-none group', styleTokens.cardClass)}>
           {/* After Image (Full background) */}
           <img
             src={afterImage}

@@ -109,6 +109,7 @@ export const WorkbenchApp: React.FC = () => {
     }
     return false;
   });
+  const [isRoleResolving, setIsRoleResolving] = useState<boolean>(() => !isLocalEnv);
 
   // Day / Night Theme (Light Mode is Default)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -156,19 +157,52 @@ export const WorkbenchApp: React.FC = () => {
   useEffect(() => {
     if (isLocalEnv) {
       setIsAdmin(true);
+      setIsRoleResolving(false);
       return;
     }
     if (!firebaseApp) return;
+    let cancelled = false;
     const unsub = subscribeToAuth(firebaseApp, async (state) => {
-      setAuthState(state);
+      if (cancelled) return;
+      if (state.loading) {
+        setIsRoleResolving(true);
+        setAuthState(state);
+        return;
+      }
       if (state.user && state.email) {
-        const role = await fetchUserRole(state.uid!, firebaseApp);
-        setIsAdmin(role === 'admin' || getCachedUserRole(state.uid!) === 'admin' || isPlatformAdminEmail(state.email));
+        const syncAdmin =
+          state.role === 'admin' ||
+          getCachedUserRole(state.uid!) === 'admin' ||
+          isPlatformAdminEmail(state.email);
+        if (syncAdmin) {
+          setIsAdmin(true);
+          setAuthState(state);
+          setIsRoleResolving(false);
+          return;
+        }
+        // Hold backoffice redirect guard until Firestore user role is resolved
+        setIsRoleResolving(true);
+        setAuthState(state);
+        try {
+          const role = await fetchUserRole(state.uid!, firebaseApp);
+          if (!cancelled) {
+            setIsAdmin(role === 'admin' || getCachedUserRole(state.uid!) === 'admin' || isPlatformAdminEmail(state.email));
+          }
+        } finally {
+          if (!cancelled) {
+            setIsRoleResolving(false);
+          }
+        }
       } else {
         setIsAdmin(false);
+        setAuthState(state);
+        setIsRoleResolving(false);
       }
     });
-    return () => unsub();
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [firebaseApp, isLocalEnv]);
 
   const isKnownModuleOrSystemRoute =
@@ -522,7 +556,7 @@ export const WorkbenchApp: React.FC = () => {
   // Master Control Panel Guard: Strictly verify Master Admin for backoffice routes
   const isBackofficeRoute = !isStandalone && !isHomePage && !isPublicPage;
 
-  if (isBackofficeRoute && authState.loading && !isLocalEnv) {
+  if (isBackofficeRoute && (authState.loading || isRoleResolving) && !isLocalEnv) {
     return (
       <div className="min-h-screen bg-[#0a0a0c] flex flex-col items-center justify-center p-4 text-center font-sans text-white" dir="rtl">
         <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 animate-spin mb-4">

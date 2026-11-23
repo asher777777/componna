@@ -18,8 +18,11 @@ import {
 } from 'lucide-react';
 import { subscribeToAuth, AuthState } from '../../../../services/firebaseAuth';
 import { CapabilitySlot } from '../../../../core/bridge/CapabilitySlot';
+import { clsx } from 'clsx';
+import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 
 export const CommunitySection: React.FC<{ config: CommunitySectionConfig }> = ({ config }) => {
+  const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
   const {
     anchorId,
     title = 'קהילת הארגון',
@@ -97,11 +100,11 @@ export const CommunitySection: React.FC<{ config: CommunitySectionConfig }> = ({
   return (
     <section
       id={anchorId || 'community'}
-      className="w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
+      className={clsx('w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden', styleTokens.sectionWrapperClass)}
       style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
       dir="rtl"
     >
-      <div className="max-w-6xl mx-auto bg-gradient-to-br from-slate-50 via-indigo-50/20 to-white dark:from-slate-900 dark:via-indigo-950/20 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+      <div className={clsx('max-w-6xl mx-auto p-6 sm:p-10 relative overflow-hidden', styleTokens.cardClass)}>
         
         {/* Header Bar: Status Badge & Gate Switcher Preview */}
         <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-slate-800">

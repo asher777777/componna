@@ -843,6 +843,9 @@ export function applyStylePresetToSection(sec: any, preset: string): any {
     return sec;
   }
 
+  // Always propagate canonical stylePreset to every content section
+  sec.stylePreset = preset;
+
   // Hero style and button shapes
   if (sType === 'hero') {
     sec.layout = preset;
@@ -985,6 +988,28 @@ export function applyStylePresetToSection(sec: any, preset: string): any {
       sec.effectType = 'float-bob';
       sec.iconName = 'shape_std_modern_dots';
     }
+    return sec;
+  }
+
+  // Pricing, SmartForm, BeforeAfter, GeoLocal, LogoMarquee, EventRsvp, Campaign, FlowPlayer, FutureContent, LiveAnalytics
+  if (
+    sType === 'pricing' ||
+    sType === 'smartForm' ||
+    sType === 'beforeAfter' ||
+    sType === 'geoLocal' ||
+    sType === 'logoMarquee' ||
+    sType === 'eventRsvp' ||
+    sType === 'campaignHeader' ||
+    sType === 'campaignTiers' ||
+    sType === 'campaignDonors' ||
+    sType === 'flowPlayer' ||
+    sType === 'futureContent2027' ||
+    sType === 'liveAnalytics'
+  ) {
+    sec.stylePreset = preset;
+    if (preset === 'feminine' || preset === 'spiritual') sec.buttonShape = 'pill';
+    else if (preset === 'sharp') sec.buttonShape = 'square';
+    else sec.buttonShape = 'rounded';
     return sec;
   }
 

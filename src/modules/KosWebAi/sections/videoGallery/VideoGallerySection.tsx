@@ -249,6 +249,20 @@ export const VideoGallerySection: React.FC<{ config: VideoGallerySectionConfig }
     return getEmbedUrl(raw, isAutoPlaying);
   }, [activeVideoId, videoUrl, isAutoPlaying]);
 
+  const bannerImages: { url: string; title?: string }[] = Array.isArray((config as any).images)
+    ? (config as any).images.filter((img: any) => img?.url)
+    : [];
+  const [bannerIndex, setBannerIndex] = useState(0);
+  const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (bannerImages.length <= 1) return;
+    const timer = setInterval(() => {
+      setBannerIndex((prev) => (prev + 1) % bannerImages.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [bannerImages.length]);
+
   // Sizing helpers
   const getHeadingScaleClass = (defaultClass: string) => {
     if (objectScale === 'compact') return 'text-2xl sm:text-3xl';
@@ -353,6 +367,84 @@ export const VideoGallerySection: React.FC<{ config: VideoGallerySectionConfig }
       </div>
     );
   };
+
+  // ============================================================================
+  // 0. פריסת באנר קמפיין רחב (Legacy 21:9 Rotating Banner + Play Modal)
+  // ============================================================================
+  if (bannerImages.length > 0) {
+    const currentBanner = bannerImages[bannerIndex % bannerImages.length];
+    return (
+      <>
+        <section
+          id={anchorId || 'videoGallery'}
+          className="relative w-full aspect-[21/9] min-h-[220px] max-h-[540px] overflow-hidden bg-slate-900 select-none"
+        >
+          <img
+            src={currentBanner.url}
+            alt={currentBanner.title || title || 'וידאו קמפיין'}
+            className="w-full h-full object-cover transition-opacity duration-700"
+          />
+          <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
+            {videoUrl && (
+              <button
+                type="button"
+                onClick={() => setIsBannerModalOpen(true)}
+                aria-label="הפעל סרטון"
+                className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-black/55 border-2 border-amber-400 text-amber-400 hover:scale-110 hover:bg-black/75 transition-all flex items-center justify-center shadow-2xl cursor-pointer"
+              >
+                <Play className="w-7 h-7 md:w-10 md:h-10 fill-amber-400 ml-1" />
+              </button>
+            )}
+          </div>
+          {bannerImages.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+              {bannerImages.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setBannerIndex(i)}
+                  className={clsx(
+                    'h-2 rounded-full transition-all cursor-pointer',
+                    i === bannerIndex % bannerImages.length ? 'w-6 bg-amber-400' : 'w-2 bg-white/60'
+                  )}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {isBannerModalOpen && videoUrl && (
+          <div
+            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setIsBannerModalOpen(false)}
+          >
+            <div
+              className="relative w-full max-w-4xl bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setIsBannerModalOpen(false)}
+                className="absolute top-3 left-3 z-10 w-9 h-9 rounded-full bg-black/70 text-white hover:bg-black flex items-center justify-center text-sm font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+              {videoUrl.includes('.mp4') ? (
+                <video src={videoUrl} controls autoPlay className="w-full max-h-[80vh] bg-black" />
+              ) : (
+                <iframe
+                  src={getEmbedUrl(videoUrl, true)}
+                  className="w-full aspect-video"
+                  allow="autoplay; fullscreen"
+                  allowFullScreen
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   // ============================================================================
   // א. פריסה בסגנון נשי (Feminine Style - Soft, Rose-Gold, Capsule Pills)

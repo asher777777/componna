@@ -2,6 +2,7 @@ import React from 'react';
 import { LogoMarqueeSectionConfig, LogoMarqueeItem } from '../../types/sectionConfigs';
 import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
+import { SectionStylePresetSelector } from '../../ui/SectionStylePresetSelector';
 import { Plus, Trash2 } from 'lucide-react';
 
 export const LogoMarqueeEditor: React.FC<{
@@ -33,6 +34,10 @@ export const LogoMarqueeEditor: React.FC<{
 
   return (
     <div className="flex flex-col gap-6 text-right" dir="rtl">
+      <SectionStylePresetSelector
+        value={(config as any).stylePreset}
+        onChange={(preset) => onChange({ ...config, stylePreset: preset } as any)}
+      />
       <PageBuilderInput
         label="כותרת שורת הלוגואים"
         value={config.title || ''}
