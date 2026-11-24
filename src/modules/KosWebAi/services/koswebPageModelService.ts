@@ -14,6 +14,15 @@ import {
 import { resolveApiKey } from '../api/functionsApi';
 
 export type KoswebModelFormRequirement = 'auto' | 'none' | 'registration' | 'payment';
+export type KoswebStyleColorMode = 'brand' | 'ai' | 'palette';
+
+export interface KoswebPaletteSelection {
+  id: string;
+  label: string;
+  stylePreset?: TenantStylePreset;
+  primaryColor: string;
+  secondaryColor: string;
+}
 
 export interface KoswebPageModelInput {
   title: string;
@@ -22,6 +31,8 @@ export interface KoswebPageModelInput {
   extractedDocumentText?: string;
   formRequirement: KoswebModelFormRequirement;
   paymentAmount?: number;
+  styleColorMode?: KoswebStyleColorMode;
+  selectedPalette?: KoswebPaletteSelection;
   uploadedHeroImageUrl?: string;
   generateHeroImageWithAi?: boolean;
   selectedBrandIcons?: string[];
@@ -75,7 +86,11 @@ export async function generatePageWithKoswebModel(
 ): Promise<KoswebPageModelResult> {
   const liveDna = resolveLiveBrandDna(brandDna, tenantId);
   const companyName = liveDna?.identity?.companyName || 'קושאן';
-  const stylePreset: TenantStylePreset = liveDna?.designTokens?.defaultStylePreset || 'standard';
+  const brandStylePreset: TenantStylePreset = liveDna?.designTokens?.defaultStylePreset || 'standard';
+  const stylePreset: TenantStylePreset =
+    input.styleColorMode === 'palette' && input.selectedPalette?.stylePreset
+      ? input.selectedPalette.stylePreset
+      : brandStylePreset;
   const primaryColor = liveDna?.designTokens?.primaryColor || '#6366f1';
   const voiceTone = liveDna?.voice?.personality
     ? `רשמיות ${liveDna.voice.personality.formality}/100, חמימות ${liveDna.voice.personality.warmth}/100, יוקרתיות ${liveDna.voice.personality.luxury}/100, אנרגיה ${liveDna.voice.personality.energy}/100`
@@ -102,6 +117,7 @@ export async function generatePageWithKoswebModel(
         voiceTone,
         stylePreset,
         primaryColor,
+        colorMode: input.styleColorMode || 'brand',
         availableBrandIcons: brandingIcons.map((ic) => ({
           name: ic.name,
           labelHe: ic.labelHe,
@@ -136,9 +152,10 @@ export async function generatePageWithKoswebModel(
   let heroImageUrl = input.uploadedHeroImageUrl || '';
   if (!heroImageUrl && input.generateHeroImageWithAi) {
     try {
-      const imgPrompt =
+      const baseImgPrompt =
         aiData?.hero?.imagePrompt ||
         `Modern editorial hero visual for ${input.title}, brand style ${stylePreset}`;
+      const imgPrompt = `${baseImgPrompt}, pure clean visual photography with NO text, NO words, NO letters, NO English signage or banners`;
       const generatedUrl = await dispatchHeroImageToKosai(
         { prompt: imgPrompt, aspectRatio: '16:9' },
         { tenantId }
@@ -166,35 +183,41 @@ export async function generatePageWithKoswebModel(
     }
   }
 
-  // 1. Build Hero section
+  // 1. Build Hero section (hydrate BrandDna first, then apply AI copy on top so BrandDna NEVER overwrites AI title/subtitle)
   const heroDefault = SECTION_REGISTRY.hero?.defaultConfig || {};
-  const heroConfig = hydrateSectionWithBrandDna(
-    {
-      ...heroDefault,
-      id: 'hero',
-      type: 'hero',
-      badge: aiData?.hero?.badge || input.goal || 'מודל יצירת דף חכם',
-      title: aiData?.hero?.title || cleanTitle,
-      subtitle: aiData?.hero?.subtitle || input.description || companyName,
-      description:
-        aiData?.hero?.description ||
-        input.description ||
-        `פתרון מותאם מבית ${companyName} להשגת המטרה: ${input.goal}`,
-      buttonsVisible: true,
-      primaryButton: {
-        text: aiData?.hero?.ctaPrimaryText || 'לפרטים והרשמה',
-        url: '#section-smartForm',
-      },
-      secondaryButton: {
-        text: aiData?.hero?.ctaSecondaryText || 'צפו בפרטי העמוד',
-        url: '#section-statsBento',
-      },
-      ...(heroImageUrl ? { imageSrc: heroImageUrl } : {}),
-    },
+  const hydratedHeroBase = hydrateSectionWithBrandDna(
+    { ...heroDefault, id: 'hero', type: 'hero' },
     liveDna,
     'hero',
     tenantId
   );
+  const heroConfig = {
+    ...hydratedHeroBase,
+    id: 'hero',
+    type: 'hero' as const,
+    layout: 'split',
+    heroStyle: 'modern',
+    imagePosition: 'left',
+    textBgEnabled: false,
+    badge: String(aiData?.hero?.badge || input.goal || cleanTitle).trim(),
+    title: String(aiData?.hero?.title || cleanTitle).trim(),
+    subtitle: String(aiData?.hero?.subtitle || input.description || cleanTitle).trim(),
+    description: String(
+      aiData?.hero?.description ||
+        input.description ||
+        `פתרון מותאם מבית ${companyName} להשגת המטרה: ${input.goal}`
+    ).trim(),
+    buttonsVisible: true,
+    primaryButton: {
+      text: String(aiData?.hero?.ctaPrimaryText || 'לפרטים והרשמה').trim(),
+      url: '#section-smartForm',
+    },
+    secondaryButton: {
+      text: String(aiData?.hero?.ctaSecondaryText || 'צפו בפרטי העמוד').trim(),
+      url: '#section-statsBento',
+    },
+    ...(heroImageUrl ? { imageSrc: heroImageUrl } : {}),
+  };
 
   // 2. Build Icon Details section (statsBento using KOSCLOUD branding style icons)
   const rawItems: any[] = Array.isArray(aiData?.iconDetails?.items)
@@ -248,24 +271,93 @@ export async function generatePageWithKoswebModel(
         ];
 
   const statsBentoDefault = SECTION_REGISTRY.statsBento?.defaultConfig || {};
-  const iconListConfig = hydrateSectionWithBrandDna(
-    {
-      ...statsBentoDefault,
-      id: 'statsBento',
-      type: 'statsBento',
-      badge: aiData?.iconDetails?.badge || `איקוני מיתוג • ${stylePreset}`,
-      title: aiData?.iconDetails?.title || 'פרטי העמוד והיתרונות המרכזיים',
-      subtitle:
-        aiData?.iconDetails?.subtitle ||
-        'רשימת פרטים מותאמת עם איקוני המיתוג של המערכת ב-KOSCLOUD',
-      layout: stylePreset,
-      viewMode: iconItems.length <= 3 ? 'cards-3' : 'grid-4',
-      stats: iconItems,
-    },
+  const hydratedStatsBase = hydrateSectionWithBrandDna(
+    { ...statsBentoDefault, id: 'statsBento', type: 'statsBento' },
     liveDna,
     'statsBento',
     tenantId
   );
+  const iconListConfig = {
+    ...hydratedStatsBase,
+    id: 'statsBento',
+    type: 'statsBento' as const,
+    badge: String(aiData?.iconDetails?.badge || cleanTitle).trim(),
+    title: String(aiData?.iconDetails?.title || `מה מחכה לכם ב-${cleanTitle}`).trim(),
+    subtitle: String(
+      aiData?.iconDetails?.subtitle ||
+        input.description ||
+        'כל הפרטים והיתרונות המרכזיים במקום אחד'
+    ).trim(),
+    layout: stylePreset,
+    viewMode: iconItems.length <= 3 ? 'cards-3' : 'grid-4',
+    stats: iconItems,
+  };
+
+  // 2b. Build Rich Content section (high-quality landing page editorial body)
+  const richDefault = SECTION_REGISTRY.richContent?.defaultConfig || {};
+  const hydratedRichBase = hydrateSectionWithBrandDna(
+    { ...richDefault, id: 'richContent', type: 'richContent' },
+    liveDna,
+    'richContent',
+    tenantId
+  );
+  const richContentConfig = {
+    ...hydratedRichBase,
+    id: 'richContent',
+    type: 'richContent' as const,
+    contentLayout: 'highlight-box',
+    backgroundColor: 'transparent',
+    headingColor: undefined,
+    bodyColor: undefined,
+    titleColor: undefined,
+    subtitleColor: undefined,
+    descriptionColor: undefined,
+    heading: String(aiData?.richContent?.heading || `על ${cleanTitle}`).trim(),
+    subtitle: String(aiData?.richContent?.subtitle || input.goal || '').trim(),
+    body: String(
+      aiData?.richContent?.body ||
+        input.description ||
+        `${cleanTitle} — חוויה מוקפדת ומעשית המותאמת במיוחד עבורכם.`
+    ).trim(),
+  };
+
+  // 2c. Build FAQ section (topic-specific Q&A)
+  const rawFaqs: any[] = Array.isArray(aiData?.faqs) ? aiData.faqs : [];
+  const faqItems =
+    rawFaqs.length > 0
+      ? rawFaqs.slice(0, 6).map((f, idx) => ({
+          id: `faq_${idx + 1}`,
+          question: String(f?.question || f?.q || '').trim(),
+          answer: String(f?.answer || f?.a || '').trim(),
+        })).filter((f) => f.question && f.answer)
+      : [
+          {
+            id: 'faq_1',
+            question: `למי מתאים ${cleanTitle}?`,
+            answer: input.description || 'הפעילות מותאמת לקהל היעד בצורה נגישה ומעשית.',
+          },
+          {
+            id: 'faq_2',
+            question: 'איך נרשמים ומקבלים פרטים נוספים?',
+            answer: 'ניתן להשאיר פרטים בטופס שבהמשך העמוד ונחזור אליכם עם כל המידע.',
+          },
+        ];
+
+  const faqDefault = SECTION_REGISTRY.faq?.defaultConfig || {};
+  const hydratedFaqBase = hydrateSectionWithBrandDna(
+    { ...faqDefault, id: 'faq', type: 'faq' },
+    liveDna,
+    'faq',
+    tenantId
+  );
+  const faqConfig = {
+    ...hydratedFaqBase,
+    id: 'faq',
+    type: 'faq' as const,
+    title: 'שאלות נפוצות',
+    subtitle: `כל מה שחשוב לדעת על ${cleanTitle}`,
+    items: faqItems,
+  };
 
   // 3. Determine & Build CRM-Synced Registration / Payment Form
   const goalAndDesc = `${input.goal} ${input.description} ${input.title} ${input.extractedDocumentText || ''}`;
@@ -294,10 +386,12 @@ export async function generatePageWithKoswebModel(
     }
   }
 
-  const sectionOrder: string[] = ['hero', 'statsBento'];
+  const sectionOrder: string[] = ['hero', 'statsBento', 'richContent', 'faq'];
   const sections: Record<string, any> = {
     hero: heroConfig,
     statsBento: iconListConfig,
+    richContent: richContentConfig,
+    faq: faqConfig,
   };
 
   let usedCrmKeys: string[] = [];
@@ -407,7 +501,67 @@ export async function generatePageWithKoswebModel(
     updatedAt: new Date().toISOString(),
   };
 
-  const finalPage = applyStylePresetToPage(baseConfig, stylePreset).updatedPage;
+  // Determine effective stylePreset & per-page color overrides
+  let effectiveStylePreset: TenantStylePreset = stylePreset;
+  let overridePrimary = '';
+  let overrideSecondary = '';
+
+  if (input.styleColorMode === 'palette' && input.selectedPalette) {
+    overridePrimary = input.selectedPalette.primaryColor;
+    overrideSecondary = input.selectedPalette.secondaryColor;
+    effectiveStylePreset = input.selectedPalette.stylePreset || 'standard';
+  } else if (input.styleColorMode === 'ai') {
+    const aiSuggestedPreset = aiData?.suggestedPalette?.stylePreset as TenantStylePreset | undefined;
+    const validPresets: TenantStylePreset[] = ['standard', 'feminine', 'masculine', 'spiritual', 'sharp', 'analytical'];
+    effectiveStylePreset =
+      aiSuggestedPreset && validPresets.includes(aiSuggestedPreset)
+        ? aiSuggestedPreset
+        : 'standard';
+
+    const rawPrimary = String(aiData?.suggestedPalette?.primaryColor || '').trim();
+    const rawSecondary = String(aiData?.suggestedPalette?.secondaryColor || rawPrimary).trim();
+    if (/^#[0-9a-fA-F]{3,8}$/.test(rawPrimary)) {
+      overridePrimary = rawPrimary;
+      overrideSecondary = /^#[0-9a-fA-F]{3,8}$/.test(rawSecondary) ? rawSecondary : rawPrimary;
+    }
+  }
+
+  let finalPage = applyStylePresetToPage(baseConfig, effectiveStylePreset).updatedPage;
+
+  // Ensure light-card sections never inherit unreadable white/light-rose BrandDna text colors
+  for (const secKey of ['statsBento', 'richContent', 'faq', 'smartForm']) {
+    if (finalPage.sections?.[secKey]) {
+      delete finalPage.sections[secKey].headingColor;
+      delete finalPage.sections[secKey].bodyColor;
+      delete finalPage.sections[secKey].titleColor;
+      delete finalPage.sections[secKey].subtitleColor;
+      delete finalPage.sections[secKey].descriptionColor;
+    }
+  }
+
+  if (overridePrimary) {
+    const updatedSections: Record<string, any> = {};
+    for (const [secId, sec] of Object.entries(finalPage.sections || {})) {
+      updatedSections[secId] = {
+        ...sec,
+        ...(secId !== 'hero' ? { layout: effectiveStylePreset } : {}),
+        accentColor: overridePrimary,
+        primaryButtonColor: overridePrimary,
+        secondaryButtonColor: overrideSecondary,
+      };
+    }
+    finalPage = {
+      ...finalPage,
+      globalSettings: {
+        ...finalPage.globalSettings,
+        theme: effectiveStylePreset,
+        primaryColor: overridePrimary,
+        secondaryColor: overrideSecondary,
+        buttonBgColor: overridePrimary,
+      },
+      sections: updatedSections,
+    };
+  }
 
   return {
     pageConfig: finalPage,

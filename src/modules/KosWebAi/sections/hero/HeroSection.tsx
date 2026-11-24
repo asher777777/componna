@@ -90,6 +90,8 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
       primaryButtonColor,
       secondaryButtonColor,
       buttonShape,
+      textBgEnabled,
+      textBgOverlayColor,
     },
     brandDna
   );

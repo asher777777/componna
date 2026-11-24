@@ -2283,25 +2283,8 @@ exports.sitemapXml = functions.https.onRequest((req, res) => {
 function sanitizeSecretFromError(msg) {
     return String(msg || 'AI request failed').replace(/AIzaSy[A-Za-z0-9_-]{10,50}/g, '[REDACTED_KEY]');
 }
-async function resolveServerGeminiKey(tenantId) {
-    const envKey = String(process.env.GEMINI_API_KEY || '').trim();
-    if (envKey.length > 10)
-        return envKey;
-    const cleanTenant = String(tenantId || '').trim().toLowerCase();
-    if (cleanTenant && cleanTenant !== '_master' && /^[a-z0-9_-]{1,80}$/.test(cleanTenant)) {
-        try {
-            const tSnap = await db.collection('tenants').doc(cleanTenant).collection('settings').doc('api_keys').get();
-            if (tSnap.exists) {
-                const d = tSnap.data() || {};
-                const k = String(d.googleAiApiKey || d.geminiApiKey || '').trim();
-                if (k.length > 10)
-                    return k;
-            }
-        }
-        catch (e) {
-            console.warn('[geminiAiProxy] Could not read tenant api_keys:', e);
-        }
-    }
+async function resolveServerGeminiKey(_tenantId) {
+    // 1. Authoritative Master Tenant Key (tenants/_master/settings/api_keys)
     try {
         const masterSnap = await db.collection('tenants').doc('_master').collection('settings').doc('api_keys').get();
         if (masterSnap.exists) {
@@ -2314,6 +2297,11 @@ async function resolveServerGeminiKey(tenantId) {
     catch (e) {
         console.warn('[geminiAiProxy] Could not read master api_keys:', e);
     }
+    // 2. Server environment fallback
+    const envKey = String(process.env.GEMINI_API_KEY || '').trim();
+    if (envKey.length > 10)
+        return envKey;
+    // 3. Root settings fallback
     try {
         const rootSnap = await db.collection('settings').doc('api_keys').get();
         if (rootSnap.exists) {

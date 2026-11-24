@@ -21,7 +21,11 @@ import { PageBuilderConfig } from '../types/pageBuilder.types';
 import {
   generatePageWithKoswebModel,
   KoswebModelFormRequirement,
+  KoswebStyleColorMode,
+  KoswebPaletteSelection,
 } from '../services/koswebPageModelService';
+import { STYLE_GLOBAL_THEMES, PRESET_TITLE_MAP } from '../services/pageStylePresetService';
+import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { resolveLiveBrandDna } from '../services/brandSectionHydrator';
 
 interface KoswebQuickPageModelModalProps {
@@ -32,7 +36,31 @@ interface KoswebQuickPageModelModalProps {
   onPageGenerated: (pageConfig: PageBuilderConfig) => void;
 }
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
+
+const PAGE_STYLE_PALETTES: KoswebPaletteSelection[] = [
+  {
+    id: 'nature_green',
+    label: 'ירוק טבע וזית',
+    stylePreset: 'analytical',
+    primaryColor: '#16a34a',
+    secondaryColor: '#059669',
+  },
+  {
+    id: 'honey_gold',
+    label: 'זהב ודבש חם',
+    stylePreset: 'standard',
+    primaryColor: '#d97706',
+    secondaryColor: '#f59e0b',
+  },
+  ...(Object.keys(STYLE_GLOBAL_THEMES) as Array<keyof typeof STYLE_GLOBAL_THEMES>).map((key) => ({
+    id: key,
+    label: PRESET_TITLE_MAP[key]?.split(' (')[0] || key,
+    stylePreset: key,
+    primaryColor: STYLE_GLOBAL_THEMES[key].primaryColor || '#6366f1',
+    secondaryColor: STYLE_GLOBAL_THEMES[key].secondaryColor || '#0ea5e9',
+  })),
+];
 
 const STEP_META: Array<{ title: string; description: string; explanation: string }> = [
   {
@@ -54,6 +82,11 @@ const STEP_META: Array<{ title: string; description: string; explanation: string
     title: 'האם לכלול טופס הרשמה או תשלום?',
     description: 'כל שדות הטופס מסונכרנים אוטומטית עם מזהי רכיב ה-CRM.',
     explanation: 'בטופס הרשמה או תשלום, הפרמטרים המזהים (`kosun_crm_*`) מוגדרים מראש ונשלחים ישירות ל-CRM.',
+  },
+  {
+    title: 'בחר את סגנון וצבעי העמוד',
+    description: 'התאם את פלטת הצבעים של העמוד לפי המיתוג, הצעת AI או בחירה ידנית.',
+    explanation: 'כברירת מחדל העמוד שומר על צבעי המיתוג שלך. תוכל לבחור התאמה אוטומטית ע"י ה-AI לפי הנושא או לבחור פלטת צבעים אחרת.',
   },
   {
     title: 'העלאת מסמך או תמונה דרך KOSCLOUD',
@@ -97,6 +130,8 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
   const [goal, setGoal] = useState('');
   const [formRequirement, setFormRequirement] = useState<KoswebModelFormRequirement>('auto');
   const [paymentAmount, setPaymentAmount] = useState<string>('199');
+  const [styleColorMode, setStyleColorMode] = useState<KoswebStyleColorMode>('brand');
+  const [selectedPalette, setSelectedPalette] = useState<KoswebPaletteSelection>(PAGE_STYLE_PALETTES[0]);
 
   // Step 5: KOSCLOUD file / image state
   const [cloudAssetUrl, setCloudAssetUrl] = useState('');
@@ -180,6 +215,8 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
               : undefined,
           formRequirement,
           paymentAmount: formRequirement === 'payment' && parsedAmount > 0 ? parsedAmount : undefined,
+          styleColorMode,
+          selectedPalette: styleColorMode === 'palette' ? selectedPalette : undefined,
           uploadedHeroImageUrl: selectedIsImage ? cloudAssetUrl : undefined,
           generateHeroImageWithAi: !selectedIsImage && generateHeroImageWithAi,
           saveGeneratedImageToKoscloud: mediaPicker?.saveGeneratedImage,
@@ -189,6 +226,7 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
         db
       );
 
+      await pageBuilderFirestore.savePage(result.pageConfig, db, tenantId);
       onPageGenerated(result.pageConfig);
       onClose();
     } catch (err: any) {
@@ -369,8 +407,80 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
             </div>
           )}
 
-          {/* Step 5: File / Image Upload via KOSCLOUD */}
+          {/* Step 5: Page Style & Color Palette */}
           {step === 5 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {[
+                  { id: 'brand' as KoswebStyleColorMode, label: 'לפי המיתוג (ברירת מחדל)', desc: 'שומר על צבעי העסק' },
+                  { id: 'ai' as KoswebStyleColorMode, label: 'לפי הצעת ה-AI', desc: 'מתאים צבעים לנושא העמוד' },
+                  { id: 'palette' as KoswebStyleColorMode, label: 'בחר פלטה', desc: 'בחירה מפלטות הסגנונות' },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setStyleColorMode(opt.id)}
+                    className={clsx(
+                      'p-3 rounded-2xl text-right border transition-all cursor-pointer',
+                      styleColorMode === opt.id
+                        ? 'bg-indigo-600 text-white border-indigo-500 shadow-md'
+                        : 'bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:border-indigo-400'
+                    )}
+                  >
+                    <div className="text-xs font-black">{opt.label}</div>
+                    <div
+                      className={clsx(
+                        'text-[11px] mt-0.5',
+                        styleColorMode === opt.id
+                          ? 'text-indigo-100'
+                          : 'text-slate-500 dark:text-slate-400'
+                      )}
+                    >
+                      {opt.desc}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {styleColorMode === 'palette' && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                  {PAGE_STYLE_PALETTES.map((pal) => {
+                    const isSelected = selectedPalette.id === pal.id;
+                    return (
+                      <button
+                        key={pal.id}
+                        type="button"
+                        onClick={() => setSelectedPalette(pal)}
+                        className={clsx(
+                          'p-3 rounded-2xl border text-right transition-all cursor-pointer flex flex-col gap-2',
+                          isSelected
+                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 ring-2 ring-indigo-500/30 shadow'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-indigo-400'
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="w-5 h-5 rounded-full border border-white/30 shadow-sm"
+                            style={{ backgroundColor: pal.primaryColor }}
+                          />
+                          <span
+                            className="w-5 h-5 rounded-full border border-white/30 shadow-sm -mr-1.5"
+                            style={{ backgroundColor: pal.secondaryColor }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                          {pal.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 6: File / Image Upload via KOSCLOUD */}
+          {step === 6 && (
             <div className="space-y-4">
               <button
                 type="button"

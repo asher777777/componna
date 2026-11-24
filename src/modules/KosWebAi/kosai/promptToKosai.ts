@@ -533,6 +533,7 @@ export interface KoswebModelPromptContext {
   voiceTone?: string;
   stylePreset: string;
   primaryColor?: string;
+  colorMode?: 'brand' | 'ai' | 'palette';
   availableBrandIcons: Array<{ name: string; labelHe: string; category: string }>;
   availableCrmFields: Array<{ crmFieldKey: string; labelHe: string }>;
 }
@@ -555,9 +556,13 @@ ${ctx.availableBrandIcons.map((ic) => `- "${ic.name}" (${ic.labelHe})`).join('\n
 ${ctx.availableCrmFields.map((f) => `- "${f.crmFieldKey}" (${f.labelHe})`).join('\n')}
 
 הנחיות פלט מחייבות:
-1. צור אזור הירו (Hero) חד, מושך וברור בעברית טבעית עם כותרת, תת-כותרת, תיאור קצר, תגית עליונה, כפתור פעולה ראשי, ו-imagePrompt קצר באנגלית.
-2. צור רשימת 4 עד 6 פריטי מידע/יתרונות של העמוד ("iconDetails"), כאשר לכל פריט נבחר איקון מתוך רשימת האיקונים של KOSCLOUD שלמעלה (שם ה-icon חייב להיות זהה במדויק לאחד השמות ברשימה).
-3. קבע האם העמוד כולל טופס הרשמה או טופס תשלום:
+1. חובה מוחלטת: כל הכותרות, תתי-הכותרות, התיאורים, התוכן והשאלות חייבים לעסוק אך ורק בנושא הספציפי שהמשתמש הזין ("${ctx.title}" / "${ctx.description}" / "${ctx.goal}"). אסור להחזיר כותרות גנריות של המותג שאינן קשורות ישירות לנושא העמוד!
+2. צור אזור הירו (Hero) חד, מושך וברור בעברית טבעית עם כותרת ממוקדת בנושא, תת-כותרת, תיאור קצר וקריא, תגית עליונה, כפתור פעולה ראשי, ו-imagePrompt קצר באנגלית (ללא שום טקסט או כיתוב בתמונה).
+3. צור רשימת 4 עד 6 פריטי מידע/יתרונות של העמוד ("iconDetails"), כאשר לכל פריט נבחר איקון מתוך רשימת האיקונים של KOSCLOUD שלמעלה (שם ה-icon חייב להיות זהה במדויק לאחד השמות ברשימה).
+4. צור מקטע תוכן איכותי ומעמיק ("richContent") עם כותרת, תת-כותרת וגוף תוכן עשיר (3-4 פסקאות קצרות או נקודות מפתח בעברית טבעית) המסביר לעומק את הערך, מה כוללת ההצעה/הסדנה/השירות, ולמי זה מתאים.
+5. צור 4 שאלות ותשובות נפוצות ("faqs") העונות על התנגדויות ושאלות אמיתיות של לקוחות לגבי "${ctx.title}".
+${ctx.colorMode === 'ai' ? '6. המשתמש בחר התאמת צבעים לפי הצעת AI: החזר שדה "suggestedPalette" עם { "primaryColor": "#hex", "secondaryColor": "#hex" } בצבעים מקצועיים והרמוניים התואמים בדיוק את נושא העמוד (למשל ירוקים לטבע/סדנאות צמחים, זהב/ענבר לדבש, כחול לעסקים).' : ''}
+${ctx.colorMode === 'ai' ? '7' : '6'}. קבע האם העמוד כולל טופס הרשמה או טופס תשלום:
    - אם formRequirement הוא "registration" או "payment" — חובה לכלול טופס מסוג זה.
    - אם formRequirement הוא "auto" — כלול טופס אם המטרה/התיאור/המסמך מזכירים הרשמה, השארת פרטים, לידים, תיאום, רכישה או תשלום.
    - אם formRequirement הוא "none" — אל תכלול טופס (includeForm: false).
@@ -565,20 +570,20 @@ ${ctx.availableCrmFields.map((f) => `- "${f.crmFieldKey}" (${f.labelHe})`).join(
 
 החזר אובייקט JSON תקני בלבד ללא סימני markdown:
 {
-  "pageTitle": "כותרת העמוד",
+  "pageTitle": "כותרת העמוד הממוקדת בנושא",
   "slug": "english-kebab-slug",
   "hero": {
-    "badge": "תגית קצרה",
-    "title": "כותרת הירו ראשית",
-    "subtitle": "תת כותרת משלימה",
-    "description": "פסקת פתיחה ממירה ומדויקת",
+    "badge": "תגית קצרה בנושא העמוד",
+    "title": "כותרת הירו ראשית הממוקדת בנושא המבוקש",
+    "subtitle": "תת כותרת משלימה הממוקדת בנושא",
+    "description": "פסקת פתיחה ממירה, ברורה ומדויקת (2-3 משפטים)",
     "ctaPrimaryText": "טקסט כפתור ראשי",
     "ctaSecondaryText": "טקסט כפתור משני",
-    "imagePrompt": "Clean modern editorial hero visual matching the topic"
+    "imagePrompt": "Clean modern editorial hero visual matching the topic, strictly NO text, NO words, NO letters, NO banners"
   },
   "iconDetails": {
     "badge": "תגית מקטע",
-    "title": "כותרת מקטע פרטי העמוד",
+    "title": "כותרת מקטע פרטי העמוד בנושא המבוקש",
     "subtitle": "משפט הסבר קצר למקטע האיקונים",
     "items": [
       {
@@ -588,6 +593,22 @@ ${ctx.availableCrmFields.map((f) => `- "${f.crmFieldKey}" (${f.labelHe})`).join(
         "description": "הסבר תמציתי וברור מתוך פרטי העמוד והמסמך"
       }
     ]
+  },
+  "richContent": {
+    "heading": "כותרת מקטע התוכן המעמיק",
+    "subtitle": "תת כותרת שמסכמת את הערך המרכזי",
+    "body": "תוכן איכותי, מפורט וברור בעברית טבעית עם פסקאות קצרות המפרטות את החוויה, המבנה והיתרונות."
+  },
+  "faqs": [
+    {
+      "question": "שאלה נפוצה הקשורה ישירות לנושא העמוד",
+      "answer": "תשובה ברורה, מרגיעה ומדויקת בעברית"
+    }
+  ],
+  "suggestedPalette": {
+    "stylePreset": "analytical",
+    "primaryColor": "#16a34a",
+    "secondaryColor": "#059669"
   },
   "form": {
     "includeForm": true,

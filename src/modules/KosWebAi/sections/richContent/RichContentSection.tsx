@@ -26,6 +26,7 @@ import {
   getButtonShapeClass,
   getButtonSizeClass,
 } from '../../styles';
+import { ensureReadableTextColor } from '../../styles/resolveSectionTheme';
 
 const DEFAULT_FALLBACK_BG =
   'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80';
@@ -164,6 +165,8 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
       primaryButtonColor,
       secondaryButtonColor,
       buttonShape,
+      textBgEnabled,
+      textBgOverlayColor,
     },
     brandDna
   );
@@ -377,9 +380,23 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
             effectiveContentMode === 'highlight-box' &&
               clsx('p-6 sm:p-8', tokens.cardClass, getCardShapeClass(cardFrameShape, styleKey)),
             tokens.typography.descClass,
-            textBgEnabled && 'text-slate-100'
+            textBgEnabled && effectiveContentMode !== 'highlight-box' && 'text-slate-100'
           )}
-          style={{ color: resolvedColors.descriptionColor }}
+          style={{
+            color:
+              effectiveContentMode === 'highlight-box'
+                ? ensureReadableTextColor(
+                    resolvedColors.descriptionColor,
+                    typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+                      ? '#0f172a'
+                      : '#ffffff',
+                    4.5,
+                    '#e2e8f0',
+                    '#334155',
+                    false
+                  )
+                : resolvedColors.descriptionColor,
+          }}
           dangerouslySetInnerHTML={{ __html: body }}
         />
       )}

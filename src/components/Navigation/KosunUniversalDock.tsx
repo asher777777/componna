@@ -718,6 +718,9 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
           onPageGenerated: (pageConfig: any) => {
             window.dispatchEvent(new CustomEvent('kosweb_quick_page_generated', { detail: pageConfig }));
             setIsQuickPageModelOpen(false);
+            if (pageConfig?.slug && !window.location.pathname.toLowerCase().includes('/koswebai')) {
+              navigate(`/preview/${pageConfig.slug}?preview=1`);
+            }
           },
         }}
       />
