@@ -9,7 +9,6 @@ import {
   ArrowRight,
   ArrowLeft,
   CloudUpload,
-  Palette,
   Info,
   Trash2,
 } from 'lucide-react';
@@ -18,14 +17,12 @@ import { BrandDna, MediaPickerContract } from '../../../core/contracts';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { CapabilitySlot } from '../../../core/bridge/CapabilitySlot';
-import { getKoscloudBrandingIconsForStyle } from '../../../core/ui/BrandIconPicker';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import {
   generatePageWithKoswebModel,
   KoswebModelFormRequirement,
 } from '../services/koswebPageModelService';
 import { resolveLiveBrandDna } from '../services/brandSectionHydrator';
-import { DynamicIcon } from '../ui/PageBuilderIconPicker';
 
 interface KoswebQuickPageModelModalProps {
   isOpen: boolean;
@@ -35,7 +32,7 @@ interface KoswebQuickPageModelModalProps {
   onPageGenerated: (pageConfig: PageBuilderConfig) => void;
 }
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
 
 const STEP_META: Array<{ title: string; description: string; explanation: string }> = [
   {
@@ -61,12 +58,7 @@ const STEP_META: Array<{ title: string; description: string; explanation: string
   {
     title: 'העלאת מסמך או תמונה דרך KOSCLOUD',
     description: 'בחר או העלה קובץ מתוך כספת הענן של KOSCLOUD.',
-    explanation: 'תוכל להעלות מסמך או תמונה דרך המודל של KOSCLOUD; אם תבחר ליצור תמונת Hero חדשה, היא תישמר ב-KOSCLOUD באופן אוטומטי.',
-  },
-  {
-    title: 'בחירת איקונים מסגנון המיתוג ב-KOSCLOUD',
-    description: 'בחר את האיקונים שילוו את רשימת פרטי העמוד מתוך גלריית המיתוג.',
-    explanation: 'לחץ על איקונים מתוך KOSCLOUD להוספה או הסרה (עד 6 איקונים). אם לא תבחר, המערכת תבחר אוטומטית לפי סגנון המיתוג.',
+    explanation: 'תוכל להעלות מסמך או תמונה דרך המודל של KOSCLOUD; איקוני העמוד יותאמו ויתלבשו אוטומטית מתוך סגנון המיתוג ב-KOSCLOUD.',
   },
 ];
 
@@ -112,17 +104,12 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
   const [generateHeroImageWithAi, setGenerateHeroImageWithAi] = useState(true);
   const [isCloudPickerFallbackOpen, setIsCloudPickerFallbackOpen] = useState(false);
 
-  // Step 6: KOSCLOUD icons selection
-  const [selectedIcons, setSelectedIcons] = useState<string[]>([]);
-
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const liveDna = resolveLiveBrandDna(brandDna, tenantId);
-  const activeStylePreset = liveDna?.designTokens?.defaultStylePreset || 'standard';
-  const fallbackIcons = getKoscloudBrandingIconsForStyle(activeStylePreset);
 
   const currentMeta = STEP_META[step - 1];
   const isImageUrl = (url: string) =>
@@ -148,18 +135,6 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
       }
     }
     setIsCloudPickerFallbackOpen(true);
-  };
-
-  const toggleIconSelection = (iconName: string) => {
-    setSelectedIcons((prev) => {
-      if (prev.includes(iconName)) {
-        return prev.filter((item) => item !== iconName);
-      }
-      if (prev.length >= 6) {
-        return [...prev.slice(1), iconName];
-      }
-      return [...prev, iconName];
-    });
   };
 
   const handleNext = () => {
@@ -207,7 +182,6 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
           paymentAmount: formRequirement === 'payment' && parsedAmount > 0 ? parsedAmount : undefined,
           uploadedHeroImageUrl: selectedIsImage ? cloudAssetUrl : undefined,
           generateHeroImageWithAi: !selectedIsImage && generateHeroImageWithAi,
-          selectedBrandIcons: selectedIcons.length > 0 ? selectedIcons : undefined,
           saveGeneratedImageToKoscloud: mediaPicker?.saveGeneratedImage,
         },
         liveDna,
@@ -457,76 +431,6 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
                   <span>צור תמונת Hero דרך KOSAI ושמור אותה אוטומטית ב-KOSCLOUD</span>
                 </label>
               )}
-            </div>
-          )}
-
-          {/* Step 6: Icons Selection from KOSCLOUD */}
-          {step === 6 && (
-            <div className="space-y-3">
-              {selectedIcons.length > 0 && (
-                <div className="p-3 rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/70 dark:border-purple-800/60 flex items-center justify-between flex-wrap gap-2">
-                  <span className="text-xs font-bold text-purple-800 dark:text-purple-200 flex items-center gap-1.5">
-                    <Palette className="w-4 h-4" />
-                    נבחרו {selectedIcons.length} איקונים:
-                  </span>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {selectedIcons.map((icName) => (
-                      <button
-                        key={icName}
-                        type="button"
-                        onClick={() => toggleIconSelection(icName)}
-                        title="לחץ להסרה"
-                        className="px-2 py-1 rounded-xl bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-300 flex items-center gap-1 text-[11px] font-bold cursor-pointer"
-                      >
-                        <DynamicIcon name={icName} className="w-3.5 h-3.5" />
-                        <X className="w-3 h-3 opacity-60" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[340px] overflow-y-auto p-2 bg-slate-50/60 dark:bg-slate-950/50">
-                <CapabilitySlot
-                  name="luxury-icons-gallery"
-                  props={{
-                    defaultArchetype: activeStylePreset,
-                    selectedIconName: selectedIcons[selectedIcons.length - 1],
-                    onSelectIconSvg: (_svgDataUrl: string, iconName: string) => {
-                      if (iconName) toggleIconSelection(iconName);
-                    },
-                    onSelectIcon: (_svgDataUrl: string, iconName: string) => {
-                      if (iconName) toggleIconSelection(iconName);
-                    },
-                  }}
-                  fallback={
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 p-2">
-                      {fallbackIcons.map((ic) => {
-                        const isSelected = selectedIcons.includes(ic.name);
-                        return (
-                          <button
-                            key={ic.name}
-                            type="button"
-                            onClick={() => toggleIconSelection(ic.name)}
-                            title={ic.labelHe}
-                            className={clsx(
-                              'p-2.5 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer',
-                              isSelected
-                                ? 'bg-indigo-600 text-white border-indigo-500 shadow'
-                                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-indigo-400'
-                            )}
-                          >
-                            <DynamicIcon name={ic.name} className="w-4 h-4" />
-                            <span className="text-[10px] truncate w-full text-center">
-                              {ic.labelHe}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  }
-                />
-              </div>
             </div>
           )}
 

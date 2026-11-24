@@ -48,17 +48,17 @@ export interface KoswebPageModelResult {
  */
 function resolveKoscloudIconName(
   requestedIcon: string | undefined,
-  allowedIcons: Array<{ name: string; labelHe: string }>,
+  allowedIcons: Array<{ name: string; labelHe: string; svgUrl?: string }>,
   fallbackIndex: number
 ): string {
   if (requestedIcon) {
     const exact = allowedIcons.find(
       (ic) => ic.name.toLowerCase() === requestedIcon.trim().toLowerCase()
     );
-    if (exact) return exact.name;
+    if (exact) return exact.svgUrl || exact.name;
   }
   const fallback = allowedIcons[fallbackIndex % allowedIcons.length];
-  return fallback?.name || 'Sparkles';
+  return fallback?.svgUrl || fallback?.name || 'Sparkles';
 }
 
 /**
