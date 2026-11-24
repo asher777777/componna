@@ -27,6 +27,7 @@ import { useTenantScope } from '../../../../core/tenant';
 import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
 import { PageBuilderConfig } from '../../types/pageBuilder.types';
 import { usePageBuilderContext } from '../../context/PageBuilderContext';
+import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
 
 interface HeaderEditorProps {
   config: HeaderSectionConfig;
@@ -37,8 +38,11 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const brandContext = useBrandDna();
-  const brandLogo = brandContext?.brandDna?.identity?.logoUrl;
-  const brandCompanyName = brandContext?.brandDna?.identity?.companyName || 'קושאן';
+  const liveBrand = resolveLiveBrandDna(brandContext?.brandDna, tenantId);
+  const brandLogo = liveBrand?.identity?.logoUrl;
+  const brandCompanyName =
+    liveBrand?.identity?.companyName ||
+    (tenantId && tenantId !== '_master' ? tenantId : 'קושאן');
 
   const [tenantPages, setTenantPages] = useState<PageBuilderConfig[]>([]);
 

@@ -149,41 +149,65 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
   // Check master tenant status
   const isMasterTenant = !tenantId || tenantId === '_master' || tenantId === ROOT_TENANT_ID;
 
-  // Resolve brand DNA identity dynamically
-  const brandLogoFromContext = brandContext?.brandDna?.identity?.logoUrl;
-  const brandLogoFromTenant = tenantBrandDna?.identity?.logoUrl;
-  const brandLogoFromStorage = typeof window !== 'undefined' ? (
+  // Read tenant-scoped branding from localStorage (never leak _master branding to child tenants)
+  const storedTenantDna = typeof window !== 'undefined' ? (
     (() => {
       try {
-        const raw = localStorage.getItem(`kosun_${tenantId}_brand_dna_settings`) || localStorage.getItem('brand_dna_settings');
-        return raw ? JSON.parse(raw)?.identity?.logoUrl : null;
-      } catch { return null; }
+        const raw =
+          localStorage.getItem(`kosun_${tenantId}_kos_branding_settings`) ||
+          localStorage.getItem(`kosun_${tenantId}_brand_dna_settings`) ||
+          (isMasterTenant ? localStorage.getItem('brand_dna_settings') : null);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
     })()
   ) : null;
 
+  // Resolve brand DNA identity dynamically (tenantBrandDna takes priority on child tenants)
+  const contextDna = brandContext?.brandDna;
+  const isContextLeakedMaster = !isMasterTenant && contextDna?.identity?.companyName === 'קושאן';
+  const safeContextDna = isContextLeakedMaster ? null : contextDna;
+
+  const activeDna = tenantBrandDna || storedTenantDna || safeContextDna;
+
+  const brandLogoFromContext = safeContextDna?.identity?.logoUrl;
+  const brandLogoFromTenant = tenantBrandDna?.identity?.logoUrl;
+  const brandLogoFromStorage = storedTenantDna?.identity?.logoUrl;
+
   const rawBrandLogo =
-    (brandLogoFromContext && brandLogoFromContext.trim() !== '' ? brandLogoFromContext : null) ||
     (brandLogoFromTenant && brandLogoFromTenant.trim() !== '' ? brandLogoFromTenant : null) ||
     (brandLogoFromStorage && brandLogoFromStorage.trim() !== '' ? brandLogoFromStorage : null) ||
-    (isMasterTenant ? '/images/kosun-symbol.svg' : '/images/kosun-official-logo.png');
+    (brandLogoFromContext && brandLogoFromContext.trim() !== '' ? brandLogoFromContext : null) ||
+    (isMasterTenant ? '/images/kosun-symbol.svg' : '');
 
   const initialLogo = useBrandLogo !== false
-    ? (rawBrandLogo || customLogoUrl || '/images/kosun-official-logo.png')
-    : (customLogoUrl || rawBrandLogo || '/images/kosun-official-logo.png');
+    ? (rawBrandLogo || customLogoUrl || (isMasterTenant ? '/images/kosun-official-logo.png' : ''))
+    : (customLogoUrl || rawBrandLogo || (isMasterTenant ? '/images/kosun-official-logo.png' : ''));
 
   const effectiveLogoUrl = currentLogoSrc || initialLogo;
 
+  const rawCompanyName =
+    activeDna?.identity?.companyName ||
+    (activeDna?.identity as any)?.brandName ||
+    safeContextDna?.identity?.companyName ||
+    '';
+
   const brandCompanyName =
-    brandContext?.brandDna?.identity?.companyName ||
-    tenantBrandDna?.identity?.companyName ||
-    (isMasterTenant ? 'KosTogether' : 'קושאן');
+    (!isMasterTenant && rawCompanyName === 'קושאן' ? '' : rawCompanyName) ||
+    (isMasterTenant ? 'KosTogether' : tenantId || '');
+
+  const rawSlogan =
+    activeDna?.identity?.slogan ||
+    safeContextDna?.identity?.slogan ||
+    '';
 
   const brandSlogan =
-    brandContext?.brandDna?.identity?.slogan ||
-    tenantBrandDna?.identity?.slogan ||
-    'כל אדם זה נכס';
+    (!isMasterTenant && rawSlogan === 'כל אדם זה נכס' ? '' : rawSlogan) ||
+    (isMasterTenant ? 'כל אדם זה נכס' : '');
 
-  const effectiveTitle = logoText || brandCompanyName;
+  const sanitizedLogoText = !isMasterTenant && logoText === 'קושאן' ? '' : logoText;
+  const effectiveTitle = sanitizedLogoText || brandCompanyName;
   const effectiveSlogan = brandSlogan;
 
   const effectivePhone =
