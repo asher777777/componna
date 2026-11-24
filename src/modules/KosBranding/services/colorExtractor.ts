@@ -114,7 +114,7 @@ async function fetchImageAsObjectUrl(url: string): Promise<{ objectUrl: string; 
     throw new Error(`HTTP ${response.status} while fetching image`);
   }
   const blob = await response.blob();
-  if (!blob.type.startsWith('image/') && blob.size === 0) {
+  if (!blob.type.startsWith('image/') || blob.size === 0) {
     throw new Error('Fetched resource is not a valid image');
   }
   const objectUrl = URL.createObjectURL(blob);
@@ -167,7 +167,23 @@ async function loadImageForCanvas(
     // Continue to fallback strategies
   }
 
-  // Attempt 2: Same-origin media proxy fallback for Firebase Storage URLs
+  // Attempt 2: Same-origin server-side image proxy (/api/image-proxy)
+  try {
+    const { objectUrl, cleanup } = await fetchImageAsObjectUrl(
+      `/api/image-proxy?url=${encodeURIComponent(trimmed)}`
+    );
+    try {
+      const img = await loadHtmlImage(objectUrl);
+      return { img, cleanup };
+    } catch (err) {
+      cleanup();
+      throw err;
+    }
+  } catch {
+    // Continue to fallback strategies
+  }
+
+  // Attempt 3: Same-origin media proxy fallback for Firebase Storage URLs
   const storagePath = extractFirebaseStoragePath(trimmed);
   if (storagePath) {
     const encodedPath = storagePath

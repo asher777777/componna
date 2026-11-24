@@ -83,6 +83,10 @@
         "function": "tiktokWebhook"
       },
       {
+        "source": "/api/image-proxy",
+        "function": "imageProxy"
+      },
+      {
         "source": "/media/**",
         "function": "mediaProxy"
       },

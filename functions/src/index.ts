@@ -2808,5 +2808,106 @@ export const geminiAiProxy = functions.runWith({ timeoutSeconds: 120, memory: '5
   });
 });
 
+function isBlockedProxyHostname(hostname: string): boolean {
+  const lower = hostname.toLowerCase();
+  if (
+    lower === 'localhost' ||
+    lower === '127.0.0.1' ||
+    lower === '::1' ||
+    lower === '[::1]' ||
+    lower === '0.0.0.0' ||
+    lower.endsWith('.local') ||
+    lower.endsWith('.internal') ||
+    lower === 'metadata.google.internal'
+  ) {
+    return true;
+  }
+  const ipv4Match = lower.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4Match) {
+    const [, a, b] = ipv4Match.map(Number);
+    if (
+      a === 10 ||
+      a === 127 ||
+      a === 0 ||
+      (a === 169 && b === 254) ||
+      (a === 192 && b === 168) ||
+      (a === 172 && b >= 16 && b <= 31)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Image Proxy Cloud Function (/api/image-proxy?url=...)
+ * Fetches remote images server-side to bypass browser CORS restrictions
+ * for client-side Canvas color extraction.
+ */
+export const imageProxy = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method !== 'GET') {
+      res.status(405).send('Method Not Allowed');
+      return;
+    }
+
+    const rawUrl = typeof req.query.url === 'string' ? req.query.url.trim() : '';
+    if (!rawUrl) {
+      res.status(400).send('Missing url parameter');
+      return;
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      res.status(400).send('Invalid url parameter');
+      return;
+    }
+
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      res.status(400).send('Unsupported URL protocol');
+      return;
+    }
+
+    if (isBlockedProxyHostname(parsed.hostname)) {
+      res.status(403).send('Forbidden host');
+      return;
+    }
+
+    try {
+      const upstream = await fetch(parsed.toString(), {
+        method: 'GET',
+        redirect: 'follow',
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!upstream.ok) {
+        res.status(upstream.status).send(`Upstream error: ${upstream.status}`);
+        return;
+      }
+
+      const contentType = upstream.headers.get('content-type') || '';
+      if (!contentType.toLowerCase().startsWith('image/')) {
+        res.status(415).send('Upstream resource is not an image');
+        return;
+      }
+
+      const arrayBuffer = await upstream.arrayBuffer();
+      if (arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > 10 * 1024 * 1024) {
+        res.status(413).send('Image size out of allowed bounds');
+        return;
+      }
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.status(200).send(Buffer.from(arrayBuffer));
+    } catch (err: any) {
+      console.error('[imageProxy] Fetch error:', err);
+      res.status(502).send('Failed to fetch upstream image');
+    }
+  });
+});
+
 
 
