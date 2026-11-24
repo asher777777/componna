@@ -46,7 +46,7 @@ import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryCo
 import { FileCompressionService } from '../services/fileCompressionService';
 import { MediaIndexedDbService } from '../services/mediaIndexedDbService';
 import { MediaItem, MediaType, MediaFolder, MediaCategoryFilter } from '../types';
-import { resolveSafeMediaUrl } from '../utils/mediaUrlSanitizer';
+import { getMediaUrlCandidates, resolveSafeMediaUrl } from '../utils/mediaUrlSanitizer';
 import { LuxuryIconsGallery } from './LuxuryIconsGallery';
 
 /**
@@ -124,22 +124,39 @@ const OptimizedMediaThumbnail: React.FC<{
   viewMode: 'grid' | 'dense' | 'list';
   isLight: boolean;
 }> = React.memo(({ item, viewMode, isLight }) => {
+  const candidates = React.useMemo(() => {
+    const primary = getMediaUrlCandidates(item.thumbnailUrl || item.url, item);
+    if (item.thumbnailUrl && item.url && item.thumbnailUrl !== item.url) {
+      const secondary = getMediaUrlCandidates(item.url, item);
+      return Array.from(new Set([...primary, ...secondary]));
+    }
+    return primary;
+  }, [item.url, item.thumbnailUrl, item.storagePath, item.name, item.tenantId, item.createdAt]);
+
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [currentSrc, setCurrentSrc] = useState<string>(() =>
-    resolveSafeMediaUrl(item.thumbnailUrl || item.url, item)
-  );
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [currentSrc, setCurrentSrc] = useState<string>(() => candidates[0] || resolveSafeMediaUrl(item.thumbnailUrl || item.url, item));
   const [isVideoHovered, setIsVideoHovered] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    const safe = resolveSafeMediaUrl(item.thumbnailUrl || item.url, item);
-    setCurrentSrc(safe);
+    setCandidateIdx(0);
+    setCurrentSrc(candidates[0] || resolveSafeMediaUrl(item.thumbnailUrl || item.url, item));
     setHasError(false);
     setIsLoaded(false);
-  }, [item.url, item.thumbnailUrl, item.storagePath, item.name]);
+  }, [candidates, item.url, item.thumbnailUrl]);
 
   const handleMediaError = async () => {
+    // 0. Try remaining URL candidates (alternate buckets, sanitized paths, /media/ proxy)
+    const nextIdx = candidateIdx + 1;
+    if (nextIdx < candidates.length) {
+      setCandidateIdx(nextIdx);
+      setCurrentSrc(candidates[nextIdx]);
+      setHasError(false);
+      return;
+    }
+
     // 1. Try to recover from local IndexedDB binary blob
     try {
       const blob = (await MediaIndexedDbService.getBlob(item.id)) || (await MediaIndexedDbService.getBlob(item.name));
