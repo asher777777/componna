@@ -176,7 +176,7 @@ const FIELD_TYPES = [
   { id: 'calculated', label: 'שדה חישוב (נוסחה)' },
   { id: 'step', label: '--- חוצץ שלב חדש ---' },
   { id: 'payment_summary', label: 'שלב תשלום: סיכום ועריכת נתונים' },
-  { id: 'payment_cc', label: 'שלב תשלום: נתוני אשראי ומסוף קשר' },
+  { id: 'payment_cc', label: 'שלב תשלום: נתוני אשראי ומסוף סליקה' },
 ];
 
 function SearchableSelect({
@@ -1028,7 +1028,7 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
                                     <div className="space-y-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                                       <span className="text-xs font-bold text-amber-300 block">הגדרות סליקה עבור שלב זה</span>
                                       <div>
-                                        <label className="block font-semibold mb-1 text-slate-400 text-[10px]">סוג מסמך להפקה בקשר (Kesher)</label>
+                                        <label className="block font-semibold mb-1 text-slate-400 text-[10px]">סוג מסמך להפקה בסליקה</label>
                                         <select
                                           value={field.payment_doc_type || '320'}
                                           onChange={(e) => handleFieldChange(idx, { payment_doc_type: e.target.value })}
@@ -1610,7 +1610,7 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
         >
           <span className="flex items-center gap-2">
             <Coins className="w-4 h-4 text-amber-400" />
-            <span>הגדרות סליקה מתקדמות (Kesher Clearing)</span>
+            <span>הגדרות סליקה מתקדמות</span>
           </span>
           <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${activeTab === 'clearing' ? 'rotate-180 text-white' : ''}`} />
         </button>
@@ -1631,7 +1631,7 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">סוג מסמך להפקה בקשר</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">סוג מסמך להפקה</label>
                 <select
                   value={value.payment_receipt_type || '320'}
                   onChange={(e) => update({ payment_receipt_type: e.target.value })}
@@ -1698,7 +1698,7 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
                   className="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700 cursor-pointer"
                 />
                 <label htmlFor="require-id" className="text-xs text-slate-300 font-semibold cursor-pointer">
-                  דרוש מספר תעודת זהות (ת.ז) בעת החיוב בקשר
+                  דרוש מספר תעודת זהות (ת.ז) בעת החיוב
                 </label>
               </div>
             </div>

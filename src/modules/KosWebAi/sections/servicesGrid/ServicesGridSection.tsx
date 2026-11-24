@@ -1,6 +1,7 @@
 import React from 'react';
 import * as LucideIcons from 'lucide-react';
 import { clsx } from 'clsx';
+import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 
 export interface ServicesGridItem {
   id: string;
@@ -22,6 +23,7 @@ export interface ServicesGridConfig {
   layout?: 'grid' | 'carousel' | 'image-card' | 'hover-card';
   columns?: number;
   backgroundColor?: string;
+  stylePreset?: string;
   items?: ServicesGridItem[];
 }
 
@@ -34,6 +36,7 @@ const getIcon = (iconName?: string) => {
 export const ServicesGridSection: React.FC<{ config: ServicesGridConfig }> = ({ config }) => {
   if (config.visible === false) return null;
 
+  const styleTokens = resolveStylePresetTokens((config as any).stylePreset);
   const {
     anchorId = 'services',
     title = 'השירותים והתכניות שלנו',
@@ -47,19 +50,21 @@ export const ServicesGridSection: React.FC<{ config: ServicesGridConfig }> = ({ 
   const visibleItems = items.filter((item) => item.isVisible !== false);
 
   const gridColsClass =
-    columns === 1
-      ? 'grid-cols-1'
+    layout === 'carousel'
+      ? 'flex overflow-x-auto snap-x snap-mandatory gap-6 pb-4'
+      : columns === 1
+      ? 'grid grid-cols-1 gap-6'
       : columns === 2
-      ? 'grid-cols-1 md:grid-cols-2'
+      ? 'grid grid-cols-1 md:grid-cols-2 gap-6'
       : columns === 4
-      ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-      : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+      ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6'
+      : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
 
   return (
     <section
       id={anchorId}
       dir="rtl"
-      className="w-full py-14 px-4 sm:px-6 lg:px-8"
+      className={clsx('w-full py-14 px-4 sm:px-6 lg:px-8', styleTokens.sectionWrapperClass)}
       style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
     >
       <div className="max-w-6xl mx-auto">
@@ -78,13 +83,15 @@ export const ServicesGridSection: React.FC<{ config: ServicesGridConfig }> = ({ 
           </div>
         )}
 
-        <div className={clsx('grid gap-6', gridColsClass)}>
+        <div className={gridColsClass}>
           {visibleItems.map((item) => {
             const Icon = getIcon(item.icon);
             const cardContent = (
               <div
                 className={clsx(
-                  'h-full rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between gap-4',
+                  'h-full p-6 flex flex-col justify-between gap-4 transition-all duration-300',
+                  styleTokens.cardClass,
+                  layout === 'hover-card' && 'hover:-translate-y-1.5 hover:shadow-2xl',
                   layout === 'image-card' && 'overflow-hidden p-0'
                 )}
               >
@@ -99,7 +106,7 @@ export const ServicesGridSection: React.FC<{ config: ServicesGridConfig }> = ({ 
                 )}
 
                 <div className={clsx('flex flex-col gap-3', layout === 'image-card' && 'p-6')}>
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <div className={clsx('w-12 h-12 flex items-center justify-center', styleTokens.badgeClass)}>
                     <Icon className="w-6 h-6" />
                   </div>
                   <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
@@ -114,12 +121,14 @@ export const ServicesGridSection: React.FC<{ config: ServicesGridConfig }> = ({ 
               </div>
             );
 
+            const wrapperClass = layout === 'carousel' ? 'block h-full shrink-0 w-[85%] sm:w-[320px] snap-start' : 'block h-full';
+
             return item.url ? (
-              <a key={item.id} href={item.url} className="block h-full">
+              <a key={item.id} href={item.url} className={wrapperClass}>
                 {cardContent}
               </a>
             ) : (
-              <div key={item.id} className="h-full">
+              <div key={item.id} className={wrapperClass}>
                 {cardContent}
               </div>
             );
