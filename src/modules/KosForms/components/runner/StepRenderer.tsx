@@ -4,6 +4,10 @@ import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { transliterateHebrewToSlug, cleanEmailSpeech } from '../../utils/transliteration';
 import { CapabilitySlot } from '../../../../core/bridge/CapabilitySlot';
+import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
+import { resolveActivePaymentProvider } from '../../../../core/connection/paymentProviderResolver';
+import { useTenantScope } from '../../../../core/tenant';
+import { NedarimCheckout } from '../../../KosNedarim/components/NedarimCheckout';
 import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2, Globe, Lock, CreditCard } from 'lucide-react';
 
 export interface StepRendererProps {
@@ -25,6 +29,10 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
   validationError,
   allAnswers,
 }) => {
+  const { apiKeys, purchasedModules } = useSystemConnection();
+  const { tenantId } = useTenantScope();
+  const activePaymentProvider = resolveActivePaymentProvider(apiKeys, purchasedModules);
+
   const accentColor = theme?.accentColor || '#D97706';
   const isVoiceEnabled = theme?.enableVoiceInput !== false;
 
@@ -580,32 +588,43 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
               )}
             </div>
 
-            <CapabilitySlot
-              name="kesher-payment-slot"
-              props={{
-                amount: resolvedAmount,
-                clientName: resolvedClientName,
-                phone: resolvedPhone,
-                email: resolvedEmail,
-                description: step.title || 'תשלום שאלון KSF',
-                onSuccess: (res: any) => onChange(res.transactionId || 'approved'),
-              }}
-              fallback={
-                <div className="p-6 bg-white dark:bg-slate-900 border-2 border-indigo-500/30 rounded-2xl text-center space-y-3 shadow-md">
-                  <CreditCard className="w-8 h-8 text-indigo-500 mx-auto" />
-                  <h4 className="font-black text-slate-900 dark:text-white text-base">
-                    סליקה מאובטחת באמצעות מסוף קשר
-                  </h4>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    סליקת אשראי, ביט והעברה בנקאית מאובטחת. המסמך יישלח אוטומטית בסיום.
-                  </p>
-                  <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl text-indigo-700 dark:text-indigo-300 text-sm font-black flex items-center justify-center gap-2">
-                    <span>סכום לתשלום:</span>
-                    <span className="text-base font-mono">₪{resolvedAmount}</span>
+            {activePaymentProvider === 'nedarim' ? (
+              <NedarimCheckout
+                amount={resolvedAmount}
+                clientName={resolvedClientName || 'לקוח'}
+                phone={resolvedPhone}
+                mail={resolvedEmail}
+                tenantId={tenantId}
+                onSuccess={() => onChange(`nedarim_${Date.now()}`)}
+              />
+            ) : (
+              <CapabilitySlot
+                name="kesher-payment-slot"
+                props={{
+                  amount: resolvedAmount,
+                  clientName: resolvedClientName,
+                  phone: resolvedPhone,
+                  email: resolvedEmail,
+                  description: step.title || 'תשלום שאלון KSF',
+                  onSuccess: (res: any) => onChange(res.transactionId || 'approved'),
+                }}
+                fallback={
+                  <div className="p-6 bg-white dark:bg-slate-900 border-2 border-indigo-500/30 rounded-2xl text-center space-y-3 shadow-md">
+                    <CreditCard className="w-8 h-8 text-indigo-500 mx-auto" />
+                    <h4 className="font-black text-slate-900 dark:text-white text-base">
+                      סליקה מאובטחת באמצעות מסוף קשר
+                    </h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      סליקת אשראי, ביט והעברה בנקאית מאובטחת. המסמך יישלח אוטומטית בסיום.
+                    </p>
+                    <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl text-indigo-700 dark:text-indigo-300 text-sm font-black flex items-center justify-center gap-2">
+                      <span>סכום לתשלום:</span>
+                      <span className="text-base font-mono">₪{resolvedAmount}</span>
+                    </div>
                   </div>
-                </div>
-              }
-            />
+                }
+              />
+            )}
           </div>
         );
       }

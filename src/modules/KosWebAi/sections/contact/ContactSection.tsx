@@ -35,6 +35,7 @@ import { eventBus } from '../../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { CapabilitySlot } from '../../../../core/bridge/CapabilitySlot';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
+import { resolveActivePaymentProvider } from '../../../../core/connection/paymentProviderResolver';
 import { useTenantScope } from '../../../../core/tenant';
 import { NedarimCheckout } from '../../../KosNedarim/components/NedarimCheckout';
 import { resolveLiveBrandDna } from '../../generators/pageGenerator';
@@ -42,13 +43,9 @@ import { DEFAULT_CONTACT_FORM_CONFIG } from './ContactFormConfigEditor';
 import { clsx } from 'clsx';
 
 export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ config }) => {
-  const { apiKeys } = useSystemConnection();
+  const { apiKeys, purchasedModules } = useSystemConnection();
   const { tenantId } = useTenantScope();
-  const activePaymentProvider: 'kesher' | 'nedarim' =
-    apiKeys?.paymentProvider === 'nedarim' ||
-    (Boolean(apiKeys?.nedarimMosadId) && !apiKeys?.kesherUserName)
-      ? 'nedarim'
-      : 'kesher';
+  const activePaymentProvider = resolveActivePaymentProvider(apiKeys, purchasedModules);
 
   const { getCapability } = useHostCapabilities();
   const rawBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;

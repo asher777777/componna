@@ -32,11 +32,18 @@ import {
 import { eventBus } from '../../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { CapabilitySlot } from '../../../../core/bridge/CapabilitySlot';
+import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
+import { resolveActivePaymentProvider } from '../../../../core/connection/paymentProviderResolver';
+import { useTenantScope } from '../../../../core/tenant';
+import { NedarimCheckout } from '../../../KosNedarim/components/NedarimCheckout';
 import { resolveLiveBrandDna } from '../../generators/pageGenerator';
 import { DEFAULT_LANDING_FORM_CONFIG } from './LandingFormDefaults';
 import { clsx } from 'clsx';
 
 export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ config }) => {
+  const { apiKeys, purchasedModules } = useSystemConnection();
+  const { tenantId } = useTenantScope();
+  const activePaymentProvider = resolveActivePaymentProvider(apiKeys, purchasedModules);
   const { getCapability } = useHostCapabilities();
   const rawBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
   const brandDna = resolveLiveBrandDna(rawBrandDna);
@@ -662,39 +669,58 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
             </div>
           </div>
 
-          <CapabilitySlot
-            name="kesher-payment-slot"
-            props={{
-              amount: checkoutData.amount,
-              clientName: checkoutData.clientName,
-              phone: checkoutData.phone,
-              email: checkoutData.email,
-              description: title,
-              documentType: activeForm.payment_receipt_type || 320,
-              requireId: activeForm.payment_require_id,
-              onSuccess: handlePaymentSuccess,
-              onCancel: () => setShowCheckout(false),
-            }}
-            fallback={
-              <div className="p-5 bg-slate-800/40 rounded-2xl text-center space-y-2 border border-slate-700">
-                <CreditCard className="w-7 h-7 text-indigo-400 mx-auto" />
-                <h4 className="text-xs font-bold text-white">מסוף הסליקה מוכן לקליטת תשלום</h4>
-                <p className="text-[11px] text-slate-400">הסליקה מתבצעת תחת מודול kesher-payments-hub.</p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handlePaymentSuccess({
-                      transactionId: `landing_${Date.now()}`,
-                      amount: checkoutData.amount,
-                    })
-                  }
-                  className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs cursor-pointer shadow-md"
-                >
-                  אישור תשלום (סביבת בדיקה)
-                </button>
-              </div>
-            }
-          />
+          {activePaymentProvider === 'nedarim' ? (
+            <NedarimCheckout
+              amount={checkoutData.amount}
+              clientName={checkoutData.clientName}
+              phone={checkoutData.phone}
+              mail={checkoutData.email}
+              receiptType={String(activeForm.payment_receipt_type || '405')}
+              isRecurring={activeForm.payment_frequency === 'recurring'}
+              tenantId={tenantId}
+              onSuccess={() =>
+                handlePaymentSuccess({
+                  transactionId: `nedarim_${Date.now()}`,
+                  amount: checkoutData.amount,
+                })
+              }
+              onCancel={() => setShowCheckout(false)}
+            />
+          ) : (
+            <CapabilitySlot
+              name="kesher-payment-slot"
+              props={{
+                amount: checkoutData.amount,
+                clientName: checkoutData.clientName,
+                phone: checkoutData.phone,
+                email: checkoutData.email,
+                description: title,
+                documentType: activeForm.payment_receipt_type || 320,
+                requireId: activeForm.payment_require_id,
+                onSuccess: handlePaymentSuccess,
+                onCancel: () => setShowCheckout(false),
+              }}
+              fallback={
+                <div className="p-5 bg-slate-800/40 rounded-2xl text-center space-y-2 border border-slate-700">
+                  <CreditCard className="w-7 h-7 text-indigo-400 mx-auto" />
+                  <h4 className="text-xs font-bold text-white">מסוף הסליקה מוכן לקליטת תשלום</h4>
+                  <p className="text-[11px] text-slate-400">הסליקה מתבצעת תחת מודול kesher-payments-hub.</p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handlePaymentSuccess({
+                        transactionId: `landing_${Date.now()}`,
+                        amount: checkoutData.amount,
+                      })
+                    }
+                    className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs cursor-pointer shadow-md"
+                  >
+                    אישור תשלום (סביבת בדיקה)
+                  </button>
+                </div>
+              }
+            />
+          )}
         </div>
       );
     }

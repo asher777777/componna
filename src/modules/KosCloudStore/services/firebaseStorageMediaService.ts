@@ -94,7 +94,7 @@ export class FirebaseStorageMediaService {
       const vaultDocRef = doc(db, vaultColl, `${timeStamp}_${safeName}`);
       const itemsDocRef = doc(db, itemsColl, localMediaItem.id);
       
-      const payload = {
+      const rawPayload: Record<string, any> = {
         ...localMediaItem,
         id: localMediaItem.id,
         name: safeName,
@@ -108,6 +108,9 @@ export class FirebaseStorageMediaService {
         storagePath,
         updatedAt: Date.now(),
       };
+      const payload = Object.fromEntries(
+        Object.entries(rawPayload).filter(([, v]) => v !== undefined)
+      );
 
       setDoc(vaultDocRef, payload, { merge: true }).catch(() => {});
       setDoc(itemsDocRef, payload, { merge: true }).catch(() => {});
