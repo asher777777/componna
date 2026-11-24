@@ -23,12 +23,16 @@ import { TenantAuthService } from '../../KosTenantProvisioner/services/tenantAut
 
 export interface FloatingWeAreHereWidgetProps {
   pageConfigSettings?: any;
+  pageTitle?: string;
+  seoSettings?: { title?: string; description?: string; ogImage?: string };
   isEditing?: boolean;
   onEditWidgetSettings?: () => void;
 }
 
 export const FloatingWeAreHereWidget: React.FC<FloatingWeAreHereWidgetProps> = ({
   pageConfigSettings,
+  pageTitle,
+  seoSettings,
   isEditing = false,
   onEditWidgetSettings,
 }) => {
@@ -82,8 +86,8 @@ export const FloatingWeAreHereWidget: React.FC<FloatingWeAreHereWidgetProps> = (
   const resolvedAddress = widgetSettings.address || pageConfigSettings?.address || brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב';
 
   const buttonText = widgetSettings.buttonText || 'אנחנו כאן';
-  const shareTitle = widgetSettings.shareTitle || pageConfigSettings?.siteTitle || companyName;
-  const shareText = widgetSettings.shareText || pageConfigSettings?.slogan || 'הזמנה להצטרף ולבקר בעמוד שלנו';
+  const shareTitle = widgetSettings.shareTitle || seoSettings?.title || pageTitle || pageConfigSettings?.siteTitle || companyName;
+  const shareText = widgetSettings.shareText || seoSettings?.description || pageConfigSettings?.slogan || 'הזמנה להצטרף ולבקר בעמוד שלנו';
 
   const cleanPhone = resolvedPhone.replace(/[^0-9]/g, '');
   const cleanWhatsapp = resolvedWhatsapp.replace(/[^0-9]/g, '');

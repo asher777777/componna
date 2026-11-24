@@ -55,6 +55,46 @@ export interface KoswebPageModelResult {
 }
 
 /**
+ * Converts a Hero image URL/dataUrl into a compressed <100KB JPEG thumbnail data URL for OG social sharing.
+ */
+async function createOgThumbnailJpgDataUrl(sourceUrl: string): Promise<string | null> {
+  if (!sourceUrl || typeof document === 'undefined') return null;
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.crossOrigin = 'anonymous';
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('Image load failed'));
+      el.src = sourceUrl;
+    });
+
+    const maxW = 1200;
+    const maxH = 630;
+    const scale = Math.min(maxW / (img.naturalWidth || maxW), maxH / (img.naturalHeight || maxH), 1);
+    const width = Math.max(1, Math.round((img.naturalWidth || maxW) * scale));
+    const height = Math.max(1, Math.round((img.naturalHeight || maxH) * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, width, height);
+
+    for (const q of [0.76, 0.62, 0.48]) {
+      const dataUrl = canvas.toDataURL('image/jpeg', q);
+      // Approximate base64 byte length (~0.75 of string length)
+      if (dataUrl.length * 0.75 <= 95 * 1024 || q === 0.48) {
+        return dataUrl;
+      }
+    }
+    return canvas.toDataURL('image/jpeg', 0.48);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolves a valid KOSCLOUD branding icon name from the tenant's style catalog.
  */
 function resolveKoscloudIconName(
@@ -182,6 +222,39 @@ export async function generatePageWithKoswebModel(
       console.warn('[koswebPageModelService] Hero image generation skipped:', imgErr);
     }
   }
+
+  // 1b. Create compressed <100KB JPG OG thumbnail flyer from Hero image and save to KOSCLOUD
+  let ogThumbnailUrl = '';
+  if (heroImageUrl) {
+    try {
+      const thumbDataUrl = await createOgThumbnailJpgDataUrl(heroImageUrl);
+      if (thumbDataUrl && typeof input.saveGeneratedImageToKoscloud === 'function') {
+        const savedOgUrl = await input.saveGeneratedImageToKoscloud({
+          imageUrl: thumbDataUrl,
+          name: `og_${pageId}.jpg`,
+          sourceModule: 'KosWebAi',
+          sourceModuleLabel: 'תמונת שיתוף OG (פלייר הירו ממוזער)',
+        });
+        if (savedOgUrl) ogThumbnailUrl = savedOgUrl;
+      } else if (thumbDataUrl) {
+        ogThumbnailUrl = thumbDataUrl;
+      }
+    } catch (ogErr) {
+      console.warn('[koswebPageModelService] OG thumbnail generation skipped:', ogErr);
+    }
+    if (!ogThumbnailUrl && !heroImageUrl.startsWith('data:')) {
+      ogThumbnailUrl = heroImageUrl;
+    }
+  }
+
+  const cleanSeoDescription = String(
+    aiData?.hero?.description || input.description || cleanTitle
+  )
+    .replace(/\*\*/g, '')
+    .replace(/^\s*[-*]\s+/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
 
   // 1. Build Hero section (hydrate BrandDna first, then apply AI copy on top so BrandDna NEVER overwrites AI title/subtitle)
   const heroDefault = SECTION_REGISTRY.hero?.defaultConfig || {};
@@ -493,8 +566,9 @@ export async function generatePageWithKoswebModel(
     },
     seoSettings: {
       title: `${cleanTitle} | ${companyName}`,
-      description: input.description || cleanTitle,
+      description: cleanSeoDescription,
       keywords: [cleanTitle, input.goal, companyName].filter(Boolean),
+      ...(ogThumbnailUrl ? { ogImage: ogThumbnailUrl } : {}),
     },
     lastModified: Date.now(),
     createdAt: new Date().toISOString(),

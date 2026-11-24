@@ -689,6 +689,8 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
       {/* Floating We Are Here & Share Widget (Always accessible, configurable per page) */}
       <FloatingWeAreHereWidget
         pageConfigSettings={globalSettings}
+        pageTitle={config.pageTitle}
+        seoSettings={config.seoSettings}
         isEditing={isEditing}
         onEditWidgetSettings={() => setIsWidgetSettingsModalOpen(true)}
       />

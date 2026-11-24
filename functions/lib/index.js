@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.imageProxy = exports.geminiAiProxy = exports.sitemapXml = exports.mediaProxy = exports.tiktokWebhook = exports.triggerScheduledReminders = exports.dispatchScheduledReminders = exports.tenantAdminAuth = exports.kesherMasterBilling = exports.nedarimProxy = exports.kesherProxy = exports.whatsappWebhook = void 0;
+exports.ogMetaProxy = exports.imageProxy = exports.geminiAiProxy = exports.sitemapXml = exports.mediaProxy = exports.tiktokWebhook = exports.triggerScheduledReminders = exports.dispatchScheduledReminders = exports.tenantAdminAuth = exports.kesherMasterBilling = exports.nedarimProxy = exports.kesherProxy = exports.whatsappWebhook = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const generative_ai_1 = require("@google/generative-ai");
@@ -2705,5 +2705,154 @@ exports.imageProxy = functions.https.onRequest((req, res) => {
             res.status(502).send('Failed to fetch upstream image');
         }
     });
+});
+// ============================================================================
+// SERVER-SIDE OPEN GRAPH / LINK PREVIEW META INJECTOR (WhatsApp, FB, Telegram)
+// ============================================================================
+let cachedIndexHtml = null;
+async function getBaseIndexHtml() {
+    const now = Date.now();
+    if (cachedIndexHtml && now - cachedIndexHtml.fetchedAt < 5 * 60 * 1000) {
+        return cachedIndexHtml.html;
+    }
+    const resp = await fetch('https://compona.web.app/index.html');
+    if (!resp.ok) {
+        throw new Error(`Failed to fetch base index.html (${resp.status})`);
+    }
+    const html = await resp.text();
+    cachedIndexHtml = { html, fetchedAt: now };
+    return html;
+}
+function escapeHtmlAttr(val) {
+    return String(val || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+function resolveTenantFromHost(hostHeader) {
+    const host = String(hostHeader || '').split(':')[0].trim().toLowerCase();
+    if (!host || host === 'compona.web.app' || host === 'compona.firebaseapp.com' || host === 'kosun.pro' || host === 'www.kosun.pro' || host.includes('localhost')) {
+        return '_master';
+    }
+    const parts = host.split('.');
+    if (parts.length >= 3 && parts[0] !== 'www') {
+        return parts[0];
+    }
+    return '_master';
+}
+function resolveSlugFromPath(reqPath) {
+    const clean = String(reqPath || '/').split('?')[0].replace(/\/+$/, '');
+    if (!clean || clean === '/')
+        return 'home';
+    const stripped = clean.replace(/^\/(p|preview|page|kosass|kosinfo|kosevent|koscheckout|koscommunity|kosfunrise|koscourse|kosvidio|posts|tube|to)\//i, '/');
+    return stripped.replace(/^\/+/, '') || 'home';
+}
+exports.ogMetaProxy = functions.runWith({ timeoutSeconds: 15, memory: '256MB' }).https.onRequest(async (req, res) => {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+    try {
+        const baseHtml = await getBaseIndexHtml();
+        const host = String(req.headers['x-fh-requested-host'] || req.headers['x-forwarded-host'] || req.headers.host || 'compona.web.app');
+        const tenantId = resolveTenantFromHost(host);
+        const slug = resolveSlugFromPath(req.path);
+        const fullUrl = `https://${host}${req.originalUrl || req.path || '/'}`;
+        let pageData = null;
+        const candidateCollections = ['kos_web_ai_documents', 'mod_pages_documents', 'mod_pagebuilder_pages', 'pages'];
+        try {
+            for (const collName of candidateCollections) {
+                const snap = await db
+                    .collection('tenants')
+                    .doc(tenantId)
+                    .collection(collName)
+                    .where('slug', '==', slug)
+                    .limit(1)
+                    .get();
+                if (!snap.empty) {
+                    pageData = snap.docs[0].data();
+                    break;
+                }
+                if (slug === 'home') {
+                    const homeSnap = await db
+                        .collection('tenants')
+                        .doc(tenantId)
+                        .collection(collName)
+                        .where('isHomePage', '==', true)
+                        .limit(1)
+                        .get();
+                    if (!homeSnap.empty) {
+                        pageData = homeSnap.docs[0].data();
+                        break;
+                    }
+                }
+            }
+        }
+        catch (fsErr) {
+            console.warn('[ogMetaProxy] Firestore lookup notice:', fsErr);
+        }
+        if (!pageData && tenantId === '_master' && slug !== 'home') {
+            try {
+                const tenantsSnap = await db.collection('tenants').select().get();
+                const lookups = await Promise.all(tenantsSnap.docs
+                    .filter((d) => d.id !== '_master' && d.id !== '_public' && d.id !== '_trash')
+                    .map((d) => d.ref
+                    .collection('kos_web_ai_documents')
+                    .where('slug', '==', slug)
+                    .limit(1)
+                    .get()
+                    .catch(() => null)));
+                for (const resSnap of lookups) {
+                    if (resSnap && !resSnap.empty) {
+                        pageData = resSnap.docs[0].data();
+                        break;
+                    }
+                }
+            }
+            catch (crossErr) {
+                console.warn('[ogMetaProxy] Cross-tenant slug lookup notice:', crossErr);
+            }
+        }
+        if (!pageData) {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.status(200).send(baseHtml);
+            return;
+        }
+        const siteName = ((_a = pageData === null || pageData === void 0 ? void 0 : pageData.globalSettings) === null || _a === void 0 ? void 0 : _a.companyName) || ((_b = pageData === null || pageData === void 0 ? void 0 : pageData.globalSettings) === null || _b === void 0 ? void 0 : _b.siteTitle) || 'KOSUN';
+        const ogTitle = String(((_c = pageData === null || pageData === void 0 ? void 0 : pageData.seoSettings) === null || _c === void 0 ? void 0 : _c.title) || (pageData === null || pageData === void 0 ? void 0 : pageData.pageTitle) || siteName).trim();
+        const ogDesc = String(((_d = pageData === null || pageData === void 0 ? void 0 : pageData.seoSettings) === null || _d === void 0 ? void 0 : _d.description) ||
+            ((_f = (_e = pageData === null || pageData === void 0 ? void 0 : pageData.sections) === null || _e === void 0 ? void 0 : _e.hero) === null || _f === void 0 ? void 0 : _f.description) ||
+            ((_h = (_g = pageData === null || pageData === void 0 ? void 0 : pageData.sections) === null || _g === void 0 ? void 0 : _g.hero) === null || _h === void 0 ? void 0 : _h.subtitle) ||
+            siteName).replace(/\s+/g, ' ').trim().slice(0, 220);
+        const rawImage = String(((_j = pageData === null || pageData === void 0 ? void 0 : pageData.seoSettings) === null || _j === void 0 ? void 0 : _j.ogImage) ||
+            ((_l = (_k = pageData === null || pageData === void 0 ? void 0 : pageData.sections) === null || _k === void 0 ? void 0 : _k.hero) === null || _l === void 0 ? void 0 : _l.imageSrc) ||
+            ((_m = pageData === null || pageData === void 0 ? void 0 : pageData.globalSettings) === null || _m === void 0 ? void 0 : _m.siteLogoUrl) ||
+            '').trim();
+        const ogImage = /^https?:\/\//i.test(rawImage) ? rawImage : '';
+        const metaBlock = [
+            `<title>${escapeHtmlAttr(ogTitle)}</title>`,
+            `<meta name="description" content="${escapeHtmlAttr(ogDesc)}" />`,
+            `<meta property="og:type" content="website" />`,
+            `<meta property="og:url" content="${escapeHtmlAttr(fullUrl)}" />`,
+            `<meta property="og:title" content="${escapeHtmlAttr(ogTitle)}" />`,
+            `<meta property="og:description" content="${escapeHtmlAttr(ogDesc)}" />`,
+            `<meta property="og:site_name" content="${escapeHtmlAttr(siteName)}" />`,
+            ogImage ? `<meta property="og:image" content="${escapeHtmlAttr(ogImage)}" />` : '',
+            ogImage ? `<meta property="og:image:width" content="1200" />` : '',
+            ogImage ? `<meta property="og:image:height" content="630" />` : '',
+            `<meta name="twitter:card" content="${ogImage ? 'summary_large_image' : 'summary'}" />`,
+            `<meta name="twitter:title" content="${escapeHtmlAttr(ogTitle)}" />`,
+            `<meta name="twitter:description" content="${escapeHtmlAttr(ogDesc)}" />`,
+            ogImage ? `<meta name="twitter:image" content="${escapeHtmlAttr(ogImage)}" />` : '',
+        ].filter(Boolean).join('\n    ');
+        let finalHtml = baseHtml.replace(/<title>[\s\S]*?<\/title>/i, '');
+        finalHtml = finalHtml.replace(/<meta[^>]+(?:name="description"|property="og:[^"]+"|name="twitter:[^"]+")[^>]*>/gi, '');
+        finalHtml = finalHtml.replace('</head>', `    ${metaBlock}\n  </head>`);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, max-age=120');
+        res.status(200).send(finalHtml);
+    }
+    catch (err) {
+        console.error('[ogMetaProxy] Error:', err);
+        res.redirect(302, '/index.html');
+    }
 });
 //# sourceMappingURL=index.js.map
