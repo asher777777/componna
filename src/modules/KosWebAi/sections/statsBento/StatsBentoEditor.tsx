@@ -684,6 +684,142 @@ export const StatsBentoEditor: React.FC<StatsBentoEditorProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Global Icon Size & Position */}
+              <div className="pt-3 border-t border-white/10 space-y-3">
+                <span className="text-xs font-bold text-zinc-200 block">שליטה גורפת באייקונים (לכל הכרטיסים)</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-zinc-400">גודל אייקונים</label>
+                    <select
+                      value={localConfig.iconSize || 'auto'}
+                      onChange={(e) => handleUpdate({ iconSize: e.target.value as any })}
+                      className="w-full bg-slate-900/90 border border-white/15 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="auto">אוטומטי (לפי קנה מידה)</option>
+                      <option value="sm">קטן (36px)</option>
+                      <option value="md">בינוני (48px)</option>
+                      <option value="lg">גדול (64px)</option>
+                      <option value="xl">ענק (80px)</option>
+                      <option value="2xl">מקסימלי (96px)</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-zinc-400">מיקום אייקונים בכרטיס</label>
+                    <select
+                      value={localConfig.iconPosition || 'top-right'}
+                      onChange={(e) => handleUpdate({ iconPosition: e.target.value as any })}
+                      className="w-full bg-slate-900/90 border border-white/15 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="top-right">למעלה מימין (ברירת מחדל)</option>
+                      <option value="top-center">למעלה במרכז (ממורכז)</option>
+                      <option value="top-left">למעלה משמאל</option>
+                      <option value="side">בצד ליד המספר והטקסט</option>
+                      <option value="bottom">בתחתית הכרטיס</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Granular Font Sizes */}
+              <div className="pt-3 border-t border-white/10 space-y-3">
+                <span className="text-xs font-bold text-zinc-200 block">גדלי פונטים לפי אלמנט</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-semibold text-zinc-400">כותרת האזור</label>
+                    <select
+                      value={localConfig.titleFontSize || 'auto'}
+                      onChange={(e) => handleUpdate({ titleFontSize: e.target.value as any })}
+                      className="w-full bg-slate-900/90 border border-white/15 text-white rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="auto">אוטומטי</option>
+                      <option value="sm">קטן</option>
+                      <option value="md">בינוני</option>
+                      <option value="lg">גדול</option>
+                      <option value="xl">ענק</option>
+                      <option value="2xl">מקסימלי</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-semibold text-zinc-400">תת-כותרת / תגית</label>
+                    <select
+                      value={localConfig.subtitleFontSize || 'auto'}
+                      onChange={(e) => handleUpdate({ subtitleFontSize: e.target.value as any })}
+                      className="w-full bg-slate-900/90 border border-white/15 text-white rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="auto">אוטומטי</option>
+                      <option value="xs">קטן מאוד</option>
+                      <option value="sm">קטן</option>
+                      <option value="md">בינוני</option>
+                      <option value="lg">גדול</option>
+                      <option value="xl">ענק</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-semibold text-zinc-400">תיאור האזור</label>
+                    <select
+                      value={localConfig.descriptionFontSize || 'auto'}
+                      onChange={(e) => handleUpdate({ descriptionFontSize: e.target.value as any })}
+                      className="w-full bg-slate-900/90 border border-white/15 text-white rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="auto">אוטומטי</option>
+                      <option value="xs">קטן מאוד</option>
+                      <option value="sm">קטן</option>
+                      <option value="md">בינוני</option>
+                      <option value="lg">גדול</option>
+                      <option value="xl">ענק</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-semibold text-zinc-400">מספר / ערך בכרטיס</label>
+                    <select
+                      value={localConfig.cardValueFontSize || 'auto'}
+                      onChange={(e) => handleUpdate({ cardValueFontSize: e.target.value as any })}
+                      className="w-full bg-slate-900/90 border border-white/15 text-white rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="auto">אוטומטי</option>
+                      <option value="sm">קטן</option>
+                      <option value="md">בינוני</option>
+                      <option value="lg">גדול</option>
+                      <option value="xl">ענק</option>
+                      <option value="2xl">מקסימלי</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-semibold text-zinc-400">כותרת כרטיס</label>
+                    <select
+                      value={localConfig.cardTitleFontSize || 'auto'}
+                      onChange={(e) => handleUpdate({ cardTitleFontSize: e.target.value as any })}
+                      className="w-full bg-slate-900/90 border border-white/15 text-white rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="auto">אוטומטי</option>
+                      <option value="sm">קטן</option>
+                      <option value="md">בינוני</option>
+                      <option value="lg">גדול</option>
+                      <option value="xl">ענק</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-semibold text-zinc-400">תיאור כרטיס</label>
+                    <select
+                      value={localConfig.cardDescriptionFontSize || 'auto'}
+                      onChange={(e) => handleUpdate({ cardDescriptionFontSize: e.target.value as any })}
+                      className="w-full bg-slate-900/90 border border-white/15 text-white rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="auto">אוטומטי</option>
+                      <option value="xs">קטן מאוד</option>
+                      <option value="sm">קטן</option>
+                      <option value="md">בינוני</option>
+                      <option value="lg">גדול</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>

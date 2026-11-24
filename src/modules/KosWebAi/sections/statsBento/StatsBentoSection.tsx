@@ -18,6 +18,14 @@ import {
   Zap,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { ensureReadableTextColor, isDarkSurfaceColor } from '../../styles/resolveSectionTheme';
+
+const cleanColor = (color?: string): string | undefined => {
+  if (!color) return undefined;
+  const trimmed = color.trim();
+  if (!trimmed || trimmed.toLowerCase() === 'transparent') return undefined;
+  return trimmed;
+};
 
 export const StatsBentoSection: React.FC<{ config: StatsBentoSectionConfig }> = ({ config }) => {
   const {
@@ -37,6 +45,14 @@ export const StatsBentoSection: React.FC<{ config: StatsBentoSectionConfig }> = 
     backgroundColor = 'transparent',
     cardBackgroundColor,
     accentColor = '#3b82f6',
+    titleFontSize = 'auto',
+    subtitleFontSize = 'auto',
+    descriptionFontSize = 'auto',
+    cardValueFontSize = 'auto',
+    cardTitleFontSize = 'auto',
+    cardDescriptionFontSize = 'auto',
+    iconSize = 'auto',
+    iconPosition = 'top-right',
     showCtaButton = false,
     ctaButtonText = 'לכל הנתונים וההישגים',
     ctaButtonUrl = '#',
@@ -255,7 +271,187 @@ export const StatsBentoSection: React.FC<{ config: StatsBentoSectionConfig }> = 
     }
   };
   const theme = getThemeClasses();
-  const effectiveAccent = accentColor || theme.accent;
+  const effectiveAccent = cleanColor(accentColor) || theme.accent;
+  const effectiveSectionBg = cleanColor(backgroundColor);
+  const effectiveCardBg = cleanColor(cardBackgroundColor);
+
+  const isPageDark =
+    typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : true;
+  const isLayoutNaturallyDark =
+    effectiveLayout === 'masculine' || effectiveLayout === 'analytical';
+
+  const sectionSurfaceHex =
+    textBgEnabled && textBgImageUrl && textBgScope === 'full-section'
+      ? cleanColor(textBgOverlayColor) || '#000000'
+      : effectiveSectionBg || (isLayoutNaturallyDark || isPageDark ? '#0a0a0c' : '#f8fafc');
+
+  const headerSurfaceHex =
+    textBgEnabled && textBgImageUrl && textBgScope === 'text-card'
+      ? cleanColor(textBgOverlayColor) || '#000000'
+      : sectionSurfaceHex;
+
+  const cardSurfaceHex =
+    cardBackgroundColor === 'transparent'
+      ? sectionSurfaceHex
+      : effectiveCardBg || (isLayoutNaturallyDark || isPageDark ? '#0f172a' : '#ffffff');
+
+  const headerDiffersFromDefault =
+    isDarkSurfaceColor(headerSurfaceHex) !== (isLayoutNaturallyDark || isPageDark);
+  const cardDiffersFromDefault =
+    isDarkSurfaceColor(cardSurfaceHex) !== (isLayoutNaturallyDark || isPageDark);
+
+  const resolvedTitleColor = ensureReadableTextColor(
+    cleanColor(titleColor),
+    headerSurfaceHex,
+    3.5,
+    '#ffffff',
+    '#0f172a',
+    headerDiffersFromDefault
+  );
+  const resolvedSubtitleColor = ensureReadableTextColor(
+    cleanColor(subtitleColor),
+    headerSurfaceHex,
+    3.0,
+    '#cbd5e1',
+    '#334155',
+    headerDiffersFromDefault
+  );
+  const resolvedDescColor = ensureReadableTextColor(
+    cleanColor(descriptionColor),
+    headerSurfaceHex,
+    4.5,
+    '#e2e8f0',
+    '#334155',
+    headerDiffersFromDefault
+  );
+
+  const cardValueColor = ensureReadableTextColor(
+    cleanColor(accentColor) || cleanColor(titleColor),
+    cardSurfaceHex,
+    3.0,
+    '#ffffff',
+    '#0f172a',
+    cardDiffersFromDefault
+  );
+  const cardTitleColor = ensureReadableTextColor(
+    cleanColor(titleColor),
+    cardSurfaceHex,
+    3.5,
+    '#ffffff',
+    '#0f172a',
+    cardDiffersFromDefault
+  );
+  const cardDescColor = ensureReadableTextColor(
+    cleanColor(descriptionColor),
+    cardSurfaceHex,
+    4.5,
+    '#e2e8f0',
+    '#334155',
+    cardDiffersFromDefault
+  );
+  const ctaTextColor =
+    ensureReadableTextColor('#ffffff', effectiveAccent, 4.5, '#ffffff', '#0f172a', true) || '#ffffff';
+
+  // Granular typography overrides
+  const resolvedTitleSizeClass =
+    titleFontSize === 'sm'
+      ? 'text-xl sm:text-2xl'
+      : titleFontSize === 'md'
+        ? 'text-2xl sm:text-3xl'
+        : titleFontSize === 'lg'
+          ? 'text-3xl sm:text-4xl'
+          : titleFontSize === 'xl'
+            ? 'text-4xl sm:text-5xl'
+            : titleFontSize === '2xl'
+              ? 'text-5xl sm:text-6xl md:text-7xl'
+              : scale.titleSize;
+
+  const resolvedSubtitleSizeClass =
+    subtitleFontSize === 'xs'
+      ? 'text-xs'
+      : subtitleFontSize === 'sm'
+        ? 'text-sm'
+        : subtitleFontSize === 'md'
+          ? 'text-base'
+          : subtitleFontSize === 'lg'
+            ? 'text-lg sm:text-xl'
+            : subtitleFontSize === 'xl'
+              ? 'text-xl sm:text-2xl'
+              : 'text-xs';
+
+  const resolvedDescSizeClass =
+    descriptionFontSize === 'xs'
+      ? 'text-xs'
+      : descriptionFontSize === 'sm'
+        ? 'text-sm'
+        : descriptionFontSize === 'md'
+          ? 'text-base'
+          : descriptionFontSize === 'lg'
+            ? 'text-lg sm:text-xl'
+            : descriptionFontSize === 'xl'
+              ? 'text-xl sm:text-2xl'
+              : scale.subSize;
+
+  const resolvedCardValueSizeClass =
+    cardValueFontSize === 'sm'
+      ? 'text-2xl sm:text-3xl'
+      : cardValueFontSize === 'md'
+        ? 'text-3xl sm:text-4xl'
+        : cardValueFontSize === 'lg'
+          ? 'text-4xl sm:text-5xl'
+          : cardValueFontSize === 'xl'
+            ? 'text-5xl sm:text-6xl'
+            : cardValueFontSize === '2xl'
+              ? 'text-6xl sm:text-7xl'
+              : scale.numberSize;
+
+  const resolvedCardTitleSizeClass =
+    cardTitleFontSize === 'sm'
+      ? 'text-xs sm:text-sm font-bold'
+      : cardTitleFontSize === 'md'
+        ? 'text-base font-bold'
+        : cardTitleFontSize === 'lg'
+          ? 'text-lg sm:text-xl font-extrabold'
+          : cardTitleFontSize === 'xl'
+            ? 'text-xl sm:text-2xl font-black'
+            : scale.labelSize;
+
+  const resolvedCardDescSizeClass =
+    cardDescriptionFontSize === 'xs'
+      ? 'text-[11px] leading-relaxed'
+      : cardDescriptionFontSize === 'sm'
+        ? 'text-xs sm:text-sm leading-relaxed'
+        : cardDescriptionFontSize === 'md'
+          ? 'text-sm sm:text-base leading-relaxed'
+          : cardDescriptionFontSize === 'lg'
+            ? 'text-base sm:text-lg leading-relaxed'
+            : scale.descSize;
+
+  const resolvedIconBoxClass =
+    iconSize === 'sm'
+      ? 'w-9 h-9 rounded-xl'
+      : iconSize === 'md'
+        ? 'w-12 h-12 rounded-2xl'
+        : iconSize === 'lg'
+          ? 'w-16 h-16 rounded-3xl'
+          : iconSize === 'xl'
+            ? 'w-20 h-20 rounded-3xl'
+            : iconSize === '2xl'
+              ? 'w-24 h-24 rounded-3xl'
+              : scale.iconBox;
+
+  const resolvedIconSizeClass =
+    iconSize === 'sm'
+      ? 'w-4 h-4'
+      : iconSize === 'md'
+        ? 'w-6 h-6'
+        : iconSize === 'lg'
+          ? 'w-8 h-8'
+          : iconSize === 'xl'
+            ? 'w-10 h-10'
+            : iconSize === '2xl'
+              ? 'w-12 h-12'
+              : scale.iconSize;
 
   // Icon container color styles based on card item color or preset
   const getItemColorClasses = (colorName?: string) => {
@@ -373,29 +569,46 @@ export const StatsBentoSection: React.FC<{ config: StatsBentoSectionConfig }> = 
             )}
 
             <div className="relative z-10 flex flex-col items-center">
-              {/* Badge or Subtitle */}
-              {(badge || subtitle) && (
-                <div className={clsx('inline-flex items-center gap-2 mb-3 backdrop-blur-md', theme.badge)}>
+              {/* Badge */}
+              {badge && (
+                <div
+                  className={clsx('inline-flex items-center gap-2 mb-3 backdrop-blur-md', theme.badge, resolvedSubtitleSizeClass)}
+                  style={
+                    cleanColor(accentColor)
+                      ? { borderColor: `${effectiveAccent}55`, color: resolvedSubtitleColor || effectiveAccent }
+                      : { color: resolvedSubtitleColor }
+                  }
+                >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>{badge || subtitle}</span>
+                  <span>{badge}</span>
                 </div>
               )}
 
               {/* Title */}
               {title && (
                 <h2
-                  className={clsx('leading-tight tracking-tight', scale.titleSize, theme.title)}
-                  style={{ color: titleColor }}
+                  className={clsx('leading-tight tracking-tight', resolvedTitleSizeClass, theme.title)}
+                  style={{ color: resolvedTitleColor }}
                 >
                   {title}
                 </h2>
               )}
 
-              {/* Subtitle / Description */}
+              {/* Subtitle */}
+              {subtitle && (
+                <p
+                  className={clsx('mt-2 font-semibold leading-snug', resolvedSubtitleSizeClass, theme.subtitle)}
+                  style={{ color: resolvedSubtitleColor }}
+                >
+                  {subtitle}
+                </p>
+              )}
+
+              {/* Description */}
               {description && (
                 <p
-                  className={clsx('mt-3 max-w-2xl leading-relaxed', scale.subSize, theme.desc)}
-                  style={{ color: descriptionColor }}
+                  className={clsx('mt-3 max-w-2xl leading-relaxed', resolvedDescSizeClass, theme.desc)}
+                  style={{ color: resolvedDescColor }}
                 >
                   {description}
                 </p>
@@ -409,6 +622,98 @@ export const StatsBentoSection: React.FC<{ config: StatsBentoSectionConfig }> = 
           {stats.map((item, idx) => {
             const itemTheme = getItemColorClasses(item.color);
             const isBentoLead = effectiveViewMode === 'bento-4' && idx === 0;
+
+            const iconNode = (
+              <div
+                className={clsx(
+                  'flex items-center justify-center border transition-transform duration-300 group-hover:scale-110 shadow-sm shrink-0',
+                  resolvedIconBoxClass,
+                  theme.iconRadius,
+                  itemTheme.bg
+                )}
+                style={
+                  cleanColor(accentColor)
+                    ? { borderColor: `${effectiveAccent}44`, color: effectiveAccent, backgroundColor: `${effectiveAccent}18` }
+                    : undefined
+                }
+              >
+                <DynamicIcon
+                  name={item.icon || 'TrendingUp'}
+                  className={resolvedIconSizeClass}
+                />
+              </div>
+            );
+
+            const badgeNode = item.badge ? (
+              <span
+                className={clsx(
+                  'px-2.5 py-1 text-[11px] font-bold border backdrop-blur-md shadow-xs',
+                  getButtonShapeClass(),
+                  itemTheme.badge
+                )}
+              >
+                {item.badge}
+              </span>
+            ) : effectiveLayout === 'analytical' ? (
+              <span className="font-mono text-[10px] text-blue-400/80 bg-blue-950/60 border border-blue-500/30 px-2 py-0.5 rounded">
+                #STAT_{String(idx + 1).padStart(2, '0')}
+              </span>
+            ) : null;
+
+            const isCenteredCard = iconPosition === 'top-center';
+            const isSideIcon = iconPosition === 'side';
+            const isBottomIcon = iconPosition === 'bottom';
+
+            const contentBlock = (
+              <div className={clsx('flex flex-col gap-1 mt-auto', isCenteredCard ? 'items-center text-center' : 'text-right')}>
+                <div className={clsx('flex items-baseline gap-1', isCenteredCard && 'justify-center')} dir="ltr">
+                  {item.prefix && (
+                    <span
+                      className={clsx('font-black tracking-tight', scale.prefixSize, itemTheme.accentText)}
+                      style={cleanColor(accentColor) ? { color: effectiveAccent } : undefined}
+                    >
+                      {item.prefix}
+                    </span>
+                  )}
+
+                  <span
+                    className={clsx(
+                      'font-black tracking-tight leading-none',
+                      resolvedCardValueSizeClass,
+                      theme.numberColor
+                    )}
+                    style={{ color: cardValueColor }}
+                  >
+                    {item.number}
+                  </span>
+
+                  {item.suffix && (
+                    <span
+                      className={clsx('font-black tracking-tight', scale.prefixSize, itemTheme.accentText)}
+                      style={cleanColor(accentColor) ? { color: effectiveAccent } : undefined}
+                    >
+                      {item.suffix}
+                    </span>
+                  )}
+                </div>
+
+                <h3
+                  className={clsx('mt-2', resolvedCardTitleSizeClass, theme.labelColor, isCenteredCard ? 'text-center' : 'text-right')}
+                  style={{ color: cardTitleColor }}
+                >
+                  {item.label}
+                </h3>
+
+                {item.description && (
+                  <p
+                    className={clsx('mt-1', resolvedCardDescSizeClass, theme.descColor, isCenteredCard ? 'text-center' : 'text-right')}
+                    style={{ color: cardDescColor }}
+                  >
+                    {item.description}
+                  </p>
+                )}
+              </div>
+            );
 
             return (
               <div
@@ -424,83 +729,40 @@ export const StatsBentoSection: React.FC<{ config: StatsBentoSectionConfig }> = 
                   backgroundColor: cardBackgroundColor || undefined,
                 }}
               >
-                {/* Top Row: Icon Container and Optional Badge */}
-                <div className="flex items-center justify-between mb-4">
-                  <div
-                    className={clsx(
-                      'flex items-center justify-center border transition-transform duration-300 group-hover:scale-110 shadow-sm',
-                      scale.iconBox,
-                      theme.iconRadius,
-                      itemTheme.bg
-                    )}
-                  >
-                    <DynamicIcon
-                      name={item.icon || 'TrendingUp'}
-                      className={scale.iconSize}
-                    />
+                {isSideIcon ? (
+                  <div className="flex flex-col gap-3 h-full justify-between">
+                    {badgeNode && <div className="flex justify-end">{badgeNode}</div>}
+                    <div className="flex items-start gap-4">
+                      {iconNode}
+                      <div className="flex-1 min-w-0">{contentBlock}</div>
+                    </div>
                   </div>
-
-                  {item.badge && (
-                    <span
+                ) : isBottomIcon ? (
+                  <>
+                    {badgeNode && <div className="flex justify-end mb-3">{badgeNode}</div>}
+                    {contentBlock}
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-200/20 dark:border-white/10">
+                      {iconNode}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div
                       className={clsx(
-                        'px-2.5 py-1 text-[11px] font-bold border backdrop-blur-md shadow-xs',
-                        getButtonShapeClass(),
-                        itemTheme.badge
+                        'flex items-center mb-4',
+                        iconPosition === 'top-center'
+                          ? 'flex-col justify-center gap-2'
+                          : iconPosition === 'top-left'
+                            ? 'flex-row-reverse justify-between'
+                            : 'justify-between'
                       )}
                     >
-                      {item.badge}
-                    </span>
-                  )}
-
-                  {/* Technical Index on Analytical Layout */}
-                  {effectiveLayout === 'analytical' && !item.badge && (
-                    <span className="font-mono text-[10px] text-blue-400/80 bg-blue-950/60 border border-blue-500/30 px-2 py-0.5 rounded">
-                      #STAT_{String(idx + 1).padStart(2, '0')}
-                    </span>
-                  )}
-                </div>
-
-                {/* Bottom Row: Number with Prefix/Suffix, Label, and Description */}
-                <div className="flex flex-col gap-1 text-right mt-auto">
-                  <div className="flex items-baseline gap-1" dir="ltr">
-                    {/* Prefix if defined (e.g. "+", "x", "%") */}
-                    {item.prefix && (
-                      <span className={clsx('font-black tracking-tight', scale.prefixSize, itemTheme.accentText)}>
-                        {item.prefix}
-                      </span>
-                    )}
-
-                    {/* Main Number */}
-                    <span
-                      className={clsx(
-                        'font-black tracking-tight leading-none',
-                        scale.numberSize,
-                        theme.numberColor
-                      )}
-                    >
-                      {item.number}
-                    </span>
-
-                    {/* Suffix if defined (e.g. "%", "+", "X", "M") */}
-                    {item.suffix && (
-                      <span className={clsx('font-black tracking-tight', scale.prefixSize, itemTheme.accentText)}>
-                        {item.suffix}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Stat Label */}
-                  <h3 className={clsx('mt-2 text-right', scale.labelSize, theme.labelColor)}>
-                    {item.label}
-                  </h3>
-
-                  {/* Stat Description */}
-                  {item.description && (
-                    <p className={clsx('mt-1 text-right', scale.descSize, theme.descColor)}>
-                      {item.description}
-                    </p>
-                  )}
-                </div>
+                      {iconNode}
+                      {badgeNode}
+                    </div>
+                    {contentBlock}
+                  </>
+                )}
               </div>
             );
           })}
@@ -512,12 +774,13 @@ export const StatsBentoSection: React.FC<{ config: StatsBentoSectionConfig }> = 
             <a
               href={ctaButtonUrl}
               className={clsx(
-                'inline-flex items-center gap-2 font-black text-white shadow-xl transition-transform hover:-translate-y-0.5 cursor-pointer',
+                'inline-flex items-center gap-2 font-black shadow-xl transition-transform hover:-translate-y-0.5 cursor-pointer',
                 getButtonShapeClass(),
                 getButtonSizeClass()
               )}
               style={{
                 backgroundColor: effectiveAccent,
+                color: ctaTextColor,
                 boxShadow: `0 10px 30px -5px ${effectiveAccent}66`,
               }}
             >
