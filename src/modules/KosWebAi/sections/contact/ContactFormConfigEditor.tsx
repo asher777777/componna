@@ -648,26 +648,28 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
                     <div className="p-2.5 flex items-center justify-between gap-2">
                       <div
                         onClick={() => setExpandedFieldIndex(isExpanded ? null : idx)}
-                        className="flex-1 flex items-center gap-2 cursor-pointer select-none"
+                        className="flex-1 min-w-0 flex items-center gap-2 cursor-pointer select-none"
                       >
-                        <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-300 text-[10px] flex items-center justify-center font-bold">
+                        <span className="w-5 h-5 shrink-0 rounded-full bg-slate-800 text-slate-300 text-[10px] flex items-center justify-center font-bold">
                           {idx + 1}
                         </span>
-                        <span className="text-xs font-bold text-white truncate">{field.label || 'שדה ללא שם'}</span>
-                        <span className="text-[10px] text-slate-400 bg-slate-950 px-2 py-0.5 rounded-md">
+                        <span className="text-xs font-bold text-white truncate min-w-0" title={field.label || 'שדה ללא שם'}>
+                          {field.label || 'שדה ללא שם'}
+                        </span>
+                        <span className="shrink-0 whitespace-nowrap text-[10px] text-slate-400 bg-slate-950 px-2 py-0.5 rounded-md">
                           {FIELD_TYPES.find((t) => t.id === field.type)?.label || field.type}
                         </span>
                         {field.required && (
-                          <span className="text-[10px] text-rose-400 font-bold">*חובה</span>
+                          <span className="shrink-0 whitespace-nowrap text-[10px] text-rose-400 font-bold">*חובה</span>
                         )}
                         {field.step && field.step > 1 && (
-                          <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                          <span className="shrink-0 whitespace-nowrap text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
                             שלב {field.step}
                           </span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
                           onClick={() => moveField(idx, 'up')}
