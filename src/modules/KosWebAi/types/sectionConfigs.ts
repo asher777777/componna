@@ -755,7 +755,7 @@ export type LivePostsLayoutPreset =
   | 'carousel'
   | 'list';
 
-export type LivePostsDisplayMode = 'grid' | 'carousel' | 'spotlight' | 'compact-list';
+export type LivePostsDisplayMode = 'grid' | 'carousel' | 'slider' | 'asymmetric' | 'spotlight' | 'compact-list';
 
 export interface LivePostItem {
   id: string;

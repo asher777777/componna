@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
+import { clsx } from 'clsx';
 import {
   LivePostsGridSectionConfig,
   LivePostItem,
@@ -475,6 +476,119 @@ export const LivePostsGridSection: React.FC<{ config: LivePostsGridSectionConfig
               </div>
             ))}
           </div>
+        </div>
+      );
+    }
+
+    // 1b. Interactive Slider Mode (Showcase slide with dots & arrows)
+    if (displayMode === 'slider') {
+      const safeIndex = Math.min(carouselIndex, Math.max(0, customPages.length - 1));
+      const activePost = customPages[safeIndex];
+      const nextSlide = () => setCarouselIndex((prev) => (prev + 1) % customPages.length);
+      const prevSlide = () => setCarouselIndex((prev) => (prev - 1 + customPages.length) % customPages.length);
+
+      return (
+        <div className="relative w-full max-w-5xl mx-auto space-y-4">
+          {activePost && (
+            <div className={`${getCardStyleClass(true)} grid grid-cols-1 md:grid-cols-12 overflow-hidden min-h-[340px]`}>
+              {activePost.imageUrl && (
+                <div className="md:col-span-7 relative h-64 md:h-auto overflow-hidden">
+                  <img
+                    src={activePost.imageUrl}
+                    alt={activePost.title}
+                    className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                  />
+                  {showPostTag && activePost.tag && (
+                    <span className={`absolute top-4 right-4 px-3 py-1 text-xs ${getTagBadgeStyle(activePost.tag)}`}>
+                      {activePost.tag}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className={clsx('p-6 sm:p-8 flex flex-col justify-between text-right', activePost.imageUrl ? 'md:col-span-5' : 'md:col-span-12')}>
+                <div className="space-y-3">
+                  {showPostDate && activePost.date && (
+                    <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {activePost.date}
+                    </span>
+                  )}
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-snug">
+                    {activePost.title}
+                  </h3>
+                  {showPostExcerpt && activePost.excerpt && (
+                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-4">
+                      {activePost.excerpt}
+                    </p>
+                  )}
+                </div>
+                <div className="pt-6 flex items-center justify-between gap-3">
+                  {activePost.linkUrl && (
+                    <a
+                      href={activePost.linkUrl}
+                      className={`inline-flex items-center gap-1.5 text-xs font-bold ${getReadMoreStyle()}`}
+                    >
+                      <span>{activePost.ctaButtonText || 'קרא עוד'}</span>
+                      <ArrowLeft className="w-4 h-4" />
+                    </a>
+                  )}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={prevSlide}
+                      className="p-2 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      title="הקודם"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={nextSlide}
+                      className="p-2 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      title="הבא"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {customPages.length > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-1">
+              {customPages.map((p, idx) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setCarouselIndex(idx)}
+                  className={`h-2 rounded-full transition-all ${
+                    idx === safeIndex ? 'w-7 bg-indigo-500' : 'w-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400'
+                  }`}
+                  aria-label={`שקופית ${idx + 1}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 1c. Asymmetric Editorial Layout (Alternating 7/5 and 5/7 spans)
+    if (displayMode === 'asymmetric') {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 w-full">
+          {customPages.map((post, idx) => {
+            const mod = idx % 4;
+            const spanClass =
+              mod === 0 || mod === 3 ? 'md:col-span-7' : 'md:col-span-5';
+            const isHeroSpan = mod === 0 || mod === 3;
+            return (
+              <div key={post.id} className={spanClass}>
+                {renderPostCard(post, isHeroSpan)}
+              </div>
+            );
+          })}
         </div>
       );
     }

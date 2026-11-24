@@ -14,6 +14,9 @@ import { loadBrandDna } from '../../../KosBranding/services/brandDnaFirestore';
 import { BrandDna } from '../../../../core/contracts';
 import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../../core/tenant';
+import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
+import { PAGE_CATEGORIES, getCategoryFromPage } from '../../types/pageBuilder.types';
 import {
   Sparkles,
   Shield,
@@ -260,6 +263,80 @@ export const LivePostsGridEditor: React.FC<LivePostsGridEditorProps> = ({
 
   // Expanded post item inside Accordion 4
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
+
+  // Tenant Posts Fetcher & Picker State
+  const { tenantId } = useTenantScope();
+  const [fetchedPosts, setFetchedPosts] = useState<LivePostItem[]>([]);
+  const [selectedFetchIds, setSelectedFetchIds] = useState<string[]>([]);
+  const [isFetchingPosts, setIsFetchingPosts] = useState(false);
+  const [showPostPicker, setShowPostPicker] = useState(false);
+
+  const handleFetchTenantPosts = async () => {
+    setIsFetchingPosts(true);
+    setShowPostPicker(true);
+    try {
+      const pages = await pageBuilderFirestore.getAllPages(db, tenantId);
+      const mapped: LivePostItem[] = (pages || [])
+        .filter((p) => !p.isHomePage && p.slug !== 'home' && !p.slug?.startsWith('kosass-'))
+        .map((p) => {
+          const heroSec = p.sectionOrder
+            ?.map((id) => p.sections?.[id])
+            .find((s: any) => s?.type === 'hero' || s?.type === 'campaignHeader');
+          const richSec = p.sectionOrder
+            ?.map((id) => p.sections?.[id])
+            .find((s: any) => s?.type === 'richContent');
+
+          const imgUrl =
+            heroSec?.imageUrl ||
+            heroSec?.imageSrc ||
+            heroSec?.backgroundImage ||
+            p.seoSettings?.ogImage ||
+            richSec?.imageUrl ||
+            '';
+
+          const cat = getCategoryFromPage(p);
+          const tagLabel = (cat && PAGE_CATEGORIES[cat]?.shortLabel) || 'עדכון';
+          const rawExcerpt =
+            heroSec?.subtitle ||
+            p.seoSettings?.description ||
+            (richSec?.body ? String(richSec.body).replace(/<[^>]+>/g, ' ').trim().slice(0, 140) : '');
+
+          return {
+            id: p.pageId,
+            title: p.pageTitle || p.slug,
+            excerpt: rawExcerpt,
+            date: p.lastModified
+              ? new Date(p.lastModified).toLocaleDateString('he-IL')
+              : new Date().toLocaleDateString('he-IL'),
+            imageUrl: imgUrl,
+            linkUrl: `/p/${p.slug}`,
+            tag: tagLabel,
+            authorName: p.globalSettings?.companyName || '',
+            readTimeMinutes: 3,
+          };
+        });
+      setFetchedPosts(mapped);
+    } catch (err) {
+      console.warn('[LivePostsGridEditor] Failed fetching tenant posts:', err);
+    } finally {
+      setIsFetchingPosts(false);
+    }
+  };
+
+  const handleApplySelectedFetchedPosts = (replaceExisting: boolean) => {
+    const chosen = fetchedPosts.filter((p) => selectedFetchIds.includes(p.id));
+    if (chosen.length === 0) return;
+    if (replaceExisting) {
+      handleUpdate({ customPages: chosen });
+    } else {
+      const existing = localConfig.customPages || [];
+      const existingIds = new Set(existing.map((e) => e.id));
+      const merged = [...chosen.filter((c) => !existingIds.has(c.id)), ...existing];
+      handleUpdate({ customPages: merged });
+    }
+    setSelectedFetchIds([]);
+    setShowPostPicker(false);
+  };
 
   const normalizedActiveLayout: LivePostsLayoutPreset =
     (localConfig.layout as LivePostsLayoutPreset) || 'standard';
@@ -598,13 +675,15 @@ export const LivePostsGridEditor: React.FC<LivePostsGridEditorProps> = ({
 
           {openAccordion === 'layout' && (
             <div className="p-3.5 border-t border-white/10 space-y-3.5 bg-black/30">
-              {/* Display Mode (4 Compact Modes with Icons) */}
+              {/* Display Mode (6 Diverse Modes with Icons) */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-300">אופן תצוגת הפוסטים (Display Mode)</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {[
                     { id: 'grid', label: 'גריד עמודות', desc: '3 עמודות קלאסי', icon: Grid },
-                    { id: 'carousel', label: 'קרוסלה זזה', desc: 'גלילה עם חיצים', icon: Sliders },
+                    { id: 'slider', label: 'סלידר', desc: 'שקופית מרכזית + נקודות', icon: LayoutTemplate },
+                    { id: 'asymmetric', label: 'תצוגה א-סימטרית', desc: 'מגזין מדורג 7/5', icon: Layers },
+                    { id: 'carousel', label: 'קרוסלה זזה', desc: 'גלילה אופקית עם חיצים', icon: Sliders },
                     { id: 'spotlight', label: 'ספוטלייט מודגש', desc: 'פוסט ראשי גדול', icon: Star },
                     { id: 'compact-list', label: 'רשימה מהודקת', desc: 'שורות כרטיסים', icon: List },
                   ].map((m) => {
@@ -967,6 +1046,96 @@ export const LivePostsGridEditor: React.FC<LivePostsGridEditorProps> = ({
                   />
                   <span>זמן קריאה</span>
                 </label>
+              </div>
+
+              {/* Posts Fetcher & Multi-Select Picker */}
+              <div className="p-3 rounded-xl bg-indigo-950/30 border border-indigo-500/30 space-y-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div>
+                    <div className="text-xs font-bold text-indigo-300">שאיבת פוסטים ועמודים מהאתר</div>
+                    <div className="text-[10px] text-zinc-400">שואב כותרות, תמונות וקישורים מהעמודים שלך לבחירה חופשית</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleFetchTenantPosts}
+                    disabled={isFetchingPosts}
+                    className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>{isFetchingPosts ? 'שואב פוסטים...' : 'שאב פוסטים ותמונות לבחירה'}</span>
+                  </button>
+                </div>
+
+                {showPostPicker && (
+                  <div className="space-y-2 pt-2 border-t border-white/10">
+                    {fetchedPosts.length === 0 && !isFetchingPosts ? (
+                      <div className="text-[11px] text-zinc-400 py-2 text-center">לא נמצאו פוסטים או עמודים נוספים בטננט.</div>
+                    ) : (
+                      <>
+                        <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                          {fetchedPosts.map((fp) => {
+                            const isChecked = selectedFetchIds.includes(fp.id);
+                            return (
+                              <button
+                                key={fp.id}
+                                type="button"
+                                onClick={() =>
+                                  setSelectedFetchIds((prev) =>
+                                    isChecked ? prev.filter((id) => id !== fp.id) : [...prev, fp.id]
+                                  )
+                                }
+                                className={`w-full p-2 rounded-xl border text-right flex items-center gap-2.5 transition cursor-pointer ${
+                                  isChecked
+                                    ? 'bg-indigo-600/20 border-indigo-500 text-white'
+                                    : 'bg-black/40 border-white/10 text-zinc-300 hover:border-white/25'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  readOnly
+                                  className="w-3.5 h-3.5 rounded text-indigo-600 shrink-0"
+                                />
+                                {fp.imageUrl ? (
+                                  <img src={fp.imageUrl} alt={fp.title} className="w-11 h-8 rounded-lg object-cover shrink-0" />
+                                ) : (
+                                  <div className="w-11 h-8 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0">
+                                    <ImageIcon className="w-3.5 h-3.5 text-zinc-500" />
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-[11px] font-bold truncate">{fp.title}</div>
+                                  <div className="text-[10px] text-zinc-400 truncate">
+                                    {fp.tag} • {fp.date}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {selectedFetchIds.length > 0 && (
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleApplySelectedFetchedPosts(false)}
+                              className="flex-1 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold cursor-pointer"
+                            >
+                              הוסף {selectedFetchIds.length} נבחרים לרשימה
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleApplySelectedFetchedPosts(true)}
+                              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold cursor-pointer"
+                            >
+                              החלף הכל בנבחרים
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Posts Header with Add Button */}
