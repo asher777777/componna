@@ -883,18 +883,6 @@ export interface LandingSectionConfig extends BaseSectionConfig {
   descriptionColor?: string;
   cardBackgroundColor?: string;
   accentColor?: string;
-
-  // Granular typography sizes
-  titleFontSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
-  subtitleFontSize?: 'auto' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-  descriptionFontSize?: 'auto' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-  cardValueFontSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
-  cardTitleFontSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl';
-  cardDescriptionFontSize?: 'auto' | 'xs' | 'sm' | 'md' | 'lg';
-
-  // Global icon sizing & placement
-  iconSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
-  iconPosition?: 'top-right' | 'top-center' | 'top-left' | 'side' | 'bottom';
   /** רקע של תמונה מאחורי הטקסט עם שכבת רקע ואפקט עובר */
   textBgEnabled?: boolean;
   textBgImageUrl?: string;
