@@ -529,6 +529,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
               <div className={clsx('transition-all duration-300', getSectionWidthWrapperClasses(getSectionWidthMode(sectionData)))}>
                 <ViewComponent
                   config={sanitizeSectionConfig(sectionData)}
+                  globalSettings={globalSettings}
                   onSelectTier={onSelectDonationTier}
                   onLeadSubmit={onLeadSubmit}
                 />

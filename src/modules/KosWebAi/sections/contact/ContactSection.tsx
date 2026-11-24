@@ -42,7 +42,15 @@ import { resolveLiveBrandDna } from '../../generators/pageGenerator';
 import { DEFAULT_CONTACT_FORM_CONFIG } from './ContactFormConfigEditor';
 import { clsx } from 'clsx';
 
-export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ config }) => {
+export const ContactSection: React.FC<{
+  config: ContactSectionConfig;
+  globalSettings?: {
+    contactPhone?: string;
+    contactEmail?: string;
+    address?: string;
+    contactWhatsApp?: string;
+  };
+}> = ({ config, globalSettings }) => {
   const { apiKeys, purchasedModules } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const activePaymentProvider = resolveActivePaymentProvider(apiKeys, purchasedModules);
@@ -51,10 +59,10 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
   const rawBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
   const brandDna = resolveLiveBrandDna(rawBrandDna);
 
-  const fallbackPhone = brandDna?.trust?.contactPhone || '052-6968008';
-  const fallbackEmail = brandDna?.trust?.contactEmail || 'ovt5771@gmail.com';
-  const fallbackAddress = brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב';
-  const fallbackWhatsapp = brandDna?.trust?.whatsappSupportNumber || '0526968008';
+  const fallbackPhone = globalSettings?.contactPhone || brandDna?.trust?.contactPhone || '052-6968008';
+  const fallbackEmail = globalSettings?.contactEmail || brandDna?.trust?.contactEmail || 'ovt5771@gmail.com';
+  const fallbackAddress = globalSettings?.address || brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב';
+  const fallbackWhatsapp = globalSettings?.contactWhatsApp || brandDna?.trust?.whatsappSupportNumber || '0526968008';
 
   const {
     anchorId,
@@ -87,9 +95,15 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
 
   const activeForm: FormConfigContract = propForm || DEFAULT_CONTACT_FORM_CONFIG;
 
-  const isDummyPhone = (p?: string) => !p || p === '03-1234567' || p === '050-0000000';
-  const isDummyEmail = (e?: string) => !e || e === 'contact@example.com' || e === 'info@example.com';
-  const isDummyAddress = (a?: string) => !a || a === 'רחוב הרצל 1, תל אביב' || a === 'תל אביב, ישראל';
+  const isDummyPhone = (p?: string) => !p || p === '03-1234567' || p === '050-0000000' || p === '052-6968008';
+  const isDummyEmail = (e?: string) => {
+    const norm = (e || '').trim().toLowerCase();
+    return !norm || norm === 'contact@example.com' || norm === 'info@example.com' || norm === 'ovt5771@gmail.com' || norm === 'merkazlea770@gmail.com';
+  };
+  const isDummyAddress = (a?: string) => {
+    const norm = (a || '').trim();
+    return !norm || norm === 'רחוב הרצל 1, תל אביב' || norm === 'תל אביב, ישראל' || norm === 'דרך מנחם בגין 144, תל אביב' || norm === 'דרך מנחם בגין 144 ,תל אביב';
+  };
 
   const resolvedPhone = (!isDummyPhone(config.phone) ? config.phone : null) || fallbackPhone;
   const resolvedEmail = (!isDummyEmail(config.email) ? config.email : null) || fallbackEmail;

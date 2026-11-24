@@ -655,6 +655,80 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
     try {
       onUpdateGlobalSettings(formDataGlobal);
       onUpdateSeoSettings(formDataSeo);
+
+      // Sync contact / GEO details into matching page sections when changed or still holding template defaults
+      if (sections && onUpdateSections) {
+        const phoneChanged = formDataGlobal.contactPhone !== initialGlobalData.contactPhone;
+        const whatsappChanged = formDataGlobal.contactWhatsApp !== initialGlobalData.contactWhatsApp;
+        const emailChanged = formDataGlobal.contactEmail !== initialGlobalData.contactEmail;
+        const addressChanged = formDataGlobal.address !== initialGlobalData.address;
+
+        const isTemplatePhone = (v?: string) => !v || v === '03-1234567' || v === '050-0000000' || v === '052-6968008';
+        const isTemplateWhatsapp = (v?: string) => !v || v === '0501234567' || v === '0526968008' || v === '972545947701';
+        const isTemplateEmail = (v?: string) => {
+          const norm = (v || '').trim().toLowerCase();
+          return !norm || norm === 'contact@example.com' || norm === 'info@example.com' || norm === 'ovt5771@gmail.com' || norm === 'merkazlea770@gmail.com';
+        };
+        const isTemplateAddress = (v?: string) => {
+          const norm = (v || '').trim();
+          return !norm || norm === 'רחוב הרצל 1, תל אביב' || norm === 'תל אביב, ישראל' || norm === 'דרך מנחם בגין 144, תל אביב' || norm === 'דרך מנחם בגין 144 ,תל אביב';
+        };
+
+        let sectionsModified = false;
+        const nextSections: Record<string, any> = { ...sections };
+        Object.keys(nextSections).forEach((secId) => {
+          const sec = nextSections[secId];
+          if (!sec || typeof sec !== 'object') return;
+          if (sec.type === 'contact') {
+            const updatedSec = { ...sec };
+            let secDirty = false;
+            if (formDataGlobal.contactPhone && (phoneChanged || isTemplatePhone(sec.phone))) {
+              updatedSec.phone = formDataGlobal.contactPhone;
+              secDirty = true;
+            }
+            if (formDataGlobal.contactWhatsApp && (whatsappChanged || isTemplateWhatsapp(sec.whatsapp))) {
+              updatedSec.whatsapp = formDataGlobal.contactWhatsApp;
+              secDirty = true;
+            }
+            if (formDataGlobal.contactEmail && (emailChanged || isTemplateEmail(sec.email))) {
+              updatedSec.email = formDataGlobal.contactEmail;
+              secDirty = true;
+            }
+            if (formDataGlobal.address && (addressChanged || isTemplateAddress(sec.address))) {
+              updatedSec.address = formDataGlobal.address;
+              secDirty = true;
+            }
+            if (secDirty) {
+              nextSections[secId] = updatedSec;
+              sectionsModified = true;
+            }
+          } else if (sec.type === 'geoLocal') {
+            const updatedSec = { ...sec };
+            let secDirty = false;
+            if (formDataGlobal.contactPhone && (phoneChanged || isTemplatePhone(sec.businessPhone))) {
+              updatedSec.businessPhone = formDataGlobal.contactPhone;
+              secDirty = true;
+            }
+            if (formDataGlobal.contactEmail && (emailChanged || isTemplateEmail(sec.businessEmail))) {
+              updatedSec.businessEmail = formDataGlobal.contactEmail;
+              secDirty = true;
+            }
+            if (formDataGlobal.address && (addressChanged || isTemplateAddress(sec.businessAddress))) {
+              updatedSec.businessAddress = formDataGlobal.address;
+              secDirty = true;
+            }
+            if (secDirty) {
+              nextSections[secId] = updatedSec;
+              sectionsModified = true;
+            }
+          }
+        });
+
+        if (sectionsModified) {
+          onUpdateSections(nextSections);
+        }
+      }
+
       setInitialGlobalData({ ...formDataGlobal });
       setInitialSeoData({ ...formDataSeo });
 
