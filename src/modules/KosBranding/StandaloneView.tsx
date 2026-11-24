@@ -55,7 +55,7 @@ export interface BrandDnaViewProps {
 
 export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
   initialTab = 'identity',
-  initialMode = 'dashboard',
+  initialMode = 'tabs',
 }) => {
   const {
     brandDna,
@@ -275,19 +275,6 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
           {/* Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-            {/* Dashboard Mode Switcher */}
-            <button
-              type="button"
-              onClick={() => setViewMode('dashboard')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
-                viewMode === 'dashboard'
-                  ? 'bg-gradient-to-r from-[#00F0FF] to-[#00A3FF] text-[#070913] shadow-sm shadow-[#00F0FF]/30 font-black'
-                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
-              }`}
-            >
-              <Compass className={`w-3.5 h-3.5 ${viewMode === 'dashboard' ? 'text-[#070913]' : 'text-slate-500 dark:text-slate-400'}`} />
-              <span>מרכז שליטה DNA</span>
-            </button>
 
             {TAB_CONFIG.map((tab) => {
               const Icon = tab.icon;
