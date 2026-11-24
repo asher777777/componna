@@ -1,4 +1,5 @@
 import { Firestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { db as defaultFirestoreDb } from '../../../services/firebase';
 import { BrandDna, DEFAULT_BRAND_DNA } from '../types/brandDna';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
@@ -256,9 +257,10 @@ export async function saveBrandDna(
     }
   }
 
-  // 2. Save to Firestore: tenants/{tenantId}/settings/kos_branding_dna
+  // 2. Save to Firestore: tenants/{tenantId}/settings/kos_branding_dna (authenticated non-guest users only)
   const effDb = db || defaultFirestoreDb;
-  if (effDb) {
+  const authUser = effDb ? (() => { try { return getAuth(effDb.app).currentUser; } catch { return null; } })() : null;
+  if (effDb && authUser && !authUser.isAnonymous) {
     try {
       const docRef = doc(effDb, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC);
       await setDoc(docRef, payload, { merge: true });

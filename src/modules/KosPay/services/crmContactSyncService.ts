@@ -201,7 +201,9 @@ export class CrmContactSyncService {
     }
 
     try {
-      import('firebase/firestore').then(({ collection, onSnapshot }) => {
+      Promise.all([import('firebase/firestore'), import('firebase/auth')]).then(([{ collection, onSnapshot }, { getAuth }]) => {
+        const authUser = (() => { try { return getAuth(db.app).currentUser; } catch { return null; } })();
+        if (!authUser || authUser.isAnonymous) return;
         // Scoped Subcollection: tenants/{tenantId}/contacts
         const contactsRef = collection(db, 'tenants', tenantId, 'contacts');
         this.unsubscribeFirestore = onSnapshot(contactsRef, (snap) => {

@@ -59,7 +59,9 @@ export class ReceiptGlossaryService {
     }
 
     try {
-      import('firebase/firestore').then(({ collection, onSnapshot }) => {
+      Promise.all([import('firebase/firestore'), import('firebase/auth')]).then(([{ collection, onSnapshot }, { getAuth }]) => {
+        const authUser = (() => { try { return getAuth(db.app).currentUser; } catch { return null; } })();
+        if (!authUser || authUser.isAnonymous) return;
         // Scoped Subcollection: tenants/{tenantId}/kesher_receipt_glossary
         const collRef = collection(db, 'tenants', tenantId, 'kesher_receipt_glossary');
         this.unsubscribeFirestore = onSnapshot(collRef, (snap) => {

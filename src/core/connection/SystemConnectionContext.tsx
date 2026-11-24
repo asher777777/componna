@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore, collection, getDocs, getDoc, limit, query, doc, onSnapshot, setDoc, updateDoc, deleteField } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { ensureAnonymousAuth } from '../../services/firebaseAuth';
 import { useTenantScope } from '../tenant/TenantScopeContext';
 import { ROOT_TENANT_ID } from '../tenant/tenantResolver';
@@ -135,6 +136,7 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
   const [tenantApiKeys, setTenantApiKeys] = useState<SystemApiKeysConfig>(DEFAULT_API_KEYS);
   const [masterApiKeys, setMasterApiKeys] = useState<SystemApiKeysConfig>(DEFAULT_API_KEYS);
   const [purchasedModules, setPurchasedModules] = useState<string[]>([]);
+  const [hasAdminAuthSession, setHasAdminAuthSession] = useState<boolean>(false);
 
 
   const [isConnectorModalOpen, setIsConnectorModalOpen] = useState(false);
@@ -282,10 +284,27 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
     };
   }, [db, isRootTenant]);
 
+  // Track non-anonymous Firebase Auth session so guest sessions do not trigger admin-only Firestore listeners
+  useEffect(() => {
+    if (!firebaseApp) {
+      setHasAdminAuthSession(false);
+      return;
+    }
+    try {
+      const auth = getAuth(firebaseApp);
+      setHasAdminAuthSession(Boolean(auth.currentUser && !auth.currentUser.isAnonymous));
+      return onAuthStateChanged(auth, (user) => {
+        setHasAdminAuthSession(Boolean(user && !user.isAnonymous));
+      });
+    } catch {
+      setHasAdminAuthSession(false);
+    }
+  }, [firebaseApp]);
+
   // Real-time tenant API keys: tenants/{tenantId}/settings/api_keys
   useEffect(() => {
     setTenantApiKeys(DEFAULT_API_KEYS);
-    if (!db) return;
+    if (!db || !hasAdminAuthSession) return;
     try {
       const keysRef = doc(db, ...getTenantApiKeysDocSegments(apiKeysTenantId));
       const unsubscribe = onSnapshot(
@@ -304,13 +323,14 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
     } catch (err) {
       console.warn('[SystemConnection] Tenant API keys setup notice:', err);
     }
-  }, [db, apiKeysTenantId]);
+  }, [db, apiKeysTenantId, hasAdminAuthSession]);
 
   // Real-time master API keys: tenants/_master/settings/api_keys
   // Clause ה: AI keys are ALWAYS taken through the master collection
   useEffect(() => {
     if (!db) return;
     setTokenTrackerFirestore(db);
+    if (!hasAdminAuthSession) return;
     try {
       const masterKeysRef = doc(db, ...getTenantApiKeysDocSegments(ROOT_TENANT_ID));
       const unsubscribe = onSnapshot(
@@ -357,7 +377,7 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
     } catch (err) {
       console.warn('[SystemConnection] Master API keys setup notice:', err);
     }
-  }, [db]);
+  }, [db, hasAdminAuthSession]);
 
   // Purchased modules of a subdomain tenant: tenants/{tenantId}.activeModules
   useEffect(() => {

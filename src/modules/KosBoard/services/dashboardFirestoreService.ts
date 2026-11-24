@@ -15,6 +15,7 @@ import {
   orderBy,
   updateDoc,
 } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { GeneratedCustomDashboard, SubdomainPairingRecord } from '../types';
 import { TenantCoreService } from '../../../core/tenant/tenantService';
 import { CUSTOM_DASHBOARDS_COLLECTION } from '../config';
@@ -67,6 +68,10 @@ export class DashboardFirestoreService {
     const local = this.getLocalDashboards(safeTenant);
 
     if (!db) {
+      return local;
+    }
+    const authUser = (() => { try { return getAuth(db.app).currentUser; } catch { return null; } })();
+    if (!authUser || authUser.isAnonymous) {
       return local;
     }
 

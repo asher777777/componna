@@ -1,4 +1,5 @@
 import { Firestore, collection, getDocs, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { TenantRecord } from '../contracts';
 import { ROOT_TENANT_ID, DEFAULT_SUBDOMAIN_MODULES } from './tenantResolver';
 
@@ -108,15 +109,18 @@ export class TenantCoreService {
           }
         };
 
-        const masterContactsCol = collection(db, 'tenants', '_master', 'contacts');
-        const contactsSnap = await getDocs(masterContactsCol);
-        contactsSnap.docs.forEach(parseContactDoc);
+        const authUser = (() => { try { return getAuth(db.app).currentUser; } catch { return null; } })();
+        if (authUser && !authUser.isAnonymous) {
+          const masterContactsCol = collection(db, 'tenants', '_master', 'contacts');
+          const contactsSnap = await getDocs(masterContactsCol);
+          contactsSnap.docs.forEach(parseContactDoc);
 
-        // Also check root contacts
-        try {
-          const rootContactsSnap = await getDocs(collection(db, 'contacts'));
-          rootContactsSnap.docs.forEach(parseContactDoc);
-        } catch {}
+          // Also check root contacts
+          try {
+            const rootContactsSnap = await getDocs(collection(db, 'contacts'));
+            rootContactsSnap.docs.forEach(parseContactDoc);
+          } catch {}
+        }
       } catch (err) {
         console.warn('[TenantCoreService] Contacts fetch warning:', err);
       }

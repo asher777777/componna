@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo, useRef } from 'react';
+import { getAuth } from 'firebase/auth';
 import { useLocation } from 'react-router-dom';
 import { KosaiRule, KosaiMessage, KosaiCapability, KosaiActionPayload, KosaiConversation } from '../types';
 import { kosaiRulesService, kosaiConversationsService } from '../services/kosaiFirestoreService';
@@ -261,7 +262,11 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Route & Module listening - Rule detection synchronized with active component
   const refreshRules = useCallback(async () => {
-    if (!db || !tenantId) return;
+    const authUser = db ? (() => { try { return getAuth(db.app).currentUser; } catch { return null; } })() : null;
+    if (!db || !tenantId || !authUser || authUser.isAnonymous) {
+      setCurrentRule(createDefaultRuleForModule(activeModule));
+      return;
+    }
     try {
       const rules = await kosaiRulesService.getRules(db, tenantId);
       
@@ -290,7 +295,8 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Load conversations list for this tenant
   const refreshConversations = useCallback(async () => {
-    if (!db || !tenantId) return;
+    const authUser = db ? (() => { try { return getAuth(db.app).currentUser; } catch { return null; } })() : null;
+    if (!db || !tenantId || !authUser || authUser.isAnonymous) return;
     try {
       const list = await kosaiConversationsService.getConversations(db, tenantId, activeModule.moduleId);
       setConversations(list);

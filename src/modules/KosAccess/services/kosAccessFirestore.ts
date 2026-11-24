@@ -11,6 +11,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
+import { getAuth } from 'firebase/auth';
 import {
   AccessibilityDeclarationDocument,
   AccessibilityFeedbackSubmission,
@@ -25,6 +26,8 @@ export class KosAccessFirestoreService {
     tenantId: string
   ): Promise<AccessibilityDeclarationDocument | null> {
     if (!tenantId) return null;
+    const authUser = (() => { try { return getAuth(db.app).currentUser; } catch { return null; } })();
+    if (!authUser || authUser.isAnonymous) return null;
     try {
       const docRef = doc(
         db,
