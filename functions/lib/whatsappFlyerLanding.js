@@ -174,13 +174,17 @@ async function callGeminiJson(geminiKey, prompt, media) {
             },
         });
     }
+    const effectiveKey = String(geminiKey || process.env.GEMINI_API_KEY || '').trim();
     const models = ['gemini-3.8-flash', 'gemini-2.5-flash'];
     let lastError = 'Gemini request failed';
     for (const model of models) {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`;
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
         const res = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': effectiveKey,
+            },
             body: JSON.stringify({
                 contents: [{ role: 'user', parts }],
                 generationConfig: {

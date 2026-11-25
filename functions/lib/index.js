@@ -385,7 +385,7 @@ function matchKeywords(messageText, keywords = [], matchMode = 'contains') {
     return { isMatch: false };
 }
 // Webhook for Green API
-exports.whatsappWebhook = functions.https.onRequest((req, res) => {
+exports.whatsappWebhook = functions.runWith({ timeoutSeconds: 120, memory: '512MB' }).https.onRequest((req, res) => {
     cors(req, res, async () => {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18;
         if (req.method !== 'POST' && req.method !== 'GET') {

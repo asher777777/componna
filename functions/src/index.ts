@@ -403,7 +403,7 @@ function matchKeywords(
 }
 
 // Webhook for Green API
-export const whatsappWebhook = functions.https.onRequest((req, res) => {
+export const whatsappWebhook = functions.runWith({ timeoutSeconds: 120, memory: '512MB' }).https.onRequest((req, res) => {
   cors(req, res, async () => {
     if (req.method !== 'POST' && req.method !== 'GET') {
       res.status(405).send('Method Not Allowed');
