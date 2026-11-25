@@ -10,7 +10,9 @@ import { STANDARD_CRM_FORM_FIELDS } from '../config/pageArchitectureMatrix';
 import {
   dispatchKoswebModelPageToKosai,
   dispatchHeroImageToKosai,
+  FlyerScanReport,
 } from '../kosai/promptToKosai';
+import { ensureReadableTextColor } from './flyerScannerService';
 import { resolveApiKey } from '../api/functionsApi';
 
 export type KoswebModelFormRequirement = 'auto' | 'none' | 'registration' | 'payment';
@@ -33,6 +35,15 @@ export interface KoswebPageModelInput {
   paymentAmount?: number;
   styleColorMode?: KoswebStyleColorMode;
   selectedPalette?: KoswebPaletteSelection;
+  flyerScanReport?: FlyerScanReport;
+  heroLayoutOverride?: 'split' | 'centered' | 'minimal';
+  contentLayoutOverride?: 'highlight-box' | 'cards-grid' | 'split-image';
+  customPaletteOverride?: {
+    backgroundColor?: string;
+    textColor?: string;
+    borderRadius?: 'none' | 'sm' | 'md' | 'lg' | 'full';
+    buttonStyle?: 'solid' | 'gradient' | 'outline' | 'glass';
+  };
   uploadedHeroImageUrl?: string;
   generateHeroImageWithAi?: boolean;
   selectedBrandIcons?: string[];
@@ -264,12 +275,14 @@ export async function generatePageWithKoswebModel(
     'hero',
     tenantId
   );
+  const resolvedHeroLayout =
+    input.heroLayoutOverride || input.flyerScanReport?.designPlan?.heroLayout || 'split';
   const heroConfig = {
     ...hydratedHeroBase,
     id: 'hero',
     type: 'hero' as const,
-    layout: 'split',
-    heroStyle: 'modern',
+    layout: resolvedHeroLayout,
+    heroStyle: resolvedHeroLayout === 'centered' ? 'mesh-glow' : resolvedHeroLayout === 'minimal' ? 'classic' : 'modern',
     imagePosition: 'left',
     textBgEnabled: false,
     badge: String(aiData?.hero?.badge || input.goal || cleanTitle).trim(),
@@ -374,11 +387,13 @@ export async function generatePageWithKoswebModel(
     'richContent',
     tenantId
   );
+  const resolvedContentLayout =
+    input.contentLayoutOverride || input.flyerScanReport?.designPlan?.contentLayout || 'highlight-box';
   const richContentConfig = {
     ...hydratedRichBase,
     id: 'richContent',
     type: 'richContent' as const,
-    contentLayout: 'highlight-box',
+    contentLayout: resolvedContentLayout,
     backgroundColor: 'transparent',
     headingColor: undefined,
     bodyColor: undefined,
@@ -614,6 +629,11 @@ export async function generatePageWithKoswebModel(
   }
 
   if (overridePrimary) {
+    const resolvedBg = input.customPaletteOverride?.backgroundColor || finalPage.globalSettings.backgroundColor || '#ffffff';
+    const resolvedText = ensureReadableTextColor(
+      resolvedBg,
+      input.customPaletteOverride?.textColor || finalPage.globalSettings.textColor
+    );
     const updatedSections: Record<string, any> = {};
     for (const [secId, sec] of Object.entries(finalPage.sections || {})) {
       updatedSections[secId] = {
@@ -632,6 +652,9 @@ export async function generatePageWithKoswebModel(
         primaryColor: overridePrimary,
         secondaryColor: overrideSecondary,
         buttonBgColor: overridePrimary,
+        ...(input.customPaletteOverride?.backgroundColor ? { backgroundColor: resolvedBg, textColor: resolvedText } : {}),
+        ...(input.customPaletteOverride?.borderRadius ? { borderRadius: input.customPaletteOverride.borderRadius } : {}),
+        ...(input.customPaletteOverride?.buttonStyle ? { buttonStyle: input.customPaletteOverride.buttonStyle } : {}),
       },
       sections: updatedSections,
     };

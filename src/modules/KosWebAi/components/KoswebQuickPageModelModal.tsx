@@ -11,6 +11,10 @@ import {
   CloudUpload,
   Info,
   Trash2,
+  FileText,
+  Palette,
+  Layout,
+  Plus,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { BrandDna, MediaPickerContract } from '../../../core/contracts';
@@ -27,6 +31,8 @@ import {
 import { STYLE_GLOBAL_THEMES, PRESET_TITLE_MAP } from '../services/pageStylePresetService';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { resolveLiveBrandDna } from '../services/brandSectionHydrator';
+import { scanFlyerFileForPageModel } from '../services/flyerScannerService';
+import { FlyerScanPaletteOption, FlyerScanReport } from '../kosai/promptToKosai';
 
 interface KoswebQuickPageModelModalProps {
   isOpen: boolean;
@@ -123,6 +129,16 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
   const { getCapability } = useHostCapabilities();
   const { db } = useSystemConnection();
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
+
+  const [flowMode, setFlowMode] = useState<'flyer_ask' | 'flyer_review' | 'manual_wizard'>('flyer_ask');
+  const [flyerFileName, setFlyerFileName] = useState('');
+  const [flyerPreviewUrl, setFlyerPreviewUrl] = useState<string | undefined>(undefined);
+  const [isScanningFlyer, setIsScanningFlyer] = useState(false);
+  const [flyerReport, setFlyerReport] = useState<FlyerScanReport | null>(null);
+  const [selectedFlyerPalette, setSelectedFlyerPalette] = useState<FlyerScanPaletteOption | null>(null);
+  const [selectedHeroLayout, setSelectedHeroLayout] = useState<'split' | 'centered' | 'minimal'>('split');
+  const [selectedContentLayout, setSelectedContentLayout] = useState<'highlight-box' | 'cards-grid' | 'split-image'>('cards-grid');
+  const [useFlyerImageAsHero, setUseFlyerImageAsHero] = useState(false);
 
   const [step, setStep] = useState(1);
   const [title, setTitle] = useState('');
@@ -236,6 +252,102 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
     }
   };
 
+  const handleFlyerFileSelected = async (file?: File | null) => {
+    if (!file) return;
+    setErrorMessage(null);
+    setFlyerFileName(file.name);
+    setIsScanningFlyer(true);
+    try {
+      const { report, previewImageDataUrl } = await scanFlyerFileForPageModel({
+        file,
+        companyName: liveDna?.identity?.companyName || 'העסק שלי',
+        tenantId,
+      });
+      setFlyerReport(report);
+      setFlyerPreviewUrl(previewImageDataUrl);
+      setSelectedFlyerPalette(report.designPlan.extractedPalette);
+      setSelectedHeroLayout(report.designPlan.heroLayout);
+      setSelectedContentLayout(report.designPlan.contentLayout);
+      setUseFlyerImageAsHero(Boolean(previewImageDataUrl && report.designPlan.heroLayout === 'split'));
+      setFlowMode('flyer_review');
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'לא הצלחנו לסרוק את הפלייר, נסה קובץ אחר או המשך לשאלון המהיר');
+    } finally {
+      setIsScanningFlyer(false);
+    }
+  };
+
+  const handleGenerateFromFlyer = async () => {
+    if (!flyerReport || !flyerReport.title.trim()) {
+      setErrorMessage('נא לוודא שיש כותרת לעמוד');
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsGenerating(true);
+
+    try {
+      const activePalette = selectedFlyerPalette || flyerReport.designPlan.extractedPalette;
+      const detailsSummary = [
+        flyerReport.eventDetails.date ? `תאריך: ${flyerReport.eventDetails.date}` : '',
+        flyerReport.eventDetails.time ? `שעה: ${flyerReport.eventDetails.time}` : '',
+        flyerReport.eventDetails.location ? `מיקום: ${flyerReport.eventDetails.location}` : '',
+        flyerReport.eventDetails.price ? `עלות: ${flyerReport.eventDetails.price}` : '',
+        flyerReport.eventDetails.audience ? `קהל יעד: ${flyerReport.eventDetails.audience}` : '',
+        flyerReport.highlights.length > 0
+          ? `נקודות מרכזיות: ${flyerReport.highlights.map((h) => `${h.title} (${h.description})`).join(' | ')}`
+          : '',
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      const result = await generatePageWithKoswebModel(
+        {
+          title: flyerReport.title.trim(),
+          description: [flyerReport.subtitle, flyerReport.description].filter(Boolean).join('\n'),
+          goal: flyerReport.designPlan.goalLabelHe || 'הרשמה והנעה לפעולה',
+          extractedDocumentText: detailsSummary,
+          formRequirement: flyerReport.recommendedFormMode,
+          paymentAmount:
+            flyerReport.recommendedFormMode === 'payment' && (flyerReport.recommendedPaymentAmount || 0) > 0
+              ? flyerReport.recommendedPaymentAmount
+              : undefined,
+          styleColorMode: 'palette',
+          selectedPalette: {
+            id: activePalette.id,
+            label: activePalette.nameHe,
+            stylePreset: activePalette.stylePreset,
+            primaryColor: activePalette.primaryColor,
+            secondaryColor: activePalette.secondaryColor,
+          },
+          flyerScanReport: flyerReport,
+          heroLayoutOverride: selectedHeroLayout,
+          contentLayoutOverride: selectedContentLayout,
+          customPaletteOverride: {
+            backgroundColor: activePalette.backgroundColor,
+            textColor: activePalette.textColor,
+            borderRadius: activePalette.borderRadius,
+            buttonStyle: activePalette.buttonStyle,
+          },
+          uploadedHeroImageUrl: useFlyerImageAsHero && flyerPreviewUrl ? flyerPreviewUrl : undefined,
+          generateHeroImageWithAi: !(useFlyerImageAsHero && flyerPreviewUrl),
+          saveGeneratedImageToKoscloud: mediaPicker?.saveGeneratedImage,
+        },
+        liveDna,
+        tenantId,
+        db
+      );
+
+      await pageBuilderFirestore.savePage(result.pageConfig, db, tenantId);
+      onPageGenerated(result.pageConfig);
+      onClose();
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'אירעה שגיאה ביצירת העמוד');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto"
@@ -245,18 +357,31 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
         {/* Minimal Top Strip (No Modal Title Header) */}
         <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-4">
           <div className="flex-1 space-y-1.5">
-            <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400">
-              <span>
-                שלב {step} מתוך {TOTAL_STEPS}
-              </span>
-              <span>{Math.round((step / TOTAL_STEPS) * 100)}%</span>
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-gradient-to-l from-indigo-600 to-purple-600 transition-all duration-300"
-                style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
-              />
-            </div>
+            {flowMode === 'manual_wizard' ? (
+              <>
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  <span>
+                    שלב {step} מתוך {TOTAL_STEPS}
+                  </span>
+                  <span>{Math.round((step / TOTAL_STEPS) * 100)}%</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-l from-indigo-600 to-purple-600 transition-all duration-300"
+                    style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 text-xs font-black text-indigo-600 dark:text-indigo-400">
+                <Sparkles className="w-4 h-4" />
+                <span>
+                  {flowMode === 'flyer_ask'
+                    ? 'שלב 1 — סריקת פלייר חכמה (אופציונלי)'
+                    : 'שלב 2 — דוח סריקה ועיצוב לעריכה ואישור'}
+                </span>
+              </div>
+            )}
           </div>
 
           <button
@@ -268,6 +393,378 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Mode 1: Flyer Ask (First Question) */}
+        {flowMode === 'flyer_ask' && (
+          <div className="px-6 py-5 space-y-5 max-h-[75vh] overflow-y-auto">
+            <div className="space-y-2">
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                האם יש לך פלייר עבור עמוד הנחיתה?
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                העלה תמונה, קובץ PDF או מסמך Markdown (`.md`) — ג׳ימיני יסרוק את הפלייר, יחלץ את כל הפרטים, יתאים פלטת צבעים ויציע פריסה מותאמת לעריכה ואישור לפני יצירת העמוד.
+              </p>
+            </div>
+
+            <label className="block rounded-2xl border-2 border-dashed border-indigo-300 dark:border-indigo-700 bg-indigo-50/40 dark:bg-indigo-950/20 hover:bg-indigo-50/80 dark:hover:bg-indigo-950/40 transition-all p-6 text-center cursor-pointer">
+              <input
+                type="file"
+                accept="image/*,.pdf,application/pdf,.md,.markdown,.txt,text/markdown"
+                disabled={isScanningFlyer}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFlyerFileSelected(file);
+                }}
+                className="hidden"
+              />
+              {isScanningFlyer ? (
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <Loader2 className="w-9 h-9 animate-spin text-indigo-600" />
+                  <div className="text-sm font-black text-slate-900 dark:text-white">
+                    סורק את הפלייר &quot;{flyerFileName}&quot; ב־Gemini...
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    מחלץ טקסטים, תאריכים, פלטת צבעים והמלצת פריסה מותאמת אישית
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2.5 py-2">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                    <CloudUpload className="w-6 h-6" />
+                  </div>
+                  <div className="text-sm font-black text-slate-900 dark:text-white">
+                    לחץ להעלאת פלייר (תמונה, PDF או MD)
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    תמיכה ב־JPG, PNG, WEBP, PDF, Markdown (.md)
+                  </div>
+                </div>
+              )}
+            </label>
+
+            {errorMessage && (
+              <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-center gap-2 text-xs font-bold text-rose-700 dark:text-rose-300">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isScanningFlyer}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                disabled={isScanningFlyer}
+                onClick={() => {
+                  setErrorMessage(null);
+                  setFlowMode('manual_wizard');
+                  setStep(1);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <FileText className="w-4 h-4" />
+                <span>אין לי פלייר — מעבר לשאלון המהיר</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Mode 2: Editable Flyer Scan & Design Report */}
+        {flowMode === 'flyer_review' && flyerReport && (
+          <>
+            <div className="px-6 py-4 space-y-5 max-h-[72vh] overflow-y-auto">
+              {/* AI Design Insight Banner */}
+              <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-black text-indigo-700 dark:text-indigo-300">
+                    מטרה שזוהתה: {flyerReport.designPlan.goalLabelHe}
+                  </span>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white dark:bg-slate-900 text-indigo-600 border border-indigo-200 dark:border-indigo-700">
+                    {flyerFileName}
+                  </span>
+                </div>
+                {flyerReport.designPlan.designRationaleHe && (
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    {flyerReport.designPlan.designRationaleHe}
+                  </p>
+                )}
+              </div>
+
+              {/* Editable Core Text */}
+              <div className="space-y-3">
+                <label className="block space-y-1">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">כותרת ראשית</span>
+                  <input
+                    type="text"
+                    value={flyerReport.title}
+                    onChange={(e) => setFlyerReport({ ...flyerReport, title: e.target.value })}
+                    className="w-full rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 px-3.5 py-2.5 text-sm font-bold text-slate-900 dark:text-white"
+                  />
+                </label>
+
+                <label className="block space-y-1">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">תת-כותרת</span>
+                  <input
+                    type="text"
+                    value={flyerReport.subtitle}
+                    onChange={(e) => setFlyerReport({ ...flyerReport, subtitle: e.target.value })}
+                    className="w-full rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 px-3.5 py-2 text-sm text-slate-900 dark:text-white"
+                  />
+                </label>
+
+                <label className="block space-y-1">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">תיאור ותוכן מרכזי</span>
+                  <textarea
+                    rows={3}
+                    value={flyerReport.description}
+                    onChange={(e) => setFlyerReport({ ...flyerReport, description: e.target.value })}
+                    className="w-full rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 px-3.5 py-2 text-sm text-slate-900 dark:text-white resize-none"
+                  />
+                </label>
+
+                {/* Event Details Grid */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <input
+                    type="text"
+                    placeholder="תאריך"
+                    value={flyerReport.eventDetails.date || ''}
+                    onChange={(e) =>
+                      setFlyerReport({
+                        ...flyerReport,
+                        eventDetails: { ...flyerReport.eventDetails, date: e.target.value },
+                      })
+                    }
+                    className="rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs text-slate-900 dark:text-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="שעה"
+                    value={flyerReport.eventDetails.time || ''}
+                    onChange={(e) =>
+                      setFlyerReport({
+                        ...flyerReport,
+                        eventDetails: { ...flyerReport.eventDetails, time: e.target.value },
+                      })
+                    }
+                    className="rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs text-slate-900 dark:text-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="מיקום"
+                    value={flyerReport.eventDetails.location || ''}
+                    onChange={(e) =>
+                      setFlyerReport({
+                        ...flyerReport,
+                        eventDetails: { ...flyerReport.eventDetails, location: e.target.value },
+                      })
+                    }
+                    className="rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs text-slate-900 dark:text-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="מחיר / עלות"
+                    value={flyerReport.eventDetails.price || ''}
+                    onChange={(e) =>
+                      setFlyerReport({
+                        ...flyerReport,
+                        eventDetails: { ...flyerReport.eventDetails, price: e.target.value },
+                      })
+                    }
+                    className="rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Editable Highlights */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">נקודות מפתח שיוצגו בעמוד</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFlyerReport({
+                        ...flyerReport,
+                        highlights: [...flyerReport.highlights, { title: '', description: '', iconName: 'Sparkles' }],
+                      })
+                    }
+                    className="text-[11px] font-bold text-indigo-600 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>הוסף נקודה</span>
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {flyerReport.highlights.map((h, idx) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <input
+                        type="text"
+                        placeholder="כותרת"
+                        value={h.title}
+                        onChange={(e) => {
+                          const next = [...flyerReport.highlights];
+                          next[idx] = { ...next[idx], title: e.target.value };
+                          setFlyerReport({ ...flyerReport, highlights: next });
+                        }}
+                        className="w-1/3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs font-bold"
+                      />
+                      <input
+                        type="text"
+                        placeholder="פירוט קצר"
+                        value={h.description}
+                        onChange={(e) => {
+                          const next = [...flyerReport.highlights];
+                          next[idx] = { ...next[idx], description: e.target.value };
+                          setFlyerReport({ ...flyerReport, highlights: next });
+                        }}
+                        className="flex-1 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFlyerReport({
+                            ...flyerReport,
+                            highlights: flyerReport.highlights.filter((_, i) => i !== idx),
+                          })
+                        }
+                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer"
+                        aria-label="הסר נקודה"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Palette Selection */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <Palette className="w-4 h-4 text-indigo-500" />
+                  <span>בחירת פלטת צבעים (חולצה מהפלייר + חלופות):</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[flyerReport.designPlan.extractedPalette, ...flyerReport.designPlan.alternativePalettes].map((pal) => {
+                    const active = (selectedFlyerPalette?.id || flyerReport.designPlan.extractedPalette.id) === pal.id;
+                    return (
+                      <button
+                        key={pal.id}
+                        type="button"
+                        onClick={() => setSelectedFlyerPalette(pal)}
+                        className={clsx(
+                          'p-2.5 rounded-xl border text-right transition-all flex items-center justify-between gap-2 cursor-pointer',
+                          active
+                            ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 ring-1 ring-indigo-500'
+                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                        )}
+                      >
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {pal.nameHe}
+                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="w-4 h-4 rounded-full border border-black/10" style={{ backgroundColor: pal.primaryColor }} />
+                          <span className="w-4 h-4 rounded-full border border-black/10" style={{ backgroundColor: pal.secondaryColor }} />
+                          <span className="w-4 h-4 rounded-full border border-black/10" style={{ backgroundColor: pal.backgroundColor }} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Layout Selection */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <Layout className="w-4 h-4 text-indigo-500" />
+                  <span>פריסת כותרת ראשית (Hero) ותוכן:</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { id: 'split', label: 'מפוצל + תמונה' },
+                      { id: 'centered', label: 'מרכוז דרמטי' },
+                      { id: 'minimal', label: 'מינימליסטי נקי' },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setSelectedHeroLayout(opt.id)}
+                      className={clsx(
+                        'py-2 px-2 rounded-xl border text-xs font-bold cursor-pointer',
+                        selectedHeroLayout === opt.id
+                          ? 'border-indigo-500 bg-indigo-600 text-white'
+                          : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                {flyerPreviewUrl && (
+                  <label className="flex items-center gap-2 pt-1 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useFlyerImageAsHero}
+                      onChange={(e) => setUseFlyerImageAsHero(e.target.checked)}
+                      className="rounded border-slate-300 text-indigo-600"
+                    />
+                    <span>השתמש בתמונת הפלייר עצמה ב-Hero (במקום ליצור תמונת אווירה חדשה ב-AI)</span>
+                  </label>
+                )}
+              </div>
+
+              {errorMessage && (
+                <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-center gap-2 text-xs font-bold text-rose-700 dark:text-rose-300">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                disabled={isGenerating}
+                onClick={() => {
+                  setErrorMessage(null);
+                  setFlowMode('flyer_ask');
+                }}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 cursor-pointer"
+              >
+                <ArrowRight className="w-4 h-4" />
+                <span>העלאת פלייר אחר</span>
+              </button>
+              <button
+                type="button"
+                disabled={isGenerating}
+                onClick={handleGenerateFromFlyer}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black shadow-lg shadow-indigo-500/25 flex items-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>בונה ושומר את העמוד...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>אשר וצור עמוד עכשיו</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </>
+        )}
+
+        {flowMode === 'manual_wizard' && (
+        <>
 
         {/* Single-Question Step Body */}
         <div className="px-6 py-4 space-y-5 max-h-[75vh] overflow-y-auto">
@@ -600,6 +1097,8 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
             </button>
           )}
         </div>
+        </>
+        )}
       </div>
 
       {/* Fallback CapabilitySlot for KOSCLOUD MediaPickerModal if host bridge wasn't mounted */}

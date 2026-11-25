@@ -62,7 +62,8 @@ export function extractContactFromSubmission(
   const answers = submission.answers || {};
   
   // Find Name
-  const name = answers['conta_name'] || 
+  const name = answers['kosun_crm_name'] ||
+               answers['conta_name'] || 
                answers['name'] || 
                answers['fullName'] || 
                answers['first_name'] || 
@@ -70,32 +71,42 @@ export function extractContactFromSubmission(
                formTitle;
 
   // Find Phone
-  const phone = answers['conta_phone'] || 
+  const phone = answers['kosun_crm_phone'] ||
+                answers['conta_phone'] || 
                 answers['phone'] || 
                 answers['tel'] || 
                 answers['mobile'] || 
                 '';
 
   // Find Email
-  const email = answers['email'] || 
+  const email = answers['kosun_crm_email'] ||
+                answers['email'] || 
                 answers['mail'] || 
                 '';
 
   // Find Company
-  const company = answers['company_name'] || 
+  const company = answers['kosun_crm_company'] ||
+                  answers['company_name'] || 
                   answers['company'] || 
                   answers['business'] || 
                   '';
 
   // Find City
-  const city = answers['mh_crm_city'] || 
+  const city = answers['kosun_crm_city'] ||
+               answers['mh_crm_city'] || 
                answers['city'] || 
                '';
 
   // Collect other custom field answers
   const customFields: Record<string, any> = {};
   Object.keys(answers).forEach((k) => {
-    if (!['conta_name', 'name', 'fullName', 'conta_phone', 'phone', 'tel', 'email', 'mail', 'company_name', 'company', 'mh_crm_city', 'city'].includes(k)) {
+    if (![
+      'kosun_crm_name', 'conta_name', 'name', 'fullName',
+      'kosun_crm_phone', 'conta_phone', 'phone', 'tel',
+      'kosun_crm_email', 'email', 'mail',
+      'kosun_crm_company', 'company_name', 'company',
+      'kosun_crm_city', 'mh_crm_city', 'city',
+    ].includes(k)) {
       customFields[k] = answers[k];
     }
   });

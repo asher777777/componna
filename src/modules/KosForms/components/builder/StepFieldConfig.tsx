@@ -195,13 +195,13 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
             <span>מפתח נתונים וסנכרון CRM (mappingKey):</span>
-            <span className="text-[10px] text-slate-400 font-mono">(conta_name / email / phone וכו')</span>
+            <span className="text-[10px] text-slate-400 font-mono">(kosun_crm_name / kosun_crm_email / kosun_crm_phone וכו')</span>
           </label>
           <input
             type="text"
             value={step.mappingKey || ''}
             onChange={(e) => updateField('mappingKey', e.target.value)}
-            placeholder="conta_name, conta_phone, email, budget, etc."
+            placeholder="kosun_crm_name, kosun_crm_phone, kosun_crm_email, kosun_crm_notes"
             className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>

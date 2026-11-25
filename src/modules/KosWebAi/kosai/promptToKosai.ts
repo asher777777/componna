@@ -635,3 +635,163 @@ export async function dispatchKoswebModelPageToKosai(
   );
   return res.data;
 }
+
+export interface FlyerScanPaletteOption {
+  id: string;
+  nameHe: string;
+  stylePreset: 'standard' | 'feminine' | 'masculine' | 'spiritual' | 'sharp' | 'analytical';
+  primaryColor: string;
+  secondaryColor: string;
+  backgroundColor: string;
+  textColor: string;
+  borderRadius: 'none' | 'sm' | 'md' | 'lg' | 'full';
+  buttonStyle: 'solid' | 'gradient' | 'outline' | 'glass';
+}
+
+export interface FlyerScanReport {
+  title: string;
+  subtitle: string;
+  description: string;
+  eventDetails: {
+    date?: string;
+    time?: string;
+    location?: string;
+    price?: string;
+    audience?: string;
+    contactInfo?: string;
+  };
+  highlights: Array<{
+    title: string;
+    description: string;
+    iconName?: string;
+  }>;
+  faqs: Array<{
+    question: string;
+    answer: string;
+  }>;
+  ctaText: string;
+  recommendedFormMode: 'registration' | 'payment';
+  recommendedPaymentAmount?: number;
+  recommendedFormFields: string[];
+  designPlan: {
+    goalCategory: 'event_workshop' | 'service_clinic' | 'product_sale' | 'community_campaign' | 'lecture_course';
+    goalLabelHe: string;
+    visualMood: 'light' | 'warm' | 'dark' | 'sharp';
+    heroLayout: 'split' | 'centered' | 'minimal';
+    contentLayout: 'highlight-box' | 'cards-grid' | 'split-image';
+    sectionOrder: string[];
+    designRationaleHe: string;
+    extractedPalette: FlyerScanPaletteOption;
+    alternativePalettes: FlyerScanPaletteOption[];
+    heroImagePrompt: string;
+  };
+}
+
+export async function dispatchFlyerScanToKosai(params: {
+  companyName: string;
+  fileName?: string;
+  imageBase64?: string;
+  mimeType?: string;
+  markdownText?: string;
+  availableIconNames?: string[];
+  tenantId?: string;
+}): Promise<FlyerScanReport> {
+  const iconsList = (params.availableIconNames || []).slice(0, 24).join(', ');
+  const mdBlock = params.markdownText
+    ? `\n\n--- FLYER MARKDOWN / TEXT CONTENT (${params.fileName || 'flyer.md'}) ---\n${params.markdownText.slice(0, 12000)}\n--- END FLYER CONTENT ---`
+    : '';
+
+  const prompt = `אתה מנהל קריאייטיב, מעצב UI/UX בכיר ואדריכל דפי נחיתה של מערכת KOSUN עבור העסק "${params.companyName}".
+המשתמש העלה פלייר (${params.fileName || 'flyer'}) לצורך הקמת עמוד נחיתה ייחודי ומותאם למטרה.
+
+משימתך:
+1. חלץ בדיוק את כל הפרטים המופיעים בפלייר (כותרת, תת כותרת, תיאור, תאריך, שעה, מיקום, מחיר, קהל יעד, פרטי קשר, נקודות עיקריות). אל תמציא מידע שסותר את הפלייר!
+2. נתח את הצבעוניות, האווירה והסגנון של הפלייר והפק פלטת צבעים ראשית (extractedPalette) ועוד 3 פלטות חלופיות (alternativePalettes) עם ניגודיות תקינה וקריאה (backgroundColor + textColor תואמים).
+3. התאם את מבנה העמוד (designPlan) למטרה האמיתית של הפלייר כדי שהעמוד לא ייראה גנרי ותבניתי:
+   - goalCategory: 'event_workshop' | 'service_clinic' | 'product_sale' | 'community_campaign' | 'lecture_course'
+   - heroLayout:
+     * 'split' (מומלץ כאשר יש תמונה/פלייר שצריך להופיע בבירור לצד הטקסט)
+     * 'centered' (דרמטי ופתוח על תמונת אווירה)
+     * 'minimal' (נקי ומודרני מבוסס טיפוגרפיה)
+   - contentLayout: 'highlight-box' | 'cards-grid' | 'split-image'
+   - sectionOrder: בחר 5 עד 7 אזורים מתאימים מתוך: ["hero", "timer", "statsBento", "services", "richContent", "testimonials", "pricing", "faq", "smartForm"] בסדר שמתאים למטרה! (למשל: לאירוע עם תאריך שלב "timer" אם יש תאריך קרוב, לשירות שלב "services" + "testimonials", למכירה שלב "pricing").
+4. בחר איקונים מתוך הרשימה הבאה אם רלוונטי: [${iconsList || 'Sparkles, Calendar, MapPin, Users, Heart, Star, CheckCircle2, Gift, Clock'}]${mdBlock}
+
+החזר אך ורק JSON תקני (ללא markdown backticks) במבנה הבא:
+{
+  "title": "כותרת העמוד הראשית",
+  "subtitle": "תת כותרת מושכת",
+  "description": "תיאור ברור ומפורט בעברית על בסיס הפלייר",
+  "eventDetails": {
+    "date": "",
+    "time": "",
+    "location": "",
+    "price": "",
+    "audience": "",
+    "contactInfo": ""
+  },
+  "highlights": [
+    { "title": "נקודה עיקרית", "description": "פירוט קצר", "iconName": "Sparkles" }
+  ],
+  "faqs": [
+    { "question": "שאלה נפוצה רלוונטית", "answer": "תשובה ברורה" }
+  ],
+  "ctaText": "טקסט לכפתור הרשמה",
+  "recommendedFormMode": "registration",
+  "recommendedPaymentAmount": 0,
+  "recommendedFormFields": ["kosun_crm_name", "kosun_crm_phone", "kosun_crm_email"],
+  "designPlan": {
+    "goalCategory": "event_workshop",
+    "goalLabelHe": "סדנה / אירוע קהילתי",
+    "visualMood": "warm",
+    "heroLayout": "split",
+    "contentLayout": "cards-grid",
+    "sectionOrder": ["hero", "statsBento", "richContent", "faq", "smartForm"],
+    "designRationaleHe": "הסבר קצר של שורה אחת למה בחרת בפריסה ובצבעים האלו",
+    "extractedPalette": {
+      "id": "flyer_extracted",
+      "nameHe": "פלטת הפלייר המקורית",
+      "stylePreset": "standard",
+      "primaryColor": "#6366f1",
+      "secondaryColor": "#0ea5e9",
+      "backgroundColor": "#ffffff",
+      "textColor": "#0f172a",
+      "borderRadius": "lg",
+      "buttonStyle": "gradient"
+    },
+    "alternativePalettes": [
+      {
+        "id": "alt_1",
+        "nameHe": "אלגנטי ובהיר",
+        "stylePreset": "standard",
+        "primaryColor": "#2563eb",
+        "secondaryColor": "#0284c7",
+        "backgroundColor": "#f8fafc",
+        "textColor": "#0f172a",
+        "borderRadius": "md",
+        "buttonStyle": "solid"
+      }
+    ],
+    "heroImagePrompt": "Clean modern editorial atmospheric background visual matching the flyer topic, strictly NO text, NO words, NO letters"
+  }
+}`;
+
+  const result = await executeKosaiAi<FlyerScanReport>('KosWebAi:FlyerScan', prompt, {
+    model: 'gemini-3.8-flash',
+    imageBase64: params.imageBase64,
+    imageMimeType: params.mimeType,
+    temperature: 0.4,
+    maxOutputTokens: 4096,
+    responseMimeType: 'application/json',
+    tenantId: params.tenantId,
+    category: 'content',
+    skipCache: true,
+    timeoutMs: 60000,
+  });
+
+  if (!result.success || !result.data) {
+    throw new Error(result.error || 'סריקת הפלייר נכשלה');
+  }
+
+  return result.data;
+}
