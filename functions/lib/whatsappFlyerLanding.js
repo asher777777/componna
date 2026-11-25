@@ -163,7 +163,7 @@ async function downloadAndStoreMedia(downloadUrl, tenantId, fileName, mimeTypeHi
         mimeType,
     };
 }
-async function callGeminiJson(geminiKey, prompt, media) {
+async function callGeminiJson(geminiKey, prompt, media, db) {
     var _a, _b, _c, _d, _e, _f;
     const parts = [{ text: prompt }];
     if ((media === null || media === void 0 ? void 0 : media.base64) && (media === null || media === void 0 ? void 0 : media.mimeType)) {
@@ -174,38 +174,66 @@ async function callGeminiJson(geminiKey, prompt, media) {
             },
         });
     }
-    const effectiveKey = String(geminiKey || process.env.GEMINI_API_KEY || '').trim();
+    const candidateKeys = [];
+    const pushKey = (k) => {
+        const clean = String(k || '').trim();
+        if (clean.length > 10 && !candidateKeys.includes(clean)) {
+            candidateKeys.push(clean);
+        }
+    };
+    // Prefer master tenant key & server env key (same authoritative order as resolveServerGeminiKey in geminiAiProxy)
+    if (db) {
+        try {
+            const masterSnap = await db
+                .collection('tenants')
+                .doc('_master')
+                .collection('settings')
+                .doc('api_keys')
+                .get();
+            if (masterSnap.exists) {
+                const d = masterSnap.data() || {};
+                pushKey(d.googleAiApiKey || d.geminiApiKey);
+            }
+        }
+        catch (_g) {
+            // ignore
+        }
+    }
+    pushKey(process.env.GEMINI_API_KEY);
+    pushKey(geminiKey);
     const models = ['gemini-3.8-flash', 'gemini-2.5-flash'];
     let lastError = 'Gemini request failed';
-    for (const model of models) {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-        const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': effectiveKey,
-            },
-            body: JSON.stringify({
-                contents: [{ role: 'user', parts }],
-                generationConfig: {
-                    temperature: 0.4,
-                    maxOutputTokens: 8192,
-                    responseMimeType: 'application/json',
+    for (const effectiveKey of candidateKeys) {
+        for (const model of models) {
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': effectiveKey,
                 },
-            }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-            lastError = ((_a = data === null || data === void 0 ? void 0 : data.error) === null || _a === void 0 ? void 0 : _a.message) || `HTTP ${res.status}`;
-            continue;
+                body: JSON.stringify({
+                    contents: [{ role: 'user', parts }],
+                    generationConfig: {
+                        temperature: 0.4,
+                        maxOutputTokens: 8192,
+                        responseMimeType: 'application/json',
+                    },
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                lastError = ((_a = data === null || data === void 0 ? void 0 : data.error) === null || _a === void 0 ? void 0 : _a.message) || `HTTP ${res.status}`;
+                continue;
+            }
+            const rawText = ((_f = (_e = (_d = (_c = (_b = data === null || data === void 0 ? void 0 : data.candidates) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.content) === null || _d === void 0 ? void 0 : _d.parts) === null || _e === void 0 ? void 0 : _e[0]) === null || _f === void 0 ? void 0 : _f.text) || '';
+            const cleaned = rawText
+                .replace(/^```json\s*/i, '')
+                .replace(/^```\s*/i, '')
+                .replace(/```\s*$/i, '')
+                .trim();
+            return JSON.parse(cleaned);
         }
-        const rawText = ((_f = (_e = (_d = (_c = (_b = data === null || data === void 0 ? void 0 : data.candidates) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.content) === null || _d === void 0 ? void 0 : _d.parts) === null || _e === void 0 ? void 0 : _e[0]) === null || _f === void 0 ? void 0 : _f.text) || '';
-        const cleaned = rawText
-            .replace(/^```json\s*/i, '')
-            .replace(/^```\s*/i, '')
-            .replace(/```\s*$/i, '')
-            .trim();
-        return JSON.parse(cleaned);
     }
     throw new Error(lastError);
 }
@@ -240,7 +268,7 @@ function formatReportForWhatsApp(report, slug, tenantId) {
         ]
             .filter(Boolean)
             .join(', ') || 'לידים'})`,
-        `*כתובת העמוד ב-KOSWEB:* https://${host}/p/${slug}`,
+        `*כתובת מתוכננת (תיווצר רק לאחר שתכתוב "אשר"):* https://${host}/p/${slug}`,
         `\n*מה תרצה לעשות עכשיו?*`,
         `- כתוב הוראות עריכה ודיוק (למשל: "שנה כותרת ל...", "הוסף קוד קופון VIP20")`,
         `- שלח תמונה נוספת אם תרצה להחליף את תמונת ה-Hero`,
@@ -333,7 +361,7 @@ async function handleWhatsAppFlyerLanding(input) {
   "designDirection": { "primaryColor": "#f59e0b", "secondaryColor": "#6366f1", "backgroundColor": "#090a0f", "textColor": "#f8fafc", "visualStyle": "יוקרתי" },
   "formPlan": { "formTitle": "טופס הרשמה", "formCategory": "אירועים", "includeTickets": false, "includeCoupons": false, "includePayment": false, "suggestedStepsSummary": ["שם מלא", "טלפון נייד", "דוא\"ל"] }
 }`;
-            const report = await callGeminiJson(geminiKey, reportPrompt, storedMedia);
+            const report = await callGeminiJson(geminiKey, reportPrompt, storedMedia, db);
             const uniqueSlug = ensureUniqueSlug(report.suggestedSlug || report.title, takenSlugs);
             const heroImageUrl = storedMedia && storedMedia.mimeType.startsWith('image/') ? storedMedia.publicUrl : '';
             if (heroImageUrl)
@@ -396,7 +424,7 @@ ${JSON.stringify(sessionData.report, null, 2)}
 
 הוראות המנהל: "${trimmed}"
 החזר JSON תקני בלבד באותו מבנה בדיוק (ללא אימוג'ים).`;
-                updatedReport = await callGeminiJson(geminiKey, refinePrompt);
+                updatedReport = await callGeminiJson(geminiKey, refinePrompt, undefined, db);
                 if (nextHeroUrl)
                     updatedReport.heroImageUrl = nextHeroUrl;
                 if (updatedReport.suggestedSlug && updatedReport.suggestedSlug !== ((_b = sessionData.report) === null || _b === void 0 ? void 0 : _b.suggestedSlug)) {
@@ -514,7 +542,7 @@ ${existingSections ? `קונפיגורציה קודמת לעדכון:\n${JSON.st
     "completion": { "title": "תודה רבה!", "subtitle": "פרטיך נקלטו בהצלחה.", "iconName": "CheckCircle2", "showRedirectButton": false }
   }
 }`;
-    const generated = await callGeminiJson(geminiKey, aiPrompt);
+    const generated = await callGeminiJson(geminiKey, aiPrompt, undefined, db);
     const now = new Date().toISOString();
     const formId = existingFormId || `form_lp_${Date.now()}`;
     const formsColl = tenantId && tenantId !== '_master'

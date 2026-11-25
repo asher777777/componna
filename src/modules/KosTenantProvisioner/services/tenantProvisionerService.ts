@@ -218,11 +218,14 @@ export class TenantProvisionerService {
           if (isScopedReseller && docParent !== scopeParent) continue;
 
           let adminPassword = data.adminPassword || '';
-          if (!adminPassword) {
+          let authUsername = '';
+          if (!adminPassword || !data.adminUsername) {
             try {
               const credDoc = await getDoc(doc(db, 'tenants', sub, 'settings', 'auth_credentials'));
               if (credDoc.exists()) {
-                adminPassword = credDoc.data().plainPassword || '';
+                const credData = credDoc.data();
+                if (!adminPassword) adminPassword = credData.plainPassword || '';
+                if (!data.adminUsername && credData.username) authUsername = credData.username;
               }
             } catch {}
           }
@@ -231,7 +234,7 @@ export class TenantProvisionerService {
             subdomain: sub,
             fullDomain: data.fullDomain || `${sub}.kosun.pro`,
             clientName: data.clientName || `עסק ${sub}`,
-            adminUsername: data.ownerEmail || data.adminUsername || `${sub}@kosun.pro`,
+            adminUsername: data.adminUsername || authUsername || data.ownerEmail || `${sub}@kosun.pro`,
             adminPassword: adminPassword || (map.get(sub)?.adminPassword ?? 'Ks@1234'),
             ownerEmail: data.ownerEmail,
             ownerPhone: data.ownerPhone,
@@ -594,14 +597,24 @@ export class TenantProvisionerService {
     credentials: { username: string; password: string }
   ): Promise<void> {
     const cleanSub = subdomain.trim().toLowerCase();
+    const cleanUsername = credentials.username.trim();
+    const hasPasswordUpdate = Boolean(credentials.password && credentials.password !== '••••••••');
+    const now = new Date().toISOString();
+
     const current = this.getLocalTenants();
     const found = current.find((t) => t.subdomain === cleanSub);
     if (found) {
-      found.adminUsername = credentials.username;
-      found.adminPassword = credentials.password;
-      found.updatedAt = new Date().toISOString();
+      found.adminUsername = cleanUsername;
+      if (hasPasswordUpdate) {
+        found.adminPassword = credentials.password;
+      }
+      found.updatedAt = now;
       this.saveLocalTenants(current);
-      eventBus.emit('tenant:updated', { ...found, adminUsername: credentials.username, adminPassword: credentials.password });
+      eventBus.emit('tenant:updated', {
+        ...found,
+        adminUsername: cleanUsername,
+        ...(hasPasswordUpdate ? { adminPassword: credentials.password } : {}),
+      });
     }
 
     if (db) {
@@ -609,40 +622,44 @@ export class TenantProvisionerService {
         const credRef = doc(db, 'tenants', cleanSub, 'settings', 'auth_credentials');
         await setDoc(credRef, {
           subdomain: cleanSub,
-          username: credentials.username,
-          plainPassword: credentials.password,
-          updatedAt: new Date().toISOString(),
+          username: cleanUsername,
+          ...(hasPasswordUpdate ? { plainPassword: credentials.password } : {}),
+          updatedAt: now,
         }, { merge: true });
 
         const tenantDocRef = doc(db, 'tenants', cleanSub);
         await setDoc(tenantDocRef, {
-          adminUsername: credentials.username,
-          adminPassword: credentials.password,
-          ownerEmail: credentials.username,
-          updatedAt: new Date().toISOString(),
+          adminUsername: cleanUsername,
+          ...(hasPasswordUpdate ? { adminPassword: credentials.password } : {}),
+          updatedAt: now,
         }, { merge: true });
 
-        // Sync to master CRM contact
-        const contactDocRef = doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${cleanSub}`);
-        await updateDoc(contactDocRef, {
-          adminUsername: credentials.username,
-          adminPassword: credentials.password,
-          email: credentials.username,
-          kosun_crm_email: credentials.username,
-          updatedAt: new Date().toISOString(),
-        });
+        // Sync to master CRM contact (skip for _master)
+        if (cleanSub !== '_master') {
+          const contactDocRef = doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${cleanSub}`);
+          await setDoc(contactDocRef, {
+            adminUsername: cleanUsername,
+            ...(hasPasswordUpdate ? { adminPassword: credentials.password } : {}),
+            updatedAt: now,
+          }, { merge: true });
+        }
       } catch (err) {
         console.warn('[TenantProvisionerService] Firestore credentials update warning:', err);
       }
     }
 
-    try {
-      await tenantContactSyncService.updateTenantFromContact(
-        cleanSub,
-        { adminUsername: credentials.username, adminPassword: credentials.password },
-        db
-      );
-    } catch {}
+    if (cleanSub !== '_master') {
+      try {
+        await tenantContactSyncService.updateTenantFromContact(
+          cleanSub,
+          {
+            adminUsername: cleanUsername,
+            ...(hasPasswordUpdate ? { adminPassword: credentials.password } : {}),
+          },
+          db
+        );
+      } catch {}
+    }
   }
 
   /**

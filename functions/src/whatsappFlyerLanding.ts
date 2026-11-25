@@ -213,7 +213,8 @@ async function downloadAndStoreMedia(
 async function callGeminiJson(
   geminiKey: string,
   prompt: string,
-  media?: { base64: string; mimeType: string }
+  media?: { base64: string; mimeType: string },
+  db?: admin.firestore.Firestore
 ): Promise<any> {
   const parts: any[] = [{ text: prompt }];
   if (media?.base64 && media?.mimeType) {
@@ -225,41 +226,70 @@ async function callGeminiJson(
     });
   }
 
-  const effectiveKey = String(geminiKey || process.env.GEMINI_API_KEY || '').trim();
+  const candidateKeys: string[] = [];
+  const pushKey = (k?: string) => {
+    const clean = String(k || '').trim();
+    if (clean.length > 10 && !candidateKeys.includes(clean)) {
+      candidateKeys.push(clean);
+    }
+  };
+
+  // Prefer master tenant key & server env key (same authoritative order as resolveServerGeminiKey in geminiAiProxy)
+  if (db) {
+    try {
+      const masterSnap = await db
+        .collection('tenants')
+        .doc('_master')
+        .collection('settings')
+        .doc('api_keys')
+        .get();
+      if (masterSnap.exists) {
+        const d = masterSnap.data() || {};
+        pushKey(d.googleAiApiKey || d.geminiApiKey);
+      }
+    } catch {
+      // ignore
+    }
+  }
+  pushKey(process.env.GEMINI_API_KEY);
+  pushKey(geminiKey);
+
   const models = ['gemini-3.8-flash', 'gemini-2.5-flash'];
   let lastError = 'Gemini request failed';
 
-  for (const model of models) {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': effectiveKey,
-      },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts }],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 8192,
-          responseMimeType: 'application/json',
+  for (const effectiveKey of candidateKeys) {
+    for (const model of models) {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': effectiveKey,
         },
-      }),
-    });
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts }],
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 8192,
+            responseMimeType: 'application/json',
+          },
+        }),
+      });
 
-    const data: any = await res.json();
-    if (!res.ok) {
-      lastError = data?.error?.message || `HTTP ${res.status}`;
-      continue;
+      const data: any = await res.json();
+      if (!res.ok) {
+        lastError = data?.error?.message || `HTTP ${res.status}`;
+        continue;
+      }
+
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const cleaned = rawText
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/```\s*$/i, '')
+        .trim();
+      return JSON.parse(cleaned);
     }
-
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const cleaned = rawText
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/```\s*$/i, '')
-      .trim();
-    return JSON.parse(cleaned);
   }
 
   throw new Error(lastError);
@@ -299,7 +329,7 @@ function formatReportForWhatsApp(report: any, slug: string, tenantId: string): s
     ]
       .filter(Boolean)
       .join(', ') || 'לידים'})`,
-    `*כתובת העמוד ב-KOSWEB:* https://${host}/p/${slug}`,
+    `*כתובת מתוכננת (תיווצר רק לאחר שתכתוב "אשר"):* https://${host}/p/${slug}`,
     `\n*מה תרצה לעשות עכשיו?*`,
     `- כתוב הוראות עריכה ודיוק (למשל: "שנה כותרת ל...", "הוסף קוד קופון VIP20")`,
     `- שלח תמונה נוספת אם תרצה להחליף את תמונת ה-Hero`,
@@ -444,7 +474,7 @@ export async function handleWhatsAppFlyerLanding(input: WaFlyerLandingInput): Pr
   "formPlan": { "formTitle": "טופס הרשמה", "formCategory": "אירועים", "includeTickets": false, "includeCoupons": false, "includePayment": false, "suggestedStepsSummary": ["שם מלא", "טלפון נייד", "דוא\"ל"] }
 }`;
 
-      const report = await callGeminiJson(geminiKey, reportPrompt, storedMedia);
+      const report = await callGeminiJson(geminiKey, reportPrompt, storedMedia, db);
       const uniqueSlug = ensureUniqueSlug(report.suggestedSlug || report.title, takenSlugs);
       const heroImageUrl =
         storedMedia && storedMedia.mimeType.startsWith('image/') ? storedMedia.publicUrl : '';
@@ -541,7 +571,7 @@ ${JSON.stringify(sessionData.report, null, 2)}
 
 הוראות המנהל: "${trimmed}"
 החזר JSON תקני בלבד באותו מבנה בדיוק (ללא אימוג'ים).`;
-        updatedReport = await callGeminiJson(geminiKey, refinePrompt);
+        updatedReport = await callGeminiJson(geminiKey, refinePrompt, undefined, db);
         if (nextHeroUrl) updatedReport.heroImageUrl = nextHeroUrl;
         if (updatedReport.suggestedSlug && updatedReport.suggestedSlug !== sessionData.report?.suggestedSlug) {
           const takenSlugs = await fetchExistingKosWebSlugs(db, tenantId);
@@ -720,7 +750,7 @@ ${existingSections ? `קונפיגורציה קודמת לעדכון:\n${JSON.st
   }
 }`;
 
-  const generated = await callGeminiJson(geminiKey, aiPrompt);
+  const generated = await callGeminiJson(geminiKey, aiPrompt, undefined, db);
 
   const now = new Date().toISOString();
   const formId = existingFormId || `form_lp_${Date.now()}`;

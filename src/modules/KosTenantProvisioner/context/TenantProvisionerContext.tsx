@@ -165,17 +165,39 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
   const updateCredentials = useCallback(
     async (subdomain: string, credentials: { username: string; password: string }): Promise<void> => {
       await TenantProvisionerService.updateTenantCredentials(db, subdomain, credentials);
+      const hasNewPassword = Boolean(credentials.password && credentials.password !== '••••••••');
+      const now = new Date().toISOString();
       setTenants((prev) =>
         prev.map((t) =>
           t.subdomain === subdomain
             ? {
                 ...t,
                 adminUsername: credentials.username,
-                adminPassword: credentials.password,
-                updatedAt: new Date().toISOString(),
+                ...(hasNewPassword ? { adminPassword: credentials.password } : {}),
+                updatedAt: now,
               }
             : t
         )
+      );
+      setEditingTenant((prev) =>
+        prev && prev.subdomain === subdomain
+          ? {
+              ...prev,
+              adminUsername: credentials.username,
+              ...(hasNewPassword ? { adminPassword: credentials.password } : {}),
+              updatedAt: now,
+            }
+          : prev
+      );
+      setViewingCredentialsTenant((prev) =>
+        prev && prev.subdomain === subdomain
+          ? {
+              ...prev,
+              adminUsername: credentials.username,
+              ...(hasNewPassword ? { adminPassword: credentials.password } : {}),
+              updatedAt: now,
+            }
+          : prev
       );
     },
     [db]

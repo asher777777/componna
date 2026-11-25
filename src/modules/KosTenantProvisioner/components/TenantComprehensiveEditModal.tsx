@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   X, Layers, KeyRound, Cpu, ShieldCheck, Check, Save, 
   Eye, EyeOff, RefreshCw, AlertCircle, Copy, Sparkles, 
@@ -118,54 +118,64 @@ export const TenantComprehensiveEditModal: React.FC = () => {
   const [isGrantingModalTokens, setIsGrantingModalTokens] = useState(false);
   const [grantModalMessage, setGrantModalMessage] = useState<string | null>(null);
 
+  const loadedSubdomainRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (editingTenant) {
-      const initialMods = editingTenant.activeModules || [];
-      const initName = editingTenant.clientName || '';
-      const initEmail = editingTenant.ownerEmail || '';
-      const initPhone = editingTenant.ownerPhone || '';
-      const initStatus = (editingTenant.status as 'active' | 'suspended') || 'active';
-      const initUser = editingTenant.adminUsername || '';
-      const initPass = editingTenant.adminPassword || '';
-
-      setSelectedModules(initialMods);
-      setClientName(initName);
-      setOwnerEmail(initEmail);
-      setOwnerPhone(initPhone);
-      setStatus(initStatus);
-      setAdminUsername(initUser);
-      setAdminPassword(initPass);
-      setCanProvisionSubTenants(Boolean(editingTenant.canProvisionSubTenants));
-      setUseMasterKesherBilling(Boolean(editingTenant.useMasterKesherBilling));
-      setMaxSubTenants(typeof editingTenant.maxSubTenants === 'number' ? editingTenant.maxSubTenants : 0);
-      setShowUnsavedConfirm(false);
-
-      // Load keys
-      getTenantKeys(editingTenant.subdomain).then((loaded) => {
-        const mergedKeys = {
-          ...keysData,
-          ...loaded,
-        };
-        setKeysData(mergedKeys);
-
-        setInitialData({
-          modules: [...initialMods],
-          clientName: initName,
-          ownerEmail: initEmail,
-          ownerPhone: initPhone,
-          status: initStatus,
-          adminUsername: initUser,
-          adminPassword: initPass,
-          keys: { ...mergedKeys }
-        });
-      });
-
-      // Load token usage & subscribe
-      let unsub = () => {};
-      TenantTokenTracker.getTenantTokenUsage(db, editingTenant.subdomain).then(setTokenUsage);
-      unsub = TenantTokenTracker.subscribe(db, editingTenant.subdomain, setTokenUsage);
-      return () => unsub();
+    if (!editingTenant) {
+      loadedSubdomainRef.current = null;
+      return;
     }
+
+    if (loadedSubdomainRef.current === editingTenant.subdomain) {
+      return;
+    }
+    loadedSubdomainRef.current = editingTenant.subdomain;
+
+    const initialMods = editingTenant.activeModules || [];
+    const initName = editingTenant.clientName || '';
+    const initEmail = editingTenant.ownerEmail || '';
+    const initPhone = editingTenant.ownerPhone || '';
+    const initStatus = (editingTenant.status as 'active' | 'suspended') || 'active';
+    const initUser = editingTenant.adminUsername || '';
+    const initPass = editingTenant.adminPassword || '';
+
+    setSelectedModules(initialMods);
+    setClientName(initName);
+    setOwnerEmail(initEmail);
+    setOwnerPhone(initPhone);
+    setStatus(initStatus);
+    setAdminUsername(initUser);
+    setAdminPassword(initPass);
+    setCanProvisionSubTenants(Boolean(editingTenant.canProvisionSubTenants));
+    setUseMasterKesherBilling(Boolean(editingTenant.useMasterKesherBilling));
+    setMaxSubTenants(typeof editingTenant.maxSubTenants === 'number' ? editingTenant.maxSubTenants : 0);
+    setShowUnsavedConfirm(false);
+
+    // Load keys
+    getTenantKeys(editingTenant.subdomain).then((loaded) => {
+      const mergedKeys = {
+        ...keysData,
+        ...loaded,
+      };
+      setKeysData(mergedKeys);
+
+      setInitialData({
+        modules: [...initialMods],
+        clientName: initName,
+        ownerEmail: initEmail,
+        ownerPhone: initPhone,
+        status: initStatus,
+        adminUsername: initUser,
+        adminPassword: initPass,
+        keys: { ...mergedKeys }
+      });
+    });
+
+    // Load token usage & subscribe
+    let unsub = () => {};
+    TenantTokenTracker.getTenantTokenUsage(db, editingTenant.subdomain).then(setTokenUsage);
+    unsub = TenantTokenTracker.subscribe(db, editingTenant.subdomain, setTokenUsage);
+    return () => unsub();
   }, [editingTenant, db, getTenantKeys]);
 
   // Check if user made unsaved changes
@@ -250,6 +260,10 @@ export const TenantComprehensiveEditModal: React.FC = () => {
   const handleSaveAll = async () => {
     setSaving(true);
     try {
+      const credsChanged =
+        adminUsername !== (initialData?.adminUsername ?? '') ||
+        (adminPassword !== (initialData?.adminPassword ?? '') && adminPassword !== '••••••••');
+
       await Promise.all([
         updateModules(editingTenant.subdomain, selectedModules),
         updateTenantKeys(editingTenant.subdomain, keysData),
@@ -267,10 +281,10 @@ export const TenantComprehensiveEditModal: React.FC = () => {
               : undefined,
           } : {}),
         }),
-        ...(adminUsername && adminPassword ? [
+        ...(credsChanged && adminUsername.trim() ? [
           updateCredentials(editingTenant.subdomain, {
-            username: adminUsername,
-            password: adminPassword,
+            username: adminUsername.trim(),
+            password: adminPassword === '••••••••' ? '' : adminPassword,
           })
         ] : [])
       ]);

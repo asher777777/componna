@@ -512,15 +512,23 @@ export const whatsappWebhook = functions.runWith({ timeoutSeconds: 120, memory: 
 
     if (incomingInstanceId) {
       try {
+        const rawWid = String(body.instanceData?.wid || '').split('@')[0].replace(/\D/g, '');
+        const widNorm = rawWid.startsWith('972') ? '0' + rawWid.slice(3) : rawWid;
         const tenantsSnap = await db.collection('tenants').get();
+        let bestScore = -1;
+
         for (const tDoc of tenantsSnap.docs) {
           const tKeysDoc = await db.collection('tenants').doc(tDoc.id).collection('settings').doc('api_keys').get();
           if (tKeysDoc.exists && String(tKeysDoc.data()?.greenApiInstanceId || '').trim() === incomingInstanceId) {
-            // Prefer specific tenant (e.g. mlea) over _master if both share the same instance ID
-            if (resolvedTenantId === '_master' || tDoc.id !== '_master') {
+            const tData = tDoc.data() || {};
+            const ownerRaw = String(tData.ownerPhone || tData.whatsapp || tData.phone || '').replace(/\D/g, '');
+            const ownerNorm = ownerRaw.startsWith('972') ? '0' + ownerRaw.slice(3) : ownerRaw;
+            const matchesWid = Boolean(widNorm && ownerNorm && ownerNorm === widNorm);
+            const score = (tDoc.id !== '_master' ? 1 : 0) + (matchesWid ? 10 : 0);
+            if (score > bestScore) {
+              bestScore = score;
               resolvedTenantId = tDoc.id;
               apiKeys = tKeysDoc.data() || {};
-              if (tDoc.id !== '_master') break;
             }
           }
         }
