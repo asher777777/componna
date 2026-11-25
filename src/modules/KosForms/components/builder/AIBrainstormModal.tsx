@@ -163,6 +163,7 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
         tone: selectedTone,
         crmSyncFields: selectedCrmFields,
         customToneInstructions,
+        stylePreset: brandDna?.designTokens?.defaultStylePreset,
       });
 
       setGeneratedResult(result);

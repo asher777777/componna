@@ -1,6 +1,8 @@
 import { SmartFormDefinition, FormStep, ToneStyle, FormThemeSettings } from '../types';
 import { TONE_PRESETS } from '../config/tonePresets';
 import { DEFAULT_THEME_SETTINGS, DEFAULT_COMPLETION_SETTINGS } from '../config/constants';
+import { resolveKoswebFormStyle } from '../config/koswebStylePresets';
+import { TenantStylePreset } from '../../../core/contracts';
 import { SYSTEM_COLLECTIONS, KOSUN_CRM_FIELD_KEYS } from '../../../core/contracts/collections';
 import { executeCloudAi } from '../../../core/ai';
 
@@ -92,6 +94,7 @@ export interface AIBrainstormInput {
   specificQuestions?: string[];
   crmSyncFields?: string[];
   geminiApiKey?: string;
+  stylePreset?: TenantStylePreset;
 }
 
 export interface AIBrainstormOutput {
@@ -228,6 +231,8 @@ export async function generateSmartFormWithAI(
               theme: {
                 ...DEFAULT_THEME_SETTINGS,
                 ...(selectedPreset.suggestedTheme as FormThemeSettings),
+                ...(input.stylePreset ? resolveKoswebFormStyle(input.stylePreset).themeDefaults : {}),
+                stylePreset: input.stylePreset || 'standard',
               },
               completion: DEFAULT_COMPLETION_SETTINGS,
               status: 'draft',
@@ -445,6 +450,8 @@ function generateHeuristicForm(
       theme: {
         ...DEFAULT_THEME_SETTINGS,
         ...(selectedPreset.suggestedTheme as FormThemeSettings),
+        ...(input.stylePreset ? resolveKoswebFormStyle(input.stylePreset).themeDefaults : {}),
+        stylePreset: input.stylePreset || 'standard',
       },
       completion: DEFAULT_COMPLETION_SETTINGS,
       status: 'draft',

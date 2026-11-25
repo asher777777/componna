@@ -1,4 +1,6 @@
 import React from 'react';
+import { TenantStylePreset } from '../../../../core/contracts';
+import { resolveKoswebFormStyle } from '../../config/koswebStylePresets';
 
 export interface ProgressBarProps {
   currentStepIndex: number;
@@ -6,18 +8,23 @@ export interface ProgressBarProps {
   progressPercent: number;
   accentColor?: string;
   showStepNumbers?: boolean;
+  stylePreset?: TenantStylePreset;
 }
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({
   currentStepIndex,
   totalSteps,
   progressPercent,
-  accentColor = '#D97706',
+  accentColor,
   showStepNumbers = true,
+  stylePreset,
 }) => {
+  const styleTokens = resolveKoswebFormStyle(stylePreset);
+  const effectiveAccent = accentColor || styleTokens.themeDefaults.accentColor || '#D97706';
+
   return (
     <div className="w-full space-y-2">
-      <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 px-1">
+      <div className={`flex items-center justify-between text-xs font-semibold px-1 ${styleTokens.progressTextClass}`}>
         {showStepNumbers && (
           <span>
             שלב {currentStepIndex + 1} מתוך {totalSteps}
@@ -25,12 +32,18 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
         )}
         <span>{progressPercent}% הושלמו</span>
       </div>
-      <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+      <div
+        role="progressbar"
+        aria-valuenow={progressPercent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        className={`w-full h-2 overflow-hidden ${styleTokens.progressTrackClass}`}
+      >
         <div
-          className="h-full transition-all duration-500 ease-out rounded-full shadow-sm"
+          className="h-full transition-all duration-500 ease-out rounded-inherit shadow-sm"
           style={{
             width: `${progressPercent}%`,
-            backgroundColor: accentColor,
+            backgroundColor: effectiveAccent,
           }}
         />
       </div>

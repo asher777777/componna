@@ -10,6 +10,7 @@ import { useTenantScope } from '../../../../core/tenant';
 import { NedarimCheckout } from '../../../KosNedarim/components/NedarimCheckout';
 import { TicketBookingStepView, CouponCodeStepView } from './TicketAndCouponStepViews';
 import { resolveFinalPaymentAmount } from '../../services/ticketCouponService';
+import { resolveKoswebFormStyle } from '../../config/koswebStylePresets';
 import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2, Globe, Lock, CreditCard, CheckCircle2 } from 'lucide-react';
 
 export interface StepRendererProps {
@@ -36,8 +37,9 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
   const { apiKeys, purchasedModules } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const activePaymentProvider = resolveActivePaymentProvider(apiKeys, purchasedModules);
+  const styleTokens = resolveKoswebFormStyle(theme?.stylePreset);
 
-  const accentColor = theme?.accentColor || '#D97706';
+  const accentColor = theme?.accentColor || styleTokens.themeDefaults.accentColor || '#D97706';
   const isVoiceEnabled = theme?.enableVoiceInput !== false;
 
   const isSubdomain =
@@ -151,24 +153,24 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
     if (isEmail || step.fieldType === 'email') {
       return (
         <div className="relative w-full max-w-xl">
-          <input
-            type="email"
-            dir="ltr"
-            autoFocus
-            value={value || ''}
-            onChange={(e) => {
-              const cleaned = cleanEmailSpeech(e.target.value);
-              onChange(cleaned || e.target.value);
-            }}
-            placeholder={step.placeholder || 'name@business.co.il'}
-            className={`w-full px-5 py-4 ${
-              isSupported && isVoiceEnabled ? 'pl-14' : ''
-            } font-mono text-left text-lg md:text-xl bg-slate-900/90 border-2 ${
-              isListening
-                ? 'border-red-500 ring-4 ring-red-500/20'
-                : 'border-slate-800 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10'
-            } rounded-2xl transition-all outline-none text-white shadow-sm placeholder:text-slate-500`}
-          />
+            <input
+              type="email"
+              dir="ltr"
+              autoFocus
+              value={value || ''}
+              onChange={(e) => {
+                const cleaned = cleanEmailSpeech(e.target.value);
+                onChange(cleaned || e.target.value);
+              }}
+              placeholder={step.placeholder || 'name@business.co.il'}
+              className={`w-full px-5 py-4 ${
+                isSupported && isVoiceEnabled ? 'pl-14' : ''
+              } font-mono text-left text-lg md:text-xl transition-all outline-none focus-visible:outline-2 focus-visible:outline-offset-2 shadow-sm ${
+                isListening
+                  ? 'border-2 border-red-500 ring-4 ring-red-500/20 rounded-2xl bg-slate-900/90 text-white'
+                  : styleTokens.inputClass
+              }`}
+            />
 
           {/* Microphone Voice Button */}
           {isSupported && isVoiceEnabled && (
@@ -225,11 +227,11 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                 step.fieldType === 'phone' || step.fieldType === 'number'
                   ? 'font-mono text-left'
                   : ''
-              } text-lg md:text-xl bg-slate-900/90 border-2 ${
+              } text-lg md:text-xl transition-all outline-none focus-visible:outline-2 focus-visible:outline-offset-2 shadow-sm ${
                 isListening
-                  ? 'border-red-500 ring-4 ring-red-500/20'
-                  : 'border-slate-800 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10'
-              } rounded-2xl transition-all outline-none text-white shadow-sm placeholder:text-slate-500`}
+                  ? 'border-2 border-red-500 ring-4 ring-red-500/20 rounded-2xl bg-slate-900/90 text-white'
+                  : styleTokens.inputClass
+              }`}
             />
 
             {/* Microphone Voice Button (End of text field in RTL) */}
@@ -263,11 +265,11 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
               placeholder={step.placeholder || 'הקלד את תשובתך בהרחבה כאן...'}
               className={`w-full px-5 py-4 ${
                 isSupported && isVoiceEnabled ? 'pl-14' : ''
-              } text-base md:text-lg bg-white/90 dark:bg-slate-900/90 border-2 ${
+              } text-base md:text-lg transition-all outline-none focus-visible:outline-2 focus-visible:outline-offset-2 shadow-sm resize-y ${
                 isListening
-                  ? 'border-red-500 ring-4 ring-red-500/20'
-                  : 'border-slate-200 dark:border-slate-800 focus:border-amber-500 dark:focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10'
-              } rounded-2xl transition-all outline-none text-slate-800 dark:text-white shadow-sm placeholder:text-slate-400 resize-y`}
+                  ? 'border-2 border-red-500 ring-4 ring-red-500/20 rounded-2xl bg-slate-900/90 text-white'
+                  : styleTokens.inputClass
+              }`}
             />
 
             {/* Microphone Voice Button for Textarea */}
@@ -306,17 +308,17 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                   key={opt.id || opt.value || idx}
                   type="button"
                   onClick={() => onChange(opt.value)}
-                  className={`group relative p-4 rounded-2xl border-2 text-right transition-all duration-200 flex items-start gap-3.5 ${
+                  className={`group relative p-4 text-right flex items-start gap-3.5 cursor-pointer ${styleTokens.optionCardBaseClass} ${
                     isSelected
-                      ? 'border-amber-500 bg-amber-500/20 shadow-lg ring-2 ring-amber-500/30'
-                      : 'border-slate-800 hover:border-slate-700 bg-slate-900/90 hover:bg-slate-800/90 shadow-sm'
+                      ? styleTokens.optionCardSelectedClass
+                      : styleTokens.optionCardUnselectedClass
                   }`}
                 >
                   <div
-                    className={`mt-0.5 p-2 rounded-xl transition-colors ${
+                    className={`mt-0.5 p-2 transition-colors ${
                       isSelected
-                        ? 'bg-amber-500 text-slate-950 font-black'
-                        : 'bg-slate-800 text-amber-400 group-hover:bg-amber-500/10 group-hover:text-amber-400'
+                        ? styleTokens.optionIconSelectedClass
+                        : styleTokens.optionIconUnselectedClass
                     }`}
                   >
                     <LuxuryIconRenderer
@@ -325,17 +327,20 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className={`font-bold text-base leading-tight ${isSelected ? 'text-white font-black' : 'text-slate-100'}`}>
+                    <div className={`font-bold text-base leading-tight ${isSelected ? 'font-black' : ''}`}>
                       {opt.label}
                     </div>
                     {opt.description && (
-                      <div className="text-xs text-slate-300 mt-1 leading-relaxed">
+                      <div className="text-xs opacity-75 mt-1 leading-relaxed">
                         {opt.description}
                       </div>
                     )}
                   </div>
                   {isSelected && (
-                    <div className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 self-center">
+                    <div
+                      className="w-5 h-5 rounded-full text-white flex items-center justify-center shrink-0 self-center"
+                      style={{ backgroundColor: accentColor }}
+                    >
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
                     </div>
                   )}
@@ -367,17 +372,17 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                   key={opt.id || opt.value || idx}
                   type="button"
                   onClick={() => toggleOption(opt.value)}
-                  className={`group relative p-4 rounded-2xl border-2 text-right transition-all duration-200 flex items-start gap-3.5 ${
+                  className={`group relative p-4 text-right flex items-start gap-3.5 cursor-pointer ${styleTokens.optionCardBaseClass} ${
                     isSelected
-                      ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/20 shadow-md'
-                      : 'border-slate-200 dark:border-slate-800 hover:border-amber-400/50 bg-white/80 dark:bg-slate-900/80 hover:bg-slate-50 dark:hover:bg-slate-800/80'
+                      ? styleTokens.optionCardSelectedClass
+                      : styleTokens.optionCardUnselectedClass
                   }`}
                 >
                   <div
-                    className={`mt-0.5 p-2 rounded-xl transition-colors ${
+                    className={`mt-0.5 p-2 transition-colors ${
                       isSelected
-                        ? 'bg-amber-500 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-amber-500/10 group-hover:text-amber-600'
+                        ? styleTokens.optionIconSelectedClass
+                        : styleTokens.optionIconUnselectedClass
                     }`}
                   >
                     <LuxuryIconRenderer
@@ -386,11 +391,11 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-slate-800 dark:text-white text-base">
+                    <div className={`font-semibold text-base ${isSelected ? 'font-bold' : ''}`}>
                       {opt.label}
                     </div>
                     {opt.description && (
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                      <div className="text-xs opacity-75 mt-0.5 leading-relaxed">
                         {opt.description}
                       </div>
                     )}
@@ -398,9 +403,10 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                   <div
                     className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 self-center transition-colors ${
                       isSelected
-                        ? 'border-amber-500 bg-amber-500 text-white'
+                        ? 'text-white'
                         : 'border-slate-300 dark:border-slate-700'
                     }`}
+                    style={isSelected ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
                   >
                     {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                   </div>
@@ -456,11 +462,12 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                     key={num}
                     type="button"
                     onClick={() => onChange(num)}
-                    className={`h-12 rounded-xl font-bold text-base transition-all ${
+                    className={`h-12 font-bold text-base transition-all cursor-pointer ${styleTokens.optionCardBaseClass} ${
                       isSelected
-                        ? 'bg-amber-600 text-white shadow-lg scale-105 ring-2 ring-amber-500/50'
-                        : 'bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-slate-800'
+                        ? `${styleTokens.optionCardSelectedClass} scale-105`
+                        : styleTokens.optionCardUnselectedClass
                     }`}
+                    style={isSelected ? { borderColor: accentColor } : undefined}
                   >
                     {num}
                   </button>
@@ -483,7 +490,7 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
               autoFocus
               value={value || ''}
               onChange={(e) => onChange(e.target.value)}
-              className="w-full px-5 py-4 text-lg bg-white/90 dark:bg-slate-900/90 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-amber-500 dark:focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 transition-all outline-none text-slate-800 dark:text-white shadow-sm"
+              className={`w-full px-5 py-4 text-lg transition-all outline-none focus-visible:outline-2 focus-visible:outline-offset-2 shadow-sm ${styleTokens.inputClass}`}
             />
           </div>
         );
@@ -496,7 +503,7 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
               autoFocus
               value={value || ''}
               onChange={(e) => onChange(e.target.value)}
-              className="w-full px-5 py-4 text-lg bg-white/90 dark:bg-slate-900/90 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-amber-500 dark:focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 transition-all outline-none text-slate-800 dark:text-white shadow-sm"
+              className={`w-full px-5 py-4 text-lg transition-all outline-none focus-visible:outline-2 focus-visible:outline-offset-2 shadow-sm ${styleTokens.inputClass}`}
             />
           </div>
         );
@@ -504,10 +511,10 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
       case 'file_upload':
         return (
           <div className="w-full max-w-xl">
-            <label className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-amber-500 rounded-2xl cursor-pointer bg-white/50 dark:bg-slate-900/50 hover:bg-amber-500/5 transition-all">
+            <label className={`flex flex-col items-center justify-center p-8 border-2 border-dashed cursor-pointer transition-all ${styleTokens.optionCardUnselectedClass}`}>
               <input
                 type="file"
-                className="hidden"
+                className="sr-only"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
@@ -521,12 +528,12 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                   <span className="font-semibold">{value}</span>
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-2 text-slate-500 dark:text-slate-400">
-                  <Upload className="w-8 h-8 text-amber-500" />
+                <div className={`flex flex-col items-center gap-2 ${styleTokens.helperTextClass}`}>
+                  <Upload className={`w-8 h-8 ${styleTokens.iconColorClass}`} />
                   <span className="text-sm font-medium">
                     לחץ לבחירת קובץ או גרור לכאן
                   </span>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs opacity-75">
                     PDF, תמונה או מסמך (עד 10MB)
                   </span>
                 </div>
@@ -700,7 +707,7 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
               value={value || ''}
               onChange={(e) => onChange(e.target.value)}
               placeholder={step.placeholder || 'הקלד כאן...'}
-              className="w-full px-5 py-4 text-lg bg-white/90 dark:bg-slate-900/90 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-amber-500 dark:focus:border-amber-400 outline-none text-slate-800 dark:text-white"
+              className={`w-full px-5 py-4 text-lg outline-none focus-visible:outline-2 focus-visible:outline-offset-2 transition-all ${styleTokens.inputClass}`}
             />
           </div>
         );
@@ -714,16 +721,17 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
         <LuxuryIconRenderer
           iconName={step.iconName}
           withContainer
-          className="w-8 h-8 text-amber-400"
+          containerClassName={styleTokens.iconContainerClass}
+          className={`w-8 h-8 ${styleTokens.iconColorClass}`}
         />
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-snug drop-shadow-sm">
+        <h2 className={`text-2xl sm:text-3xl md:text-4xl drop-shadow-sm ${styleTokens.titleClass}`}>
           {step.title}
           {step.required && (
-            <span className="text-amber-400 mr-1.5 text-xl" title="שדה חובה">*</span>
+            <span className="mr-1.5 text-xl" style={{ color: accentColor }} title="שדה חובה">*</span>
           )}
         </h2>
         {step.subtitle && (
-          <p className="text-sm sm:text-base text-slate-200 leading-relaxed max-w-lg">
+          <p className={`text-sm sm:text-base max-w-lg ${styleTokens.subtitleClass}`}>
             {step.subtitle}
           </p>
         )}

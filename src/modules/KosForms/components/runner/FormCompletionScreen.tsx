@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { FormCompletionSettings, FormThemeSettings } from '../../types';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
-import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { resolveKoswebFormStyle } from '../../config/koswebStylePresets';
+import { ArrowLeft } from 'lucide-react';
 
 export interface FormCompletionScreenProps {
   completion: FormCompletionSettings;
@@ -20,7 +21,8 @@ export const FormCompletionScreen: React.FC<FormCompletionScreenProps> = ({
   ticketCodes,
   onReset,
 }) => {
-  const accentColor = theme?.accentColor || '#D97706';
+  const styleTokens = resolveKoswebFormStyle(theme?.stylePreset);
+  const accentColor = theme?.accentColor || styleTokens.themeDefaults.accentColor || '#D97706';
 
   useEffect(() => {
     if (
@@ -42,34 +44,37 @@ export const FormCompletionScreen: React.FC<FormCompletionScreenProps> = ({
       className="w-full max-w-xl mx-auto py-12 px-6 flex flex-col items-center text-center space-y-6 animate-fadeIn"
     >
       <div className="relative">
-        <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-xl animate-pulse" />
-        <div className="relative p-5 bg-gradient-to-tr from-amber-500 to-amber-300 text-slate-950 rounded-3xl shadow-xl shadow-amber-500/20">
-          <LuxuryIconRenderer
-            iconName={completion.iconName || 'CheckCircle2'}
-            className="w-12 h-12"
-          />
-        </div>
+        <div
+          className="absolute inset-0 rounded-full blur-xl animate-pulse opacity-30"
+          style={{ backgroundColor: accentColor }}
+        />
+        <LuxuryIconRenderer
+          iconName={completion.iconName || 'CheckCircle2'}
+          withContainer
+          containerClassName={`relative p-5 ${styleTokens.iconContainerClass}`}
+          className={`w-12 h-12 ${styleTokens.iconColorClass}`}
+        />
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+        <h2 className={`text-3xl sm:text-4xl ${styleTokens.titleClass}`}>
           {completion.title}
         </h2>
-        <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed max-w-md mx-auto">
+        <p className={`text-base sm:text-lg max-w-md mx-auto ${styleTokens.subtitleClass}`}>
           {completion.subtitle}
         </p>
       </div>
 
       {ticketOrderCode && (
-        <div className="w-full max-w-md p-4 rounded-2xl bg-amber-500/10 border border-amber-500/40 text-right space-y-2">
+        <div className={`w-full max-w-md p-4 text-right space-y-2 ${styleTokens.optionCardBaseClass} ${styleTokens.optionCardSelectedClass}`}>
           <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-amber-500">קוד הזמנת כרטיסים:</span>
-            <span className="font-mono font-black text-base text-slate-900 dark:text-white">
+            <span className="font-bold opacity-80">קוד הזמנת כרטיסים:</span>
+            <span className="font-mono font-black text-base">
               {ticketOrderCode}
             </span>
           </div>
           {ticketCodes && ticketCodes.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-1 border-t border-amber-500/20">
+            <div className="flex flex-wrap gap-1.5 pt-1 border-t border-current/15">
               {ticketCodes.map((code) => (
                 <span
                   key={code}
@@ -84,7 +89,7 @@ export const FormCompletionScreen: React.FC<FormCompletionScreenProps> = ({
       )}
 
       {submissionId && (
-        <div className="text-xs font-mono px-3 py-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-lg text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+        <div className={`text-xs font-mono px-3 py-1.5 ${styleTokens.badgeClass}`}>
           מזהה אישור: {submissionId}
         </div>
       )}
@@ -93,8 +98,8 @@ export const FormCompletionScreen: React.FC<FormCompletionScreenProps> = ({
         {completion.showRedirectButton && completion.redirectUrl && (
           <a
             href={completion.redirectUrl}
-            className="px-6 py-3 rounded-xl font-bold text-white shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center gap-2"
-            style={{ backgroundColor: accentColor }}
+            className={`px-6 py-3 flex items-center gap-2 ${styleTokens.primaryButtonClass}`}
+            style={theme?.accentColor ? { backgroundColor: accentColor } : undefined}
           >
             <span>{completion.redirectButtonText || 'המשך הלאה'}</span>
             <ArrowLeft className="w-4 h-4" />
@@ -103,8 +108,9 @@ export const FormCompletionScreen: React.FC<FormCompletionScreenProps> = ({
 
         {onReset && (
           <button
+            type="button"
             onClick={onReset}
-            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className={`px-5 py-2.5 text-sm transition-colors cursor-pointer ${styleTokens.secondaryButtonClass}`}
           >
             מילוי טופס נוסף
           </button>

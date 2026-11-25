@@ -6,6 +6,7 @@ import { useFormRunnerState } from '../../hooks/useFormRunnerState';
 import { StepRenderer } from './StepRenderer';
 import { ProgressBar } from './ProgressBar';
 import { FormCompletionScreen } from './FormCompletionScreen';
+import { resolveKoswebFormStyle } from '../../config/koswebStylePresets';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { DEFAULT_FORMS_COLLECTION } from '../../config/constants';
 import { SMART_FORM_TEMPLATES } from '../../config/formTemplates';
@@ -177,7 +178,8 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
   });
 
   const theme = form.theme || ({} as any);
-  const accentColor = theme?.accentColor || '#D97706';
+  const styleTokens = resolveKoswebFormStyle(theme?.stylePreset);
+  const accentColor = theme?.accentColor || styleTokens.themeDefaults.accentColor || '#D97706';
   const hasBgImage = theme?.backgroundType === 'image' && !!theme?.backgroundImageUrl;
   const overlayOpacity = (theme?.backgroundOverlayOpacity ?? 50) / 100;
 
@@ -197,6 +199,9 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
 
   // Shape class helper
   const getShapeClasses = () => {
+    if (theme?.stylePreset === 'sharp' && (!theme?.containerShape || theme.containerShape === 'square')) {
+      return 'rounded-none';
+    }
     switch (theme?.containerShape) {
       case 'square':
         return 'rounded-none';
@@ -205,7 +210,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
       case 'pill':
         return 'rounded-[44px]';
       default:
-        return 'rounded-3xl';
+        return theme?.stylePreset === 'feminine' ? 'rounded-[2.5rem]' : 'rounded-3xl';
     }
   };
 
@@ -214,10 +219,10 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
   if (isCompleted) {
     return (
       <div
-        className={`relative overflow-hidden shadow-2xl transition-all mx-auto ${getShapeClasses()} ${getAspectRatioClasses()} ${className}`}
+        className={`relative overflow-hidden transition-all mx-auto ${styleTokens.runnerContainerClass} ${getShapeClasses()} ${getAspectRatioClasses()} ${className}`}
         style={{
-          backgroundColor: theme?.cardBackground || '#FFFFFF',
-          color: theme?.textColor || '#0F172A',
+          backgroundColor: theme?.cardBackground || styleTokens.themeDefaults.cardBackground || undefined,
+          color: theme?.textColor || styleTokens.themeDefaults.textColor || undefined,
         }}
       >
         {hasBgImage && (
@@ -254,15 +259,20 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
     );
   }
 
-  const isDarkBg = !theme?.cardBackground || theme?.cardBackground?.startsWith('#0') || theme?.cardBackground?.startsWith('#1') || theme?.cardBackground?.startsWith('#2') || theme?.textColor === '#ffffff';
+  const cardBg = theme?.cardBackground || styleTokens.themeDefaults.cardBackground;
+  const isDarkBg =
+    hasBgImage ||
+    styleTokens.isDarkDefault ||
+    (!!cardBg && (cardBg.startsWith('#0') || cardBg.startsWith('#1') || cardBg.startsWith('#2'))) ||
+    theme?.textColor?.toLowerCase() === '#ffffff';
 
   return (
     <div
       dir="rtl"
-      className={`${isDarkBg ? 'dark text-white' : 'text-slate-900'} relative overflow-hidden shadow-2xl border border-slate-800/80 transition-all flex flex-col justify-between mx-auto ${getShapeClasses()} ${getAspectRatioClasses()} ${className}`}
+      className={`${isDarkBg ? 'dark text-white' : 'text-slate-900'} relative overflow-hidden transition-all flex flex-col justify-between mx-auto ${styleTokens.runnerContainerClass} ${getShapeClasses()} ${getAspectRatioClasses()} ${className}`}
       style={{
-        backgroundColor: hasBgImage ? '#0F172A' : (theme?.cardBackground || (isDarkBg ? '#09090b' : '#FFFFFF')),
-        color: hasBgImage ? '#FFFFFF' : (theme?.textColor || (isDarkBg ? '#FFFFFF' : '#0F172A')),
+        backgroundColor: hasBgImage ? '#0F172A' : (cardBg || undefined),
+        color: hasBgImage ? '#FFFFFF' : (theme?.textColor || styleTokens.themeDefaults.textColor || undefined),
       }}
     >
       {/* Background Image & Overlay */}
@@ -281,14 +291,14 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
       {/* Content Container (z-10 above background image) */}
       <div className="relative z-10 flex flex-col justify-between h-full w-full">
         {/* Top Header: Progress & Title (hidden in extreme focus if desired) */}
-        <div className="p-6 pb-2 border-b border-slate-100/20 dark:border-slate-800/40 flex flex-col gap-4">
+        <div className={`p-6 pb-2 flex flex-col gap-4 ${styleTokens.headerClass}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-sm sm:text-base tracking-wide drop-shadow-sm">
                 {form.title}
               </span>
               {previewMode && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                <span className={`px-2.5 py-0.5 text-[10px] ${styleTokens.badgeClass}`}>
                   תצוגה מקדימה
                 </span>
               )}
@@ -300,13 +310,14 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
                 {form.steps.map((s, idx) => (
                   <div
                     key={s.id}
-                    className={`w-2 h-2 rounded-full transition-all ${
+                    className={`h-2 rounded-full transition-all ${
                       idx === currentStepIndex
-                        ? 'w-5 bg-amber-500'
+                        ? 'w-5'
                         : idx < currentStepIndex
-                        ? 'bg-emerald-400'
-                        : 'bg-slate-300 dark:bg-slate-700'
+                        ? 'w-2 bg-emerald-400'
+                        : 'w-2 bg-slate-300 dark:bg-slate-700'
                     }`}
+                    style={idx === currentStepIndex ? { backgroundColor: accentColor } : undefined}
                   />
                 ))}
               </div>
@@ -320,6 +331,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
               progressPercent={progressPercent}
               accentColor={accentColor}
               showStepNumbers={theme?.showStepNumbers !== false}
+              stylePreset={theme?.stylePreset}
             />
           )}
         </div>
@@ -340,7 +352,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
         </div>
 
         {/* Bottom Footer Navigation */}
-        <div className="p-6 border-t border-slate-100/20 dark:border-slate-800/40 bg-black/10 backdrop-blur-xs flex items-center justify-between gap-4">
+        <div className={`p-6 flex items-center justify-between gap-4 ${styleTokens.footerClass}`}>
           {/* Previous Button */}
           <div>
             {!isFirstStep && (
@@ -348,7 +360,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
                 type="button"
                 onClick={handlePrev}
                 disabled={isSubmitting}
-                className="px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+                className={`px-5 py-2.5 text-sm transition-all flex items-center gap-2 cursor-pointer ${styleTokens.secondaryButtonClass}`}
               >
                 <ArrowRight className="w-4 h-4" />
                 <span>הקודם</span>
@@ -358,20 +370,22 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
 
           {/* Next / Submit Button */}
           <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-block text-[11px] opacity-70">
-              לחץ <kbd className="px-1.5 py-0.5 bg-black/30 rounded font-mono text-[10px]">Enter ↵</kbd>
+            <span className={`hidden sm:inline-block text-[11px] opacity-70 ${styleTokens.helperTextClass}`}>
+              לחץ <kbd className="px-1.5 py-0.5 bg-black/15 dark:bg-black/30 rounded font-mono text-[10px]">Enter ↵</kbd>
             </span>
 
             <button
               type="button"
               onClick={handleNext}
               disabled={isSubmitting}
-              className={`font-bold shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer ${
+              className={`flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer ${styleTokens.primaryButtonClass} ${
                 submitButtonShape === 'capsule'
-                  ? 'rounded-full'
+                  ? '!rounded-full'
                   : submitButtonShape === 'square'
-                  ? 'rounded-none'
-                  : 'rounded-2xl'
+                  ? '!rounded-none'
+                  : submitButtonShape === 'rounded'
+                  ? '!rounded-2xl'
+                  : ''
               } ${
                 submitButtonSize === 'compact'
                   ? 'px-4 py-2'
@@ -390,11 +404,9 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
                   : submitButtonFontSize === 'xl'
                   ? 'text-xl'
                   : 'text-sm sm:text-base'
-              } ${
-                submitButtonTextColor ? '' : 'text-white'
               }`}
               style={{
-                backgroundColor: submitButtonBgColor || accentColor,
+                backgroundColor: submitButtonBgColor || (theme?.buttonStyle === 'solid' ? accentColor : undefined),
                 color: submitButtonTextColor || undefined,
               }}
             >
