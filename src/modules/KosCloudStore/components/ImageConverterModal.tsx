@@ -28,6 +28,7 @@ import {
 import { useMediaGallery } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
 import { BackgroundRemovalService } from '../services/backgroundRemovalService';
+import { loadCorsSafeImageUrl, resolveSafeMediaUrl } from '../utils/mediaUrlSanitizer';
 import { ImageConversionOptions, MediaItem } from '../types';
 
 export const ImageConverterModal: React.FC = () => {
@@ -55,6 +56,7 @@ export const ImageConverterModal: React.FC = () => {
   const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
   const [isCropApplied, setIsCropApplied] = useState<boolean>(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const originalObjectUrlRef = useRef<string | null>(null);
 
   // Conversion / Compression states
   const [targetFormat, setTargetFormat] = useState<'image/png' | 'image/jpeg' | 'image/webp'>('image/png');
@@ -88,7 +90,17 @@ export const ImageConverterModal: React.FC = () => {
 
   // Initialize on open
   useEffect(() => {
+    let cancelled = false;
+
+    const revokeOriginalObjectUrl = () => {
+      if (originalObjectUrlRef.current) {
+        URL.revokeObjectURL(originalObjectUrlRef.current);
+        originalObjectUrlRef.current = null;
+      }
+    };
+
     if (!converterItem) {
+      revokeOriginalObjectUrl();
       setConvertedResult(null);
       setWorkingImageUrl('');
       setIsBgRemoved(false);
@@ -98,7 +110,8 @@ export const ImageConverterModal: React.FC = () => {
       return;
     }
 
-    setWorkingImageUrl(converterItem.url);
+    const safeInitialUrl = resolveSafeMediaUrl(converterItem.url, converterItem);
+    setWorkingImageUrl(safeInitialUrl);
     setIsBgRemoved(false);
     setCrop(undefined);
     setCompletedCrop(null);
@@ -112,7 +125,22 @@ export const ImageConverterModal: React.FC = () => {
 
     if (converterItem.type === 'image') {
       setActiveTab('remove_bg');
-      handleConvertPreview(converterItem.url);
+      loadCorsSafeImageUrl(converterItem.url, converterItem).then((loaded) => {
+        if (cancelled) {
+          if (loaded.isObjectUrl) URL.revokeObjectURL(loaded.objectUrl);
+          return;
+        }
+        revokeOriginalObjectUrl();
+        if (loaded.isObjectUrl) {
+          originalObjectUrlRef.current = loaded.objectUrl;
+        }
+        if (loaded.objectUrl) {
+          setWorkingImageUrl(loaded.objectUrl);
+          handleConvertPreview(loaded.objectUrl);
+        } else {
+          handleConvertPreview(safeInitialUrl);
+        }
+      });
     } else if (
       converterItem.type === 'code' ||
       converterItem.name.endsWith('.json') ||
@@ -124,6 +152,11 @@ export const ImageConverterModal: React.FC = () => {
       setActiveTab('data');
       handleCreateZipPreview();
     }
+
+    return () => {
+      cancelled = true;
+      revokeOriginalObjectUrl();
+    };
   }, [converterItem]);
 
   // Re-run compression preview whenever settings change
@@ -234,7 +267,7 @@ export const ImageConverterModal: React.FC = () => {
 
   // Reset to original unedited state
   const handleResetToOriginal = () => {
-    setWorkingImageUrl(converterItem.url);
+    setWorkingImageUrl(originalObjectUrlRef.current || resolveSafeMediaUrl(converterItem.url, converterItem));
     setIsBgRemoved(false);
     setCrop(undefined);
     setCompletedCrop(null);
@@ -826,21 +859,22 @@ export const ImageConverterModal: React.FC = () => {
             {activeTab === 'crop' ? (
               /* CROP MODE WITH INTERACTIVE CROP BOX */
               <div className="max-w-full max-h-full flex items-center justify-center">
-                <ReactCrop
-                  crop={crop}
-                  onChange={(c) => setCrop(c)}
-                  onComplete={(c) => setCompletedCrop(c)}
-                  aspect={aspectRatio}
-                  className="rounded-2xl shadow-2xl border border-amber-500/60"
-                >
-                  <img
-                    ref={imgRef}
-                    src={workingImageUrl}
-                    alt="Crop Preview"
-                    className="max-h-[58vh] max-w-full object-contain rounded-2xl"
-                    crossOrigin="anonymous"
-                  />
-                </ReactCrop>
+                {workingImageUrl ? (
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(c) => setCrop(c)}
+                    onComplete={(c) => setCompletedCrop(c)}
+                    aspect={aspectRatio}
+                    className="rounded-2xl shadow-2xl border border-amber-500/60"
+                  >
+                    <img
+                      ref={imgRef}
+                      src={workingImageUrl}
+                      alt="Crop Preview"
+                      className="max-h-[58vh] max-w-full object-contain rounded-2xl"
+                    />
+                  </ReactCrop>
+                ) : null}
               </div>
             ) : converterItem.type === 'image' ? (
               /* NORMAL / PROCESSED PREVIEW */

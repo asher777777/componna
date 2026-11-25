@@ -230,3 +230,38 @@ export function resolveSafeMediaUrl(url?: string, item?: Partial<MediaItem>): st
   const candidates = getMediaUrlCandidates(url, item);
   return candidates[0] || url || '';
 }
+
+/**
+ * Fetches an external image URL with `cache: 'no-store'` and `mode: 'cors'` so it
+ * bypasses non-CORS browser cache entries from gallery <img> tags and returns a
+ * same-origin blob: URL safe for canvas cropping and pixel manipulation.
+ */
+export async function loadCorsSafeImageUrl(
+  url?: string,
+  item?: Partial<MediaItem>
+): Promise<{ objectUrl: string; isObjectUrl: boolean }> {
+  const safeUrl = resolveSafeMediaUrl(url, item);
+  if (!safeUrl || safeUrl.startsWith('data:') || safeUrl.startsWith('blob:')) {
+    return { objectUrl: safeUrl, isObjectUrl: false };
+  }
+
+  const candidates = getMediaUrlCandidates(url, item);
+  const list = candidates.length > 0 ? candidates : [safeUrl];
+
+  for (const candidate of list) {
+    if (!candidate || candidate.startsWith('data:') || candidate.startsWith('blob:')) {
+      return { objectUrl: candidate, isObjectUrl: false };
+    }
+    try {
+      const response = await fetch(candidate, { mode: 'cors', cache: 'no-store' });
+      if (response.ok) {
+        const blob = await response.blob();
+        return { objectUrl: URL.createObjectURL(blob), isObjectUrl: true };
+      }
+    } catch {
+      // Try next candidate
+    }
+  }
+
+  return { objectUrl: safeUrl, isObjectUrl: false };
+}

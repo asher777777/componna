@@ -4,6 +4,8 @@
  * with edge feathering and flood-fill alpha masking.
  */
 
+import { loadCorsSafeImageUrl } from '../utils/mediaUrlSanitizer';
+
 export interface BackgroundRemovalOptions {
   tolerance?: number; // 1 to 100 (default: 20)
   feather?: number; // 0 to 10 (default: 2)
@@ -226,30 +228,51 @@ export class BackgroundRemovalService {
   /**
    * Loads image from various source formats into HTMLImageElement
    */
-  private static loadImage(source: string | HTMLImageElement | File | Blob): Promise<HTMLImageElement> {
+  private static async loadImage(source: string | HTMLImageElement | File | Blob): Promise<HTMLImageElement> {
+    let resolvedSource = source;
+    let tempObjectUrl: string | null = null;
+
+    if (typeof source === 'string' && !source.startsWith('data:') && !source.startsWith('blob:')) {
+      const loaded = await loadCorsSafeImageUrl(source);
+      resolvedSource = loaded.objectUrl;
+      if (loaded.isObjectUrl) {
+        tempObjectUrl = loaded.objectUrl;
+      }
+    }
+
     return new Promise((resolve, reject) => {
       if (typeof document === 'undefined') {
+        if (tempObjectUrl) URL.revokeObjectURL(tempObjectUrl);
         reject(new Error('Document not available'));
         return;
       }
 
-      if (source instanceof HTMLImageElement && source.complete) {
-        resolve(source);
+      if (resolvedSource instanceof HTMLImageElement && resolvedSource.complete) {
+        if (tempObjectUrl) URL.revokeObjectURL(tempObjectUrl);
+        resolve(resolvedSource);
         return;
       }
 
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      if (typeof resolvedSource === 'string' && !resolvedSource.startsWith('data:') && !resolvedSource.startsWith('blob:')) {
+        img.crossOrigin = 'anonymous';
+      }
 
-      img.onload = () => resolve(img);
-      img.onerror = (e) => reject(new Error('Failed to load image for background removal: ' + e));
+      img.onload = () => {
+        if (tempObjectUrl) URL.revokeObjectURL(tempObjectUrl);
+        resolve(img);
+      };
+      img.onerror = (e) => {
+        if (tempObjectUrl) URL.revokeObjectURL(tempObjectUrl);
+        reject(new Error('Failed to load image for background removal: ' + e));
+      };
 
-      if (typeof source === 'string') {
-        img.src = source;
-      } else if (source instanceof Blob || source instanceof File) {
-        img.src = URL.createObjectURL(source);
-      } else if (source instanceof HTMLImageElement) {
-        img.src = source.src;
+      if (typeof resolvedSource === 'string') {
+        img.src = resolvedSource;
+      } else if (resolvedSource instanceof Blob || resolvedSource instanceof File) {
+        img.src = URL.createObjectURL(resolvedSource);
+      } else if (resolvedSource instanceof HTMLImageElement) {
+        img.src = resolvedSource.src;
       }
     });
   }

@@ -1,4 +1,5 @@
 import { ImageConversionOptions, MediaType } from '../types';
+import { loadCorsSafeImageUrl } from '../utils/mediaUrlSanitizer';
 
 /**
  * CRC-32 table and calculation for client-side standard ZIP files
@@ -143,9 +144,29 @@ export class FileCompressionService {
     source: File | Blob | string,
     options: ImageConversionOptions
   ): Promise<{ blob: Blob; dataUrl: string; objectUrl: string; sizeBytes: number; width: number; height: number }> {
+    let resolvedSource = source;
+    let tempObjectUrl: string | null = null;
+
+    if (typeof source === 'string' && !source.startsWith('data:') && !source.startsWith('blob:')) {
+      const loaded = await loadCorsSafeImageUrl(source);
+      resolvedSource = loaded.objectUrl;
+      if (loaded.isObjectUrl) {
+        tempObjectUrl = loaded.objectUrl;
+      }
+    }
+
     return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        if (tempObjectUrl) {
+          URL.revokeObjectURL(tempObjectUrl);
+          tempObjectUrl = null;
+        }
+      };
+
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      if (typeof resolvedSource === 'string' && !resolvedSource.startsWith('data:') && !resolvedSource.startsWith('blob:')) {
+        img.crossOrigin = 'anonymous';
+      }
 
       img.onload = () => {
         let width = img.naturalWidth || img.width;
@@ -171,6 +192,7 @@ export class FileCompressionService {
 
         const ctx = canvas.getContext('2d');
         if (!ctx) {
+          cleanup();
           reject(new Error('Failed to create canvas context'));
           return;
         }
@@ -188,6 +210,7 @@ export class FileCompressionService {
 
         canvas.toBlob(
           (blob) => {
+            cleanup();
             if (!blob) {
               reject(new Error('Failed to convert image to Blob'));
               return;
@@ -208,18 +231,22 @@ export class FileCompressionService {
       };
 
       img.onerror = (err) => {
+        cleanup();
         reject(new Error('Failed to load image for conversion: ' + err));
       };
 
-      if (typeof source === 'string') {
-        img.src = source;
+      if (typeof resolvedSource === 'string') {
+        img.src = resolvedSource;
       } else {
         const reader = new FileReader();
         reader.onload = (e) => {
           img.src = e.target?.result as string;
         };
-        reader.onerror = (err) => reject(err);
-        reader.readAsDataURL(source);
+        reader.onerror = (err) => {
+          cleanup();
+          reject(err);
+        };
+        reader.readAsDataURL(resolvedSource);
       }
     });
   }
