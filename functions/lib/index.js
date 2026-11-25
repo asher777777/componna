@@ -5,6 +5,7 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const generative_ai_1 = require("@google/generative-ai");
 const corsLib = require("cors");
+const whatsappFlyerLanding_1 = require("./whatsappFlyerLanding");
 const cors = corsLib({ origin: true });
 admin.initializeApp();
 const db = admin.firestore();
@@ -386,7 +387,7 @@ function matchKeywords(messageText, keywords = [], matchMode = 'contains') {
 // Webhook for Green API
 exports.whatsappWebhook = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18;
         if (req.method !== 'POST' && req.method !== 'GET') {
             res.status(405).send('Method Not Allowed');
             return;
@@ -450,7 +451,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                         }
                     }
                 }
-                catch (_18) { }
+                catch (_19) { }
             }
             await logWebhookEvent(resolvedTenantId, `Notification received (${body.typeWebhook})`, body);
             res.status(200).send(`Received ${body.typeWebhook}`);
@@ -466,10 +467,11 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             ((_t = (_s = body.messageData) === null || _s === void 0 ? void 0 : _s.listResponseMessageData) === null || _t === void 0 ? void 0 : _t.description) ||
             body.textMessage ||
             '';
-        const sender = (_u = body.senderData) === null || _u === void 0 ? void 0 : _u.sender;
-        const targetChatId = ((_v = body.senderData) === null || _v === void 0 ? void 0 : _v.chatId) || sender || body.chatId;
-        const senderName = ((_w = body.senderData) === null || _w === void 0 ? void 0 : _w.senderName) || ((_x = body.senderData) === null || _x === void 0 ? void 0 : _x.senderContactName) || body.senderName || '';
-        if (!messageText || !targetChatId) {
+        const fileMessageData = ((_u = body.messageData) === null || _u === void 0 ? void 0 : _u.fileMessageData) || null;
+        const sender = (_v = body.senderData) === null || _v === void 0 ? void 0 : _v.sender;
+        const targetChatId = ((_w = body.senderData) === null || _w === void 0 ? void 0 : _w.chatId) || sender || body.chatId;
+        const senderName = ((_x = body.senderData) === null || _x === void 0 ? void 0 : _x.senderName) || ((_y = body.senderData) === null || _y === void 0 ? void 0 : _y.senderContactName) || body.senderName || '';
+        if ((!messageText && !(fileMessageData === null || fileMessageData === void 0 ? void 0 : fileMessageData.downloadUrl)) || !targetChatId) {
             await logWebhookEvent(resolvedTenantId, 'Ignored: No text or targetChatId', {
                 rawMessageData: body.messageData,
                 rawSenderData: body.senderData
@@ -488,7 +490,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                     const tenantsSnap = await db.collection('tenants').get();
                     for (const tDoc of tenantsSnap.docs) {
                         const tKeysDoc = await db.collection('tenants').doc(tDoc.id).collection('settings').doc('api_keys').get();
-                        if (tKeysDoc.exists && String(((_y = tKeysDoc.data()) === null || _y === void 0 ? void 0 : _y.greenApiInstanceId) || '').trim() === incomingInstanceId) {
+                        if (tKeysDoc.exists && String(((_z = tKeysDoc.data()) === null || _z === void 0 ? void 0 : _z.greenApiInstanceId) || '').trim() === incomingInstanceId) {
                             resolvedTenantId = tDoc.id;
                             apiKeys = tKeysDoc.data() || {};
                             break;
@@ -522,7 +524,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 try {
                     const globalDoc = await db.collection('system_settings').doc('global').get();
                     if (globalDoc.exists)
-                        apiKeys = Object.assign(Object.assign({}, (_z = globalDoc.data()) === null || _z === void 0 ? void 0 : _z.apiKeys), apiKeys);
+                        apiKeys = Object.assign(Object.assign({}, (_0 = globalDoc.data()) === null || _0 === void 0 ? void 0 : _0.apiKeys), apiKeys);
                 }
                 catch (e) { }
             }
@@ -539,6 +541,25 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 res.status(200).send('Missing keys - acknowledged');
                 return;
             }
+            // 1.5 Admin Flyer-to-HTML-Landing Flow via WhatsApp (Green API)
+            const handledByFlyerFlow = await (0, whatsappFlyerLanding_1.handleWhatsAppFlyerLanding)({
+                db,
+                tenantId: resolvedTenantId,
+                targetChatId,
+                normPhone,
+                cleanDigits,
+                messageText,
+                fileData: fileMessageData,
+                apiKeys,
+                geminiKey,
+                greenApiInstanceId,
+                greenApiToken,
+            });
+            if (handledByFlyerFlow) {
+                await logWebhookEvent(resolvedTenantId, 'Handled: Flyer-to-HTML Landing Flow', { normPhone });
+                res.status(200).send('Handled by Flyer Landing Flow');
+                return;
+            }
             // 2. Load Chat History & Check Session Timeout (30 minutes TTL)
             const chatDocRef = db.collection('wa_bot_chats').doc(targetChatId);
             const chatDoc = await chatDocRef.get();
@@ -547,7 +568,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             if (chatDoc.exists) {
                 const chatData = chatDoc.data();
                 chatHistory = (chatData === null || chatData === void 0 ? void 0 : chatData.messages) || [];
-                const lastUpdateSec = ((_0 = chatData === null || chatData === void 0 ? void 0 : chatData.lastUpdatedAt) === null || _0 === void 0 ? void 0 : _0.seconds) || 0;
+                const lastUpdateSec = ((_1 = chatData === null || chatData === void 0 ? void 0 : chatData.lastUpdatedAt) === null || _1 === void 0 ? void 0 : _1.seconds) || 0;
                 if (lastUpdateSec > 0) {
                     const diffMs = Date.now() - (lastUpdateSec * 1000);
                     if (diffMs > 30 * 60 * 1000) {
@@ -600,7 +621,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 catch (e) { }
             }
             let triggeredBot = null;
-            let activeBotId = !isSessionExpired ? (_1 = chatDoc.data()) === null || _1 === void 0 ? void 0 : _1.botId : null;
+            let activeBotId = !isSessionExpired ? (_2 = chatDoc.data()) === null || _2 === void 0 ? void 0 : _2.botId : null;
             // STEP 3A: Check explicit KEYWORD triggers FIRST!
             for (const bot of botDocsList) {
                 if (bot.triggerType === 'keyword' && (bot.triggerKeywords || bot.keywords)) {
@@ -619,7 +640,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                     const kosaiRulesSnap = await db.collectionGroup('mod_kosai_rules').get();
                     for (const doc of kosaiRulesSnap.docs) {
                         const rule = doc.data();
-                        if ((rule === null || rule === void 0 ? void 0 : rule.isActive) !== false && ((_2 = rule === null || rule === void 0 ? void 0 : rule.whatsappTrigger) === null || _2 === void 0 ? void 0 : _2.enabled)) {
+                        if ((rule === null || rule === void 0 ? void 0 : rule.isActive) !== false && ((_3 = rule === null || rule === void 0 ? void 0 : rule.whatsappTrigger) === null || _3 === void 0 ? void 0 : _3.enabled)) {
                             const trigger = rule.whatsappTrigger;
                             if (trigger.triggerType === 'keyword' && (trigger.keywords || trigger.triggerKeywords)) {
                                 const kws = trigger.keywords || trigger.triggerKeywords;
@@ -630,7 +651,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                                         name: trigger.botDisplayName || rule.name,
                                         systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
                                         model: 'gemini-3.8-flash',
-                                        temperature: ((_4 = (_3 = rule.toneOfVoice) === null || _3 === void 0 ? void 0 : _3.creativity) !== null && _4 !== void 0 ? _4 : 50) / 100
+                                        temperature: ((_5 = (_4 = rule.toneOfVoice) === null || _4 === void 0 ? void 0 : _4.creativity) !== null && _5 !== void 0 ? _5 : 50) / 100
                                     };
                                     break;
                                 }
@@ -661,14 +682,14 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                     const kosaiRulesSnap = await db.collectionGroup('mod_kosai_rules').get();
                     for (const doc of kosaiRulesSnap.docs) {
                         const rule = doc.data();
-                        if ((rule === null || rule === void 0 ? void 0 : rule.isActive) !== false && ((_5 = rule === null || rule === void 0 ? void 0 : rule.whatsappTrigger) === null || _5 === void 0 ? void 0 : _5.enabled) && rule.whatsappTrigger.triggerType === 'all') {
+                        if ((rule === null || rule === void 0 ? void 0 : rule.isActive) !== false && ((_6 = rule === null || rule === void 0 ? void 0 : rule.whatsappTrigger) === null || _6 === void 0 ? void 0 : _6.enabled) && rule.whatsappTrigger.triggerType === 'all') {
                             const trigger = rule.whatsappTrigger;
                             triggeredBot = {
                                 id: `kosai_${doc.id}`,
                                 name: trigger.botDisplayName || rule.name,
                                 systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
                                 model: 'gemini-3.8-flash',
-                                temperature: ((_7 = (_6 = rule.toneOfVoice) === null || _6 === void 0 ? void 0 : _6.creativity) !== null && _7 !== void 0 ? _7 : 50) / 100
+                                temperature: ((_8 = (_7 = rule.toneOfVoice) === null || _7 === void 0 ? void 0 : _7.creativity) !== null && _8 !== void 0 ? _8 : 50) / 100
                             };
                             break;
                         }
@@ -796,12 +817,12 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                     try {
                         await db.collection('tenants').doc(resolvedTenantId).collection('contacts').doc(contactDocId).set(initialContactData, { merge: true });
                     }
-                    catch (_19) { }
+                    catch (_20) { }
                 }
                 try {
                     await db.collection('tenants').doc('_master').collection('contacts').doc(contactDocId).set(initialContactData, { merge: true });
                 }
-                catch (_20) { }
+                catch (_21) { }
             }
             // Count user messages in current active session
             const userMessagesCount = chatHistory.filter(m => m.role === 'user').length + 1;
@@ -816,13 +837,13 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 if (brandDnaSnap.exists) {
                     const dna = brandDnaSnap.data();
                     brandContext = `\n\n=== רקע על המותג (Brand DNA) ===\n`;
-                    if ((_8 = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _8 === void 0 ? void 0 : _8.name)
+                    if ((_9 = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _9 === void 0 ? void 0 : _9.name)
                         brandContext += `שם המותג: ${dna.identity.name}\n`;
-                    if ((_9 = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _9 === void 0 ? void 0 : _9.description)
+                    if ((_10 = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _10 === void 0 ? void 0 : _10.description)
                         brandContext += `תיאור קצר: ${dna.identity.description}\n`;
-                    if ((_10 = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _10 === void 0 ? void 0 : _10.toneOfVoice)
+                    if ((_11 = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _11 === void 0 ? void 0 : _11.toneOfVoice)
                         brandContext += `סגנון דיבור: ${dna.voice.toneOfVoice}\n`;
-                    if ((_12 = (_11 = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _11 === void 0 ? void 0 : _11.brandValues) === null || _12 === void 0 ? void 0 : _12.length)
+                    if ((_13 = (_12 = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _12 === void 0 ? void 0 : _12.brandValues) === null || _13 === void 0 ? void 0 : _13.length)
                         brandContext += `ערכי מותג: ${dna.voice.brandValues.join(', ')}\n`;
                 }
             }
@@ -885,7 +906,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             const chatThrottleRef = db.collection('wa_chat_throttles').doc(targetChatId);
             const throttleSnap = await chatThrottleRef.get();
             if (throttleSnap.exists) {
-                const lastReplyTime = ((_13 = throttleSnap.data()) === null || _13 === void 0 ? void 0 : _13.lastReplyTime) || 0;
+                const lastReplyTime = ((_14 = throttleSnap.data()) === null || _14 === void 0 ? void 0 : _14.lastReplyTime) || 0;
                 if (Date.now() - lastReplyTime < 15000) {
                     console.warn(`[whatsappWebhook] Throttling reply to ${targetChatId} to break loop (last reply < 15s ago).`);
                     res.status(200).send('Throttled');
@@ -920,7 +941,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                         thinkingConfig: { thinkingBudget: 0 }
                     }
                 });
-                replyText = ((_14 = result.response.text()) === null || _14 === void 0 ? void 0 : _14.trim()) || '';
+                replyText = ((_15 = result.response.text()) === null || _15 === void 0 ? void 0 : _15.trim()) || '';
                 // Track token usage to platform meter with Context Caching discounts
                 try {
                     const metadata = result.response.usageMetadata;
@@ -1010,7 +1031,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 }
                 await db.collection('tenants').doc('_master').collection('crm_groups').doc('grp_leads_whatsapp').set(waGroupDoc, { merge: true });
             }
-            catch (_21) { }
+            catch (_22) { }
             // Also mirror conversation to contact's subcollection if contact exists
             if (contactDocId) {
                 try {
@@ -1040,12 +1061,12 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                         try {
                             await db.collection('tenants').doc(resolvedTenantId).collection('contacts').doc(contactDocId).set(contactUpdates, { merge: true });
                         }
-                        catch (_22) { }
+                        catch (_23) { }
                     }
                     try {
                         await db.collection('tenants').doc('_master').collection('contacts').doc(contactDocId).set(contactUpdates, { merge: true });
                     }
-                    catch (_23) { }
+                    catch (_24) { }
                     const convPayload = {
                         id: `conv_${normPhone}`,
                         contactId: contactDocId,
@@ -1064,12 +1085,12 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                         try {
                             await db.collection('tenants').doc(resolvedTenantId).collection('contacts').doc(contactDocId).collection('conversations').doc(`conv_${normPhone}`).set(convPayload, { merge: true });
                         }
-                        catch (_24) { }
+                        catch (_25) { }
                     }
                     try {
                         await db.collection('tenants').doc('_master').collection('contacts').doc(contactDocId).collection('conversations').doc(`conv_${normPhone}`).set(convPayload, { merge: true });
                     }
-                    catch (_25) { }
+                    catch (_26) { }
                 }
                 catch (subErr) {
                     console.warn('[whatsappWebhook] Error updating contact conversation subcollection:', subErr);
@@ -1087,8 +1108,8 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             let extractedImageCaption = '';
             const imageTagMatch = replyText.match(/\[SEND_IMAGE:\s*([^\s|\]]+)(?:\s*\|\s*([^\]]+))?\]/);
             if (imageTagMatch) {
-                extractedImageUrl = ((_15 = imageTagMatch[1]) === null || _15 === void 0 ? void 0 : _15.trim()) || '';
-                extractedImageCaption = ((_16 = imageTagMatch[2]) === null || _16 === void 0 ? void 0 : _16.trim()) || '';
+                extractedImageUrl = ((_16 = imageTagMatch[1]) === null || _16 === void 0 ? void 0 : _16.trim()) || '';
+                extractedImageCaption = ((_17 = imageTagMatch[2]) === null || _17 === void 0 ? void 0 : _17.trim()) || '';
                 replyText = replyText.replace(imageTagMatch[0], '').trim();
             }
             // Send message back via Green API using direct cluster host
@@ -1135,7 +1156,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             if (sendContactRequested) {
                 try {
                     // Resolve real phone: apiKeys -> body.instanceData.wid -> fallback
-                    const instanceWidDigits = String(((_17 = body.instanceData) === null || _17 === void 0 ? void 0 : _17.wid) || '').split('@')[0].replace(/\D/g, '');
+                    const instanceWidDigits = String(((_18 = body.instanceData) === null || _18 === void 0 ? void 0 : _18.wid) || '').split('@')[0].replace(/\D/g, '');
                     const businessPhone = String(apiKeys.businessContactPhone ||
                         apiKeys.adminNotificationPhone ||
                         apiKeys.adminPhone ||
@@ -2942,10 +2963,12 @@ exports.imageProxy = functions.https.onRequest((req, res) => {
 let cachedIndexHtml = null;
 async function getBaseIndexHtml() {
     const now = Date.now();
-    if (cachedIndexHtml && now - cachedIndexHtml.fetchedAt < 5 * 60 * 1000) {
+    if (cachedIndexHtml && now - cachedIndexHtml.fetchedAt < 10 * 1000) {
         return cachedIndexHtml.html;
     }
-    const resp = await fetch('https://compona.web.app/index.html');
+    const resp = await fetch(`https://compona.web.app/index.html?_=${now}`, {
+        headers: { 'Cache-Control': 'no-cache' },
+    });
     if (!resp.ok) {
         throw new Error(`Failed to fetch base index.html (${resp.status})`);
     }

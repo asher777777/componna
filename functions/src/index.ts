@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as corsLib from 'cors';
+import { handleWhatsAppFlyerLanding } from './whatsappFlyerLanding';
 
 const cors = corsLib({ origin: true });
 
@@ -487,11 +488,12 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     body.messageData?.listResponseMessageData?.description ||
     body.textMessage ||
     '';
+  const fileMessageData = body.messageData?.fileMessageData || null;
   const sender = body.senderData?.sender;
   const targetChatId = body.senderData?.chatId || sender || body.chatId;
   const senderName = body.senderData?.senderName || body.senderData?.senderContactName || body.senderName || '';
   
-  if (!messageText || !targetChatId) {
+  if ((!messageText && !fileMessageData?.downloadUrl) || !targetChatId) {
     await logWebhookEvent(resolvedTenantId, 'Ignored: No text or targetChatId', {
       rawMessageData: body.messageData,
       rawSenderData: body.senderData
@@ -561,6 +563,26 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
         hasToken: Boolean(greenApiToken)
       });
       res.status(200).send('Missing keys - acknowledged');
+      return;
+    }
+
+    // 1.5 Admin Flyer-to-HTML-Landing Flow via WhatsApp (Green API)
+    const handledByFlyerFlow = await handleWhatsAppFlyerLanding({
+      db,
+      tenantId: resolvedTenantId,
+      targetChatId,
+      normPhone,
+      cleanDigits,
+      messageText,
+      fileData: fileMessageData,
+      apiKeys,
+      geminiKey,
+      greenApiInstanceId,
+      greenApiToken,
+    });
+    if (handledByFlyerFlow) {
+      await logWebhookEvent(resolvedTenantId, 'Handled: Flyer-to-HTML Landing Flow', { normPhone });
+      res.status(200).send('Handled by Flyer Landing Flow');
       return;
     }
 
@@ -3150,10 +3172,12 @@ let cachedIndexHtml: { html: string; fetchedAt: number } | null = null;
 
 async function getBaseIndexHtml(): Promise<string> {
   const now = Date.now();
-  if (cachedIndexHtml && now - cachedIndexHtml.fetchedAt < 5 * 60 * 1000) {
+  if (cachedIndexHtml && now - cachedIndexHtml.fetchedAt < 10 * 1000) {
     return cachedIndexHtml.html;
   }
-  const resp = await fetch('https://compona.web.app/index.html');
+  const resp = await fetch(`https://compona.web.app/index.html?_=${now}`, {
+    headers: { 'Cache-Control': 'no-cache' },
+  });
   if (!resp.ok) {
     throw new Error(`Failed to fetch base index.html (${resp.status})`);
   }
