@@ -3,6 +3,19 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
+// Auto-reload once if a stale hashed JS chunk fails to load after a new deploy
+if (typeof window !== 'undefined') {
+  window.addEventListener('vite:preloadError', (event) => {
+    event.preventDefault();
+    const key = 'kosun_preload_reload_at';
+    const lastReload = Number(sessionStorage.getItem(key) || '0');
+    if (Date.now() - lastReload > 15000) {
+      sessionStorage.setItem(key, String(Date.now()));
+      window.location.reload();
+    }
+  });
+}
+
 // Cleanup script to remove old company names from localStorage and sessionStorage
 const cleanupOldNames = () => {
   const oldNamesRegex = /Smart Pro Digital|סמארט פרו דיגיטאל|Componna|קושאן/i;

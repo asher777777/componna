@@ -2981,6 +2981,12 @@ function resolveSlugFromPath(reqPath) {
 exports.ogMetaProxy = functions.runWith({ timeoutSeconds: 15, memory: '256MB' }).https.onRequest(async (req, res) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
     try {
+        const reqPath = (req.path || '').toLowerCase();
+        if (reqPath.startsWith('/assets/') ||
+            /\.(js|mjs|css|map|wasm|json|png|jpg|jpeg|gif|svg|webp|ico|woff|woff2|ttf|eot)$/.test(reqPath)) {
+            res.status(404).set('Content-Type', 'text/plain; charset=utf-8').send('Not Found');
+            return;
+        }
         const baseHtml = await getBaseIndexHtml();
         const host = String(req.headers['x-fh-requested-host'] || req.headers['x-forwarded-host'] || req.headers.host || 'compona.web.app');
         const tenantId = resolveTenantFromHost(host);

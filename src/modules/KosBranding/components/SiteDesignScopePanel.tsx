@@ -11,9 +11,15 @@ import {
   applyStylePresetToPage,
   applyLayoutArchetypeToPage,
   updateSingleSectionDesign,
+  restoreAllTenantPagesFromLatestSnapshot,
   PRESET_TITLE_MAP,
 } from '../../KosWebAi/services/pageStylePresetService';
 import { syncAllTenantPagesWithBrandDna } from '../../KosWebAi/services/pageBrandSyncService';
+import {
+  listBrandDnaBackups,
+  saveBrandDnaBackup,
+  BrandDnaBackupEntry,
+} from '../services/brandDnaFirestore';
 import {
   Globe,
   Layers,
@@ -27,6 +33,7 @@ import {
   FileCode2,
   Sliders,
   Wand2,
+  RotateCcw,
 } from 'lucide-react';
 
 interface SiteDesignScopePanelProps {
@@ -50,7 +57,7 @@ const BUTTON_SHAPE_LIST = [
 ];
 
 export const SiteDesignScopePanel: React.FC<SiteDesignScopePanelProps> = ({ onOpenScraper }) => {
-  const { brandDna, updateDesignTokens, saveNow } = useBrandDna();
+  const { brandDna, updateDesignTokens, setFullBrandDna, saveNow } = useBrandDna();
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const activeTenant = tenantId || '_master';
@@ -75,7 +82,14 @@ export const SiteDesignScopePanel: React.FC<SiteDesignScopePanelProps> = ({ onOp
   // Per-page overrides
   const [pagePreset, setPagePreset] = useState<TenantStylePreset>('standard');
   const [pageArchetype, setPageArchetype] = useState<LayoutArchetype>('bento_hub');
+  const [includePageLayoutChange, setIncludePageLayoutChange] = useState(false);
   const [isSavingPage, setIsSavingPage] = useState(false);
+
+  // Recovery / Rollback state
+  const [dnaBackups, setDnaBackups] = useState<BrandDnaBackupEntry[]>([]);
+  const [selectedBackupId, setSelectedBackupId] = useState<string>('');
+  const [isRestoringPages, setIsRestoringPages] = useState(false);
+  const [isRestoringDna, setIsRestoringDna] = useState(false);
 
   // Per-section overrides
   const [secPreset, setSecPreset] = useState<TenantStylePreset>('standard');
@@ -117,9 +131,20 @@ export const SiteDesignScopePanel: React.FC<SiteDesignScopePanelProps> = ({ onOp
     }
   }, [db, activeTenant, selectedPageId]);
 
+  const loadBackups = useCallback(async () => {
+    try {
+      const list = await listBrandDnaBackups(db || undefined, activeTenant);
+      setDnaBackups(list);
+      if (list.length > 0 && !selectedBackupId) {
+        setSelectedBackupId(list[0].id);
+      }
+    } catch {}
+  }, [db, activeTenant, selectedBackupId]);
+
   useEffect(() => {
     loadTenantPages();
-  }, [loadTenantPages]);
+    loadBackups();
+  }, [loadTenantPages, loadBackups]);
 
   const selectedPage = pages.find((p) => p.pageId === selectedPageId) || null;
   const sectionEntries = selectedPage?.sections ? Object.entries(selectedPage.sections) : [];
@@ -188,20 +213,58 @@ export const SiteDesignScopePanel: React.FC<SiteDesignScopePanelProps> = ({ onOp
     }
   };
 
+  const handleRestoreAllPages = async () => {
+    if (!window.confirm('האם לשחזר את כל עמודי הטננט לגיבוי (Snapshot) האחרון שנשמר לפני השינוי?')) return;
+    setIsRestoringPages(true);
+    try {
+      const res = await restoreAllTenantPagesFromLatestSnapshot(db || null, activeTenant);
+      await loadTenantPages();
+      if (res.restoredCount > 0) {
+        showNotice('success', `שוחזרו בהצלחה ${res.restoredCount} עמודים לגרסתם הקודמת!`);
+      } else {
+        showNotice('error', 'לא נמצאו Snapshots קודמים לשחזור בעמודי הטננט.');
+      }
+    } catch (err: any) {
+      showNotice('error', err?.message || 'שגיאה בשחזור העמודים');
+    } finally {
+      setIsRestoringPages(false);
+    }
+  };
+
+  const handleRestoreDnaBackup = async () => {
+    const target = dnaBackups.find((b) => b.id === selectedBackupId);
+    if (!target) return;
+    if (!window.confirm(`האם לשחזר את נתוני המיתוג (Brand DNA) מתוך "${target.label}"?`)) return;
+    setIsRestoringDna(true);
+    try {
+      await saveBrandDnaBackup(brandDna, 'לפני שחזור Brand DNA', db || undefined, activeTenant);
+      setFullBrandDna(target.brandDna);
+      await saveNow();
+      await loadBackups();
+      showNotice('success', 'נתוני ה-Brand DNA הקודמים שוחזרו בהצלחה!');
+    } catch (err: any) {
+      showNotice('error', err?.message || 'שגיאה בשחזור נתוני המיתוג');
+    } finally {
+      setIsRestoringDna(false);
+    }
+  };
+
   const handleApplyPageChanges = async () => {
     if (!selectedPage) return;
     setIsSavingPage(true);
     try {
       const { updatedPage: presetPage } = applyStylePresetToPage(selectedPage, pagePreset);
-      const { updatedPage: finalPage } = applyLayoutArchetypeToPage(
-        presetPage,
-        pageArchetype,
-        brandDna,
-        activeTenant
-      );
+      const finalPage = includePageLayoutChange
+        ? applyLayoutArchetypeToPage(presetPage, pageArchetype, brandDna, activeTenant).updatedPage
+        : presetPage;
       await pageBuilderFirestore.savePage(finalPage, db || null, activeTenant);
       await loadTenantPages();
-      showNotice('success', `העמוד "${selectedPage.pageTitle || selectedPage.slug}" עודכן עם סגנון ${PRESET_TITLE_MAP[pagePreset] || pagePreset} ופריסת ${LAYOUT_ARCHETYPES[pageArchetype]?.name || pageArchetype}.`);
+      showNotice(
+        'success',
+        includePageLayoutChange
+          ? `העמוד "${selectedPage.pageTitle || selectedPage.slug}" עודכן עם סגנון ${PRESET_TITLE_MAP[pagePreset] || pagePreset} ופריסת ${LAYOUT_ARCHETYPES[pageArchetype]?.name || pageArchetype}.`
+          : `סגנון העמוד "${selectedPage.pageTitle || selectedPage.slug}" עודכן ל-${PRESET_TITLE_MAP[pagePreset] || pagePreset} (ללא שינוי תוכן או פריסה).`
+      );
     } catch (err: any) {
       showNotice('error', err?.message || 'שגיאה בעדכון העמוד');
     } finally {
@@ -251,6 +314,50 @@ export const SiteDesignScopePanel: React.FC<SiteDesignScopePanelProps> = ({ onOp
           <span>{notice.text}</span>
         </div>
       )}
+
+      {/* Safety Recovery & Rollback Panel */}
+      <div className="bg-amber-950/30 border border-amber-500/30 rounded-2xl p-4 shadow-lg space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-amber-300 font-bold text-xs sm:text-sm">
+            <RotateCcw className="w-4 h-4" />
+            <span>שחזור תוכן ועיצוב קודם (גיבוי אוטומטי לטננט {activeTenant})</span>
+          </div>
+          <button
+            type="button"
+            disabled={isRestoringPages}
+            onClick={handleRestoreAllPages}
+            className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 shrink-0"
+          >
+            {isRestoringPages ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+            <span>שחזר את כל העמודים לגרסה הקודמת (Snapshot)</span>
+          </button>
+        </div>
+
+        {dnaBackups.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-amber-500/20">
+            <select
+              value={selectedBackupId}
+              onChange={(e) => setSelectedBackupId(e.target.value)}
+              className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none"
+            >
+              {dnaBackups.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.label} ({new Date(b.timestamp).toLocaleString('he-IL')})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={isRestoringDna || !selectedBackupId}
+              onClick={handleRestoreDnaBackup}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+            >
+              {isRestoringDna ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+              <span>שחזר Brand DNA מגיבוי</span>
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Learned Website Profile Summary (if exists) */}
       <div className="bg-gradient-to-br from-indigo-950/60 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-2xl p-5 shadow-lg space-y-3">
@@ -492,11 +599,12 @@ export const SiteDesignScopePanel: React.FC<SiteDesignScopePanelProps> = ({ onOp
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">פריסת העמוד:</label>
+                  <label className="block text-[11px] text-slate-400 mb-1">פריסת העמוד (אופציונלי):</label>
                   <select
                     value={pageArchetype}
+                    disabled={!includePageLayoutChange}
                     onChange={(e) => setPageArchetype(e.target.value as LayoutArchetype)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none disabled:opacity-40"
                   >
                     {Object.values(LAYOUT_ARCHETYPES).map((arch) => (
                       <option key={arch.id} value={arch.id}>
@@ -507,6 +615,16 @@ export const SiteDesignScopePanel: React.FC<SiteDesignScopePanelProps> = ({ onOp
                 </div>
               </div>
 
+              <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includePageLayoutChange}
+                  onChange={(e) => setIncludePageLayoutChange(e.target.checked)}
+                  className="rounded border-slate-600 text-cyan-600"
+                />
+                <span>החל גם שינוי סדר ופריסת אזורים (Layout) בעמוד זה</span>
+              </label>
+
               <button
                 type="button"
                 disabled={isSavingPage || !selectedPage}
@@ -514,7 +632,7 @@ export const SiteDesignScopePanel: React.FC<SiteDesignScopePanelProps> = ({ onOp
                 className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isSavingPage ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                <span>שמור עיצוב ופריסה לעמוד זה בלבד</span>
+                <span>{includePageLayoutChange ? 'שמור סגנון ופריסה לעמוד זה' : 'שמור סגנון וצבעים לעמוד זה (ללא שינוי תוכן)'}</span>
               </button>
             </div>
 

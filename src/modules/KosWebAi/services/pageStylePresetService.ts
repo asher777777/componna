@@ -622,3 +622,70 @@ export async function updateSingleSectionDesign(
     return { success: false, error: err?.message || 'שגיאה בעדכון האזור' };
   }
 }
+
+/**
+ * Restores a single page to a specific PageDesignSnapshot (e.g., before bulk style/layout/reset change).
+ */
+export function restorePageFromSnapshotObject(
+  page: PageBuilderConfig,
+  snapshot: PageDesignSnapshot
+): PageBuilderConfig {
+  const nextSections = JSON.parse(JSON.stringify(snapshot.sections || {}));
+  return {
+    ...page,
+    sections: nextSections,
+    sectionOrder: Object.keys(nextSections),
+    globalSettings: {
+      ...(page.globalSettings || {}),
+      ...(snapshot.theme ? { theme: snapshot.theme as any } : {}),
+    },
+    lastModified: Date.now(),
+  };
+}
+
+/**
+ * Restores ALL pages of a tenant from their latest saved PageDesignSnapshot,
+ * recovering any previous content, layout, and sections.
+ */
+export async function restoreAllTenantPagesFromLatestSnapshot(
+  db: Firestore | null,
+  tenantId: string
+): Promise<{ restoredCount: number; totalPages: number; pages: PageBuilderConfig[] }> {
+  const allPages = await pageBuilderFirestore.getAllPages(db, tenantId);
+  const restoredPages: PageBuilderConfig[] = [];
+
+  for (const page of allPages) {
+    const snapshots = page.designSnapshots || [];
+    if (snapshots.length === 0) continue;
+
+    const latestSnap = snapshots[0];
+    const remainingSnapshots = snapshots.slice(1);
+    const restored = {
+      ...restorePageFromSnapshotObject(page, latestSnap),
+      designSnapshots: remainingSnapshots,
+    };
+
+    await pageBuilderFirestore.savePage(restored, db, tenantId);
+    restoredPages.push(restored);
+  }
+
+  if (typeof window !== 'undefined' && restoredPages.length > 0) {
+    const activePage = restoredPages.find((p) => p.isHomePage) || restoredPages[0];
+    window.dispatchEvent(
+      new CustomEvent('kos_page_sections_updated', {
+        detail: {
+          sections: activePage?.sections,
+          globalSettings: activePage?.globalSettings,
+          tenantId,
+          allPagesRestored: true,
+        },
+      })
+    );
+  }
+
+  return {
+    restoredCount: restoredPages.length,
+    totalPages: allPages.length,
+    pages: restoredPages,
+  };
+}

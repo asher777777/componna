@@ -8,6 +8,7 @@ import {
   WebsiteLearnResult,
 } from '../services/brandCopilotService';
 import { WebsiteScanScope } from '../types/brandDna';
+import { saveBrandDnaBackup } from '../services/brandDnaFirestore';
 import {
   applyBrandDesignTokensToAllTenantPages,
   applyLayoutArchetypeToAllTenantPages,
@@ -53,7 +54,7 @@ export const BrandDnaUrlScraperModal: React.FC<BrandDnaUrlScraperModalProps> = (
   const [urlInput, setUrlInput] = useState('');
   const [userPrompt, setUserPrompt] = useState('');
   const [scope, setScope] = useState<WebsiteScanScope>({
-    content: true,
+    content: false,
     colors: true,
     designAndLayout: true,
   });
@@ -112,10 +113,23 @@ export const BrandDnaUrlScraperModal: React.FC<BrandDnaUrlScraperModalProps> = (
 
   const handleApplyToBrandDna = async () => {
     if (!extractedResult?.extractedBrand) return;
+    if (scope.content && brandDna.identity?.companyName?.trim()) {
+      const ok = window.confirm(
+        `שימו לב: סימנתם החלפת תוכן וזהות מותג עבור "${brandDna.identity.companyName}". פעולה זו תחליף את פרטי המותג הקיימים (נשמר גיבוי אוטומטי). להמשיך?`
+      );
+      if (!ok) return;
+    }
+
     setIsApplying(true);
     setError(null);
 
     try {
+      await saveBrandDnaBackup(
+        brandDna,
+        scope.content ? 'לפני החלת תוכן וצבעים מסורק האתרים' : 'לפני החלת צבעים ועיצוב מסורק האתרים',
+        db || undefined,
+        tenantId || '_master'
+      );
       const eb = extractedResult.extractedBrand;
 
       const nextBrandDna = {

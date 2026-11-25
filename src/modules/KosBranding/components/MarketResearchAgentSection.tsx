@@ -10,6 +10,7 @@ import {
 } from '../services/brandCopilotService';
 import { marketResearchFirestore } from '../services/marketResearchFirestore';
 import { generateInfoPageFromMarketResearch } from '../services/marketResearchPageGenerator';
+import { saveBrandDnaBackup } from '../services/brandDnaFirestore';
 import { MarketResearchItem, WebsiteScanScope } from '../types/brandDna';
 import { LAYOUT_ARCHETYPES, LayoutArchetype } from '../../KosWebAi/types/pageBuilder.types';
 import {
@@ -69,7 +70,7 @@ export const MarketResearchAgentSection: React.FC = () => {
   const [urlInput, setUrlInput] = useState('');
   const [userPrompt, setUserPrompt] = useState('');
   const [scope, setScope] = useState<WebsiteScanScope>({
-    content: true,
+    content: false,
     colors: true,
     designAndLayout: true,
   });
@@ -181,6 +182,20 @@ export const MarketResearchAgentSection: React.FC = () => {
     applyScope: WebsiteScanScope = scope
   ) => {
     if (!eb) return;
+    if (applyScope.content && brandDna.identity?.companyName?.trim()) {
+      const ok = window.confirm(
+        `שימו לב: סימנתם החלפת תוכן וזהות מותג עבור "${brandDna.identity.companyName}". פעולה זו תחליף את פרטי המותג הקיימים (נשמר גיבוי אוטומטי). להמשיך?`
+      );
+      if (!ok) return;
+    }
+
+    await saveBrandDnaBackup(
+      brandDna,
+      applyScope.content ? 'לפני החלת תוכן, צבעים ועיצוב מסריקה' : 'לפני החלת צבעים ועיצוב מסריקה',
+      db,
+      activeTenant
+    );
+
     const nextBrandDna = {
       ...brandDna,
       identity: applyScope.content && eb.identity ? { ...brandDna.identity, ...eb.identity } : brandDna.identity,
@@ -919,19 +934,34 @@ export const MarketResearchAgentSection: React.FC = () => {
                     </button>
 
                     {item.extractedBrand && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleApplyScanToBrandDna(item.extractedBrand, item.learnedSiteProfile, {
-                            content: true,
-                            colors: true,
-                            designAndLayout: true,
-                          })
-                        }
-                        className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 text-[11px] font-bold"
-                      >
-                        החל מיתוג
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleApplyScanToBrandDna(item.extractedBrand, item.learnedSiteProfile, {
+                              content: false,
+                              colors: true,
+                              designAndLayout: true,
+                            })
+                          }
+                          className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 text-[11px] font-bold"
+                        >
+                          החל צבעים ועיצוב
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleApplyScanToBrandDna(item.extractedBrand, item.learnedSiteProfile, {
+                              content: true,
+                              colors: true,
+                              designAndLayout: true,
+                            })
+                          }
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-[11px] font-bold"
+                        >
+                          החל גם תוכן
+                        </button>
+                      </>
                     )}
 
                     <button

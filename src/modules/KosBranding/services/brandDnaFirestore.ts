@@ -384,3 +384,107 @@ export async function saveCommunityBrand(
 
   return true;
 }
+
+export interface BrandDnaBackupEntry {
+  id: string;
+  timestamp: string;
+  label: string;
+  brandDna: BrandDna;
+}
+
+const BACKUP_STORAGE_PREFIX = 'kos_branding_backups';
+const BRAND_DNA_BACKUPS_DOC = 'kos_branding_dna_backups';
+
+function getBackupStorageKey(tenantId: string = '_master'): string {
+  return getTenantStorageKey(BACKUP_STORAGE_PREFIX, tenantId);
+}
+
+/**
+ * Saves a safety snapshot of the current Brand DNA before any bulk/AI overwrite.
+ */
+export async function saveBrandDnaBackup(
+  brandDna: BrandDna,
+  label: string,
+  db?: Firestore,
+  tenantId: string = '_master'
+): Promise<BrandDnaBackupEntry> {
+  const entry: BrandDnaBackupEntry = {
+    id: `dna_bak_${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    label,
+    brandDna: JSON.parse(JSON.stringify(brandDna)),
+  };
+
+  let existing: BrandDnaBackupEntry[] = [];
+  try {
+    const raw = localStorage.getItem(getBackupStorageKey(tenantId));
+    if (raw) existing = JSON.parse(raw);
+  } catch {}
+
+  const updated = [entry, ...(Array.isArray(existing) ? existing : [])].slice(0, 10);
+  try {
+    localStorage.setItem(getBackupStorageKey(tenantId), JSON.stringify(updated));
+  } catch {}
+
+  const effDb = db || defaultFirestoreDb;
+  const authUser = effDb ? (() => { try { return getAuth(effDb.app).currentUser; } catch { return null; } })() : null;
+  if (effDb && authUser && !authUser.isAnonymous) {
+    try {
+      const docRef = doc(effDb, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, BRAND_DNA_BACKUPS_DOC);
+      await setDoc(docRef, { backups: updated, updatedAt: new Date().toISOString() }, { merge: true });
+    } catch (err) {
+      console.warn('[BrandDNA] Failed to save backup to Firestore:', err);
+    }
+  }
+
+  return entry;
+}
+
+/**
+ * Lists all saved Brand DNA backups (including legacy `brand_dna` doc if present in Firestore).
+ */
+export async function listBrandDnaBackups(
+  db?: Firestore,
+  tenantId: string = '_master'
+): Promise<BrandDnaBackupEntry[]> {
+  let backups: BrandDnaBackupEntry[] = [];
+  try {
+    const raw = localStorage.getItem(getBackupStorageKey(tenantId));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) backups = parsed;
+    }
+  } catch {}
+
+  const effDb = db || defaultFirestoreDb;
+  if (effDb) {
+    try {
+      const docRef = doc(effDb, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, BRAND_DNA_BACKUPS_DOC);
+      const snap = await getDoc(docRef);
+      if (snap.exists() && Array.isArray(snap.data()?.backups)) {
+        const remote = snap.data()!.backups as BrandDnaBackupEntry[];
+        const seen = new Set(backups.map((b) => b.id));
+        for (const r of remote) {
+          if (!seen.has(r.id)) backups.push(r);
+        }
+      }
+
+      // Also check legacy `settings/brand_dna` doc for emergency recovery
+      const legacyRef = doc(effDb, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, 'brand_dna');
+      const legacySnap = await getDoc(legacyRef);
+      if (legacySnap.exists()) {
+        const legacyData = legacySnap.data() as BrandDna;
+        backups.push({
+          id: 'legacy_brand_dna',
+          timestamp: legacyData.updatedAt || new Date().toISOString(),
+          label: `שחזור ממסמך brand_dna היסטורי (${legacyData.identity?.companyName || tenantId})`,
+          brandDna: legacyData,
+        });
+      }
+    } catch (err) {
+      console.warn('[BrandDNA] Failed to list backups from Firestore:', err);
+    }
+  }
+
+  return backups.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+}
