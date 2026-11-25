@@ -11,7 +11,60 @@ export type FieldType =
   | 'date'
   | 'time'
   | 'file_upload'
-  | 'payment';
+  | 'payment'
+  | 'ticket_booking'
+  | 'coupon_code';
+
+export interface TicketTier {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  capacity?: number;
+  soldCount?: number;
+  maxPerOrder?: number;
+  iconName?: string;
+}
+
+export interface TicketBookingItem {
+  tierId: string;
+  tierName: string;
+  unitPrice: number;
+  quantity: number;
+  attendeeNames?: string[];
+}
+
+export interface TicketBookingAnswer {
+  items: TicketBookingItem[];
+  totalQuantity: number;
+  subtotal: number;
+  attendeeNames: string[];
+  summaryText: string;
+}
+
+export interface CouponDefinition {
+  id: string;
+  code: string;
+  discountType: 'percent' | 'fixed';
+  discountValue: number;
+  validFrom?: string;
+  validUntil?: string;
+  maxUses?: number;
+  usedCount?: number;
+  minOrderAmount?: number;
+  active: boolean;
+}
+
+export interface AppliedCouponAnswer {
+  code: string;
+  couponId?: string;
+  discountType: 'percent' | 'fixed';
+  discountValue: number;
+  discountAmount: number;
+  originalAmount: number;
+  finalAmount: number;
+  isFree: boolean;
+}
 
 export type ToneStyle =
   | 'executive_luxury'
@@ -48,6 +101,9 @@ export interface FormStep {
   helperText?: string;
   defaultValue?: any;
   mappingKey?: string; // Key name for the submission data and CRM mapping (e.g., conta_name, conta_phone, email)
+  ticketTiers?: TicketTier[];
+  collectAttendeeNames?: boolean;
+  coupons?: CouponDefinition[];
 }
 
 export interface FormThemeSettings {
@@ -104,6 +160,7 @@ export interface SmartFormDefinition {
   crmDefaultCommunity?: string;
   whatsappAutomationEnabled?: boolean;
   whatsappRules?: import('./whatsapp.types').FormWhatsAppRule[];
+  coupons?: CouponDefinition[];
 }
 
 export interface AIBrainstormMessage {

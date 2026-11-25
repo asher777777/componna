@@ -1172,25 +1172,35 @@ export async function scrapeAndLearnWebsiteWithKosai(
   // 1. Live server-side scrape for real HTML/CSS/colors/layout/copy signals
   let scrapedData: any = null;
   let liveScraped = false;
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 14000);
-    const resp = await fetch(resolveAiProxyUrl('scrape-url'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: cleanUrl, tenantId: options?.tenantId || '_master' }),
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    if (resp.ok) {
-      const json = await resp.json();
-      if (json?.success) {
-        scrapedData = json;
-        liveScraped = true;
+  const isLocalDev =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const scrapeEndpoints = isLocalDev
+    ? ['/api/local-scrape', resolveAiProxyUrl('scrape-url')]
+    : [resolveAiProxyUrl('scrape-url')];
+
+  for (const endpoint of scrapeEndpoints) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 14000);
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: cleanUrl, tenantId: options?.tenantId || '_master' }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json?.success) {
+          scrapedData = json;
+          liveScraped = true;
+          break;
+        }
       }
+    } catch (err) {
+      console.warn(`[brandCopilotService] Scrape endpoint ${endpoint} unavailable:`, err);
     }
-  } catch (err) {
-    console.warn('[brandCopilotService] Server scrape-url unavailable, falling back to URL AI analysis:', err);
   }
 
   const rawSignals = scrapedData
@@ -1221,7 +1231,7 @@ export async function scrapeAndLearnWebsiteWithKosai(
 - רמזי מבנה ופריסה: ${JSON.stringify(scrapedData.designSignals?.structureCues || {})}
 - כותרות (H1-H3): ${JSON.stringify((scrapedData.contentSignals?.headings || []).slice(0, 10))}
 - טקסטים של כפתורים (CTA): ${JSON.stringify((scrapedData.contentSignals?.ctaTexts || []).slice(0, 12))}
-- טקסט גלוי מהאתר (מקוצר): ${(scrapedData.contentSignals?.visibleText || '').slice(0, 2600)}
+- טקסט גלוי מגוף האתר (ללא תפריט עליון): ${(scrapedData.contentSignals?.visibleText || '').slice(0, 4500)}
 `
     : `לא ניתן היה למשוך HTML ישירות; נתח לפי כתובת האתר וההנחיה: "${cleanUrl}".`;
 
@@ -1236,21 +1246,22 @@ ${userPrompt ? `הנחיה מיוחדת מהמשתמש: "${userPrompt}"` : ''}
 
 ${signalsBlock}
 
-הנחיות מיפוי חובה:
+הנחיות מיפוי חובה (קריטי!):
+- צבעים: השתמש אך ורק בצבעים האמיתיים שחולצו מהאתר ב-cssVars (כגון --e-global-color-primary, --primary, --secondary, --accent, --text, צבעי רקע בהירים/כהים) וב-topColors! אל תמציא צבעי ברירת מחדל גנריים (כגון כחול/אינדיגו) אם האתר משתמש בגוונים אחרים (כגון בורדו, חום, טורקיז, זהב, שמנת וכו').
 - עבור defaultStylePreset בחר אך ורק אחד מ: "standard" | "feminine" | "masculine" | "spiritual" | "sharp" | "analytical"
 - עבור defaultLayoutArchetype בחר אך ורק אחד מ: "bento_hub" | "editorial_boutique" | "warm_community" | "knowledge_academy" | "direct_showcase"
 - עבור borderRadius בחר אך ורק אחד מ: "none" | "sm" | "md" | "lg" | "full"
 - עבור buttonStyle בחר אך ורק אחד מ: "solid" | "gradient" | "outline" | "glass"
 - עבור fontFamily בחר מתוך: "Heebo, sans-serif" | "Assistant, sans-serif" | "Rubik, sans-serif" | "\\"Frank Ruhl Libre\\", serif" | "Alef, sans-serif" | "\\"Secular One\\", sans-serif" (התאם לסגנון הפונטים שנמצאו באתר).
-- ודא ניגודיות קריאה בצבעים (אל תחזיר טקסט בהיר על רקע בהיר או טקסט כהה על רקע כהה).
+- ודא ניגודיות קריאה בצבעים (רקע בהיר -> טקסט כהה; רקע כהה -> טקסט בהיר).
 
 החזר אך ורק אובייקט JSON תקין במבנה הבא:
 {
-  "summary": "סיכום תמציתי בעברית של מה שנלמד מהאתר (צבעים, פריסה, שפה)",
+  "summary": "סיכום תמציתי בעברית של מה שנלמד מגוף האתר, הצבעים והפריסה",
   "positioningQuestions": ["שאלה 1", "שאלה 2", "שאלה 3"],
   "learnedSiteProfile": {
-    "extractedPalette": ["#hex1", "#hex2", "#hex3", "#hex4"],
-    "detectedFonts": ["Font1"],
+    "extractedPalette": ["<HEX_1>", "<HEX_2>", "<HEX_3>", "<HEX_4>"],
+    "detectedFonts": ["<FONT_NAME>"],
     "recommendedLayoutArchetype": "bento_hub",
     "recommendedStylePreset": "standard",
     "designElementsSummary": "תיאור תמציתי של האלמנטים העיצוביים (כפתורים, כרטיסים, צלליות, ריווח)",
@@ -1293,14 +1304,14 @@ ${signalsBlock}
       }
     },` : ''}
     ${(scope.colors || scope.designAndLayout) ? `"designTokens": {
-      ${scope.colors ? `"primaryColor": "#6366f1",
-      "secondaryColor": "#0ea5e9",
-      "backgroundColor": "#0f172a",
-      "textColor": "#f8fafc",
-      "textColorH1": "#ffffff",
-      "textColorH2": "#94a3b8",
-      "buttonBgColor": "#6366f1",
-      "buttonTextColor": "#ffffff",` : ''}
+      ${scope.colors ? `"primaryColor": "<HEX_PRIMARY_FROM_SITE>",
+      "secondaryColor": "<HEX_SECONDARY_FROM_SITE>",
+      "backgroundColor": "<HEX_BACKGROUND_FROM_SITE>",
+      "textColor": "<HEX_TEXT_FROM_SITE>",
+      "textColorH1": "<HEX_H1_FROM_SITE>",
+      "textColorH2": "<HEX_H2_FROM_SITE>",
+      "buttonBgColor": "<HEX_BUTTON_BG_FROM_SITE>",
+      "buttonTextColor": "<HEX_BUTTON_TEXT_FROM_SITE>",` : ''}
       ${scope.designAndLayout ? `"fontFamily": "Heebo, sans-serif",
       "borderRadius": "md",
       "buttonStyle": "gradient",

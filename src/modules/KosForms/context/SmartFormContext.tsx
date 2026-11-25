@@ -14,6 +14,7 @@ import {
   TEMPLATE_PAYMENT_CHECKOUT,
   TEMPLATE_DONATION_RECURRING,
   TEMPLATE_LEAD_CAPTURE,
+  TEMPLATE_TICKET_BOOKING,
   DEFAULT_KSF_TEMPLATES,
 } from '../config/formTemplates';
 import { eventBus } from '../../../core/bridge/EventBus';
@@ -37,7 +38,7 @@ export interface SmartFormContextValue {
   saveForm: (form: Partial<SmartFormDefinition>) => Promise<string>;
   deleteForm: (formId: string) => Promise<void>;
   generateFormWithAI: (input: AIBrainstormInput) => Promise<SmartFormDefinition>;
-  createDefaultForm: (type: 'leads' | 'payment' | 'donation_recurring' | 'whatsapp') => Promise<{ id: string; title: string }>;
+  createDefaultForm: (type: 'leads' | 'payment' | 'donation_recurring' | 'whatsapp' | 'tickets') => Promise<{ id: string; title: string }>;
   refreshForms: () => Promise<void>;
 }
 
@@ -196,10 +197,17 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
   const { registerCapability, unregisterCapability } = useHostCapabilities();
 
   const createDefaultForm = useCallback(
-    async (type: 'leads' | 'payment' | 'donation_recurring' | 'whatsapp') => {
+    async (type: 'leads' | 'payment' | 'donation_recurring' | 'whatsapp' | 'tickets') => {
       let newForm: Partial<SmartFormDefinition>;
 
-      if (type === 'payment') {
+      if (type === 'tickets') {
+        newForm = {
+          ...TEMPLATE_TICKET_BOOKING,
+          id: `form_tkt_${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      } else if (type === 'payment') {
         newForm = {
           ...TEMPLATE_PAYMENT_CHECKOUT,
           id: `form_pay_${Date.now()}`,

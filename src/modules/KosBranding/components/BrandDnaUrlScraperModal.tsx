@@ -379,13 +379,17 @@ export const BrandDnaUrlScraperModal: React.FC<BrandDnaUrlScraperModalProps> = (
           {extractedResult && (
             <div className="space-y-4 pt-3 border-t border-slate-200 dark:border-slate-800 animate-in fade-in">
               <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-2xl space-y-1">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
                     סיכום למידת האתר ע״י KOSAI
                   </span>
-                  {extractedResult.liveScraped && (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
-                      ✓ סריקת קוד ועיצוב חיה
+                  {extractedResult.liveScraped ? (
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+                      ✓ נשאבו נתוני אמת מקוד האתר וה-CSS
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold">
+                      ⚠ לא ניתן היה למשוך HTML ישירות — הניתוח מבוסס הערכת AI
                     </span>
                   )}
                 </div>
@@ -425,6 +429,28 @@ export const BrandDnaUrlScraperModal: React.FC<BrandDnaUrlScraperModalProps> = (
                         )
                     )}
                   </div>
+                  {extractedResult.rawSignals?.topColors && extractedResult.rawSignals.topColors.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200/70 dark:border-slate-800/70">
+                      <span className="text-[10px] font-bold text-slate-400 block mb-1.5">
+                        גוונים גולמיים שזוהו בקוד ה-CSS של האתר:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {extractedResult.rawSignals.topColors.slice(0, 10).map((c) => (
+                          <span
+                            key={c.hex}
+                            title={`${c.hex} (${c.count} מופעים)`}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] font-mono text-slate-500"
+                          >
+                            <span
+                              className="w-3 h-3 rounded-sm border border-slate-300 dark:border-slate-700"
+                              style={{ backgroundColor: c.hex }}
+                            />
+                            {c.hex}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -488,6 +514,28 @@ export const BrandDnaUrlScraperModal: React.FC<BrandDnaUrlScraperModalProps> = (
                       </div>
                     )}
                   </div>
+                  {extractedResult.rawSignals?.topColors && extractedResult.rawSignals.topColors.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200/70 dark:border-slate-800/70">
+                      <span className="text-[10px] font-bold text-slate-400 block mb-1.5">
+                        גוונים גולמיים שזוהו בקוד ה-CSS של האתר:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {extractedResult.rawSignals.topColors.slice(0, 10).map((c) => (
+                          <span
+                            key={c.hex}
+                            title={`${c.hex} (${c.count} מופעים)`}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] font-mono text-slate-500"
+                          >
+                            <span
+                              className="w-3 h-3 rounded-sm border border-slate-300 dark:border-slate-700"
+                              style={{ backgroundColor: c.hex }}
+                            />
+                            {c.hex}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

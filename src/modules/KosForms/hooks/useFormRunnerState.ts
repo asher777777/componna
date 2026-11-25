@@ -3,6 +3,7 @@ import { Firestore } from 'firebase/firestore';
 import { SmartFormDefinition, FormStep } from '../types';
 import { submitFormResponse } from '../services/submissionStorageService';
 import { trackFormView, trackFormStart } from '../services/formStorageService';
+import { resolveFinalPaymentAmount } from '../services/ticketCouponService';
 import { DEFAULT_FORMS_COLLECTION } from '../config/constants';
 
 export interface UseFormRunnerOptions {
@@ -26,6 +27,8 @@ export function useFormRunnerState({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [ticketOrderCode, setTicketOrderCode] = useState<string | null>(null);
+  const [ticketCodes, setTicketCodes] = useState<string[]>([]);
   const [direction, setDirection] = useState<'next' | 'prev'>('next');
 
   const startTimeRef = useRef<number>(Date.now());
@@ -73,6 +76,32 @@ export function useFormRunnerState({
     const key = getStepKey(currentStep);
     const value = answers[key];
 
+    if (currentStep.fieldType === 'ticket_booking') {
+      if (!value || typeof value !== 'object' || !value.totalQuantity || value.totalQuantity <= 0) {
+        setValidationError('נא לבחור לפחות כרטיס אחד להמשך');
+        return false;
+      }
+      if (currentStep.collectAttendeeNames !== false && Array.isArray(value.items)) {
+        const missingName = value.items.some((item: any) =>
+          (item.attendeeNames || []).some((n: string) => !n || !n.trim())
+        );
+        if (missingName) {
+          setValidationError('נא להזין שם מלא עבור כל אחד מהמשתתפים');
+          return false;
+        }
+      }
+      setValidationError(null);
+      return true;
+    }
+
+    if (currentStep.fieldType === 'payment') {
+      const { isFreeByCoupon, finalAmount } = resolveFinalPaymentAmount(answers, Number(currentStep.defaultValue) || 100);
+      if (isFreeByCoupon || finalAmount === 0) {
+        setValidationError(null);
+        return true;
+      }
+    }
+
     if (currentStep.required) {
       if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
         setValidationError('שדה זה הינו שדה חובה');
@@ -117,6 +146,8 @@ export function useFormRunnerState({
           collectionName
         );
         setSubmissionId(res.submissionId);
+        if (res.ticketOrderCode) setTicketOrderCode(res.ticketOrderCode);
+        if (res.ticketCodes) setTicketCodes(res.ticketCodes);
         setIsCompleted(true);
         if (onComplete) onComplete(answers, res.submissionId);
       } catch (err: any) {
@@ -192,6 +223,8 @@ export function useFormRunnerState({
     isSubmitting,
     isCompleted,
     submissionId,
+    ticketOrderCode,
+    ticketCodes,
     direction,
     setStepAnswer,
     handleNext,

@@ -1,4 +1,9 @@
 import { processSubmissionWhatsAppAutomations } from './formWhatsAppService';
+import {
+  commitTicketAndCouponUsage,
+  generateTicketOrderCodes,
+  resolveFinalPaymentAmount,
+} from './ticketCouponService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import {
   collection,
@@ -41,12 +46,51 @@ export async function submitFormResponse(
   completionTimeSeconds?: number,
   customFirestore?: Firestore,
   collectionName: string = DEFAULT_FORMS_COLLECTION
-): Promise<{ submissionId: string; leadPayload?: LeadPayload }> {
+): Promise<{
+  submissionId: string;
+  leadPayload?: LeadPayload;
+  ticketOrderCode?: string;
+  ticketCodes?: string[];
+}> {
   const targetDb = customFirestore || db;
   if (!targetDb) throw new Error('Firestore is not initialized');
 
   const submissionId = `sub_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
   const now = new Date().toISOString();
+
+  // Resolve ticket booking & coupon usage
+  const { finalAmount, appliedCoupon, ticketBooking } = resolveFinalPaymentAmount(rawAnswers, 0);
+  let ticketOrderCode: string | undefined;
+  let ticketCodes: string[] | undefined;
+
+  if (ticketBooking && ticketBooking.totalQuantity > 0) {
+    const generated = generateTicketOrderCodes(ticketBooking.totalQuantity);
+    ticketOrderCode = generated.orderCode;
+    ticketCodes = generated.ticketCodes;
+  }
+
+  // Atomically verify & increment ticket soldCount and coupon usedCount before saving
+  if (ticketBooking || appliedCoupon) {
+    await commitTicketAndCouponUsage(
+      form.id,
+      ticketBooking,
+      appliedCoupon,
+      targetDb,
+      collectionName
+    );
+  }
+
+  const enrichedAnswers: Record<string, any> = {
+    ...rawAnswers,
+    ...(ticketBooking || appliedCoupon ? { final_amount: finalAmount } : {}),
+    ...(ticketOrderCode
+      ? {
+          ticket_order_code: ticketOrderCode,
+          ticket_codes: ticketCodes,
+          ticket_summary: ticketBooking?.summaryText || '',
+        }
+      : {}),
+  };
 
   // Map detailed answers
   const detailedAnswers = form.steps.map((step) => {
@@ -219,7 +263,7 @@ export async function submitFormResponse(
       
       whatsappDeliveries = await processSubmissionWhatsAppAutomations({
         form,
-        rawAnswers,
+        rawAnswers: enrichedAnswers,
         detailedAnswers,
         metadata,
         submissionId,
@@ -236,7 +280,7 @@ export async function submitFormResponse(
     formId: form.id,
     formTitle: form.title,
     submittedAt: now,
-    answers: rawAnswers,
+    answers: enrichedAnswers,
     detailedAnswers,
     completionTimeSeconds: completionTimeSeconds || 0,
     crmSyncStatus: form.isCrmSyncEnabled && leadPayload ? 'synced' : 'not_applicable',
@@ -500,7 +544,7 @@ export async function submitFormResponse(
     });
   } catch {}
 
-  return { submissionId, leadPayload };
+  return { submissionId, leadPayload, ticketOrderCode, ticketCodes };
 }
 
 /**

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FormStep, FieldType, FieldOption } from '../../types';
+import { FormStep, FieldType, FieldOption, TicketTier, CouponDefinition } from '../../types';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import { IconPickerModal } from '../shared/IconPickerModal';
 import {
@@ -18,6 +18,9 @@ import {
   Calendar,
   Clock,
   Upload,
+  Ticket,
+  Tag,
+  CreditCard,
 } from 'lucide-react';
 
 export interface StepFieldConfigProps {
@@ -39,6 +42,9 @@ const FIELD_TYPES: { type: FieldType; label: string; icon: any }[] = [
   { type: 'date', label: 'תאריך', icon: Calendar },
   { type: 'time', label: 'שעה', icon: Clock },
   { type: 'file_upload', label: 'העלאת קובץ / מסמך', icon: Upload },
+  { type: 'ticket_booking', label: 'הזמנת כרטיסים', icon: Ticket },
+  { type: 'coupon_code', label: 'קוד קופון והנחה', icon: Tag },
+  { type: 'payment', label: 'סליקה ותשלום', icon: CreditCard },
 ];
 
 export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
@@ -320,6 +326,278 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
               onChange={(e) => updateField('maxScaleLabel', e.target.value)}
               className="w-full mt-1 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg"
             />
+          </div>
+        </div>
+      )}
+
+      {/* Ticket Booking Tiers Config */}
+      {step.fieldType === 'ticket_booking' && (
+        <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Ticket className="w-4 h-4 text-amber-500" />
+              <span>סוגי כרטיסים ומלאי ({step.ticketTiers?.length || 0})</span>
+            </label>
+
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={step.collectAttendeeNames !== false}
+                  onChange={(e) => updateField('collectAttendeeNames', e.target.checked)}
+                  className="w-3.5 h-3.5 rounded text-amber-600"
+                />
+                <span>איסוף שמות משתתפים לכל כרטיס</span>
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const tiers = step.ticketTiers || [];
+                  const newTier: TicketTier = {
+                    id: `tier_${Date.now()}`,
+                    name: `כרטיס ${tiers.length + 1}`,
+                    description: '',
+                    price: 100,
+                    capacity: 100,
+                    soldCount: 0,
+                    maxPerOrder: 10,
+                    iconName: 'Ticket',
+                  };
+                  updateField('ticketTiers', [...tiers, newTier]);
+                }}
+                className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>הוסף סוג כרטיס</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {(step.ticketTiers || []).map((tier, idx) => (
+              <div
+                key={tier.id || idx}
+                className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={tier.name}
+                    onChange={(e) => {
+                      const next = [...(step.ticketTiers || [])];
+                      next[idx] = { ...next[idx], name: e.target.value };
+                      updateField('ticketTiers', next);
+                    }}
+                    placeholder="שם הכרטיס (למשל: רגיל / VIP)"
+                    className="flex-1 min-w-[140px] px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold"
+                  />
+                  <div className="flex items-center gap-1 text-xs">
+                    <span className="text-slate-500">מחיר ₪:</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={tier.price}
+                      onChange={(e) => {
+                        const next = [...(step.ticketTiers || [])];
+                        next[idx] = { ...next[idx], price: Number(e.target.value) || 0 };
+                        updateField('ticketTiers', next);
+                      }}
+                      className="w-20 px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 text-xs">
+                    <span className="text-slate-500">מלאי:</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={tier.capacity ?? ''}
+                      placeholder="ללא הגבלה"
+                      onChange={(e) => {
+                        const next = [...(step.ticketTiers || [])];
+                        next[idx] = {
+                          ...next[idx],
+                          capacity: e.target.value === '' ? undefined : Number(e.target.value),
+                        };
+                        updateField('ticketTiers', next);
+                      }}
+                      className="w-20 px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono"
+                    />
+                  </div>
+                  <span className="text-[11px] text-slate-400">
+                    נמכרו: {tier.soldCount || 0}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = [...(step.ticketTiers || [])];
+                      next.splice(idx, 1);
+                      updateField('ticketTiers', next);
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={tier.description || ''}
+                  onChange={(e) => {
+                    const next = [...(step.ticketTiers || [])];
+                    next[idx] = { ...next[idx], description: e.target.value };
+                    updateField('ticketTiers', next);
+                  }}
+                  placeholder="תיאור קצר לכרטיס (למשל: כולל כיבוד ומקומות שמורים)"
+                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Coupon Codes Config */}
+      {step.fieldType === 'coupon_code' && (
+        <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Tag className="w-4 h-4 text-emerald-500" />
+              <span>קודי קופון פעילים ({step.coupons?.length || 0})</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                const coupons = step.coupons || [];
+                const newCoupon: CouponDefinition = {
+                  id: `cpn_${Date.now()}`,
+                  code: `SALE${coupons.length + 1}`,
+                  discountType: 'percent',
+                  discountValue: 15,
+                  maxUses: 50,
+                  usedCount: 0,
+                  active: true,
+                };
+                updateField('coupons', [...coupons, newCoupon]);
+              }}
+              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>הוסף קוד קופון</span>
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {(step.coupons || []).map((cpn, idx) => (
+              <div
+                key={cpn.id || idx}
+                className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-wrap items-center gap-2 text-xs"
+              >
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={cpn.code}
+                  onChange={(e) => {
+                    const next = [...(step.coupons || [])];
+                    next[idx] = { ...next[idx], code: e.target.value.toUpperCase() };
+                    updateField('coupons', next);
+                  }}
+                  placeholder="קוד (VIP20)"
+                  className="w-28 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold uppercase text-left"
+                />
+
+                <select
+                  value={cpn.discountType}
+                  onChange={(e) => {
+                    const next = [...(step.coupons || [])];
+                    next[idx] = {
+                      ...next[idx],
+                      discountType: e.target.value as 'percent' | 'fixed',
+                    };
+                    updateField('coupons', next);
+                  }}
+                  className="px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg"
+                >
+                  <option value="percent">אחוזים (%)</option>
+                  <option value="fixed">סכום קבוע (₪)</option>
+                </select>
+
+                <input
+                  type="number"
+                  min={0}
+                  value={cpn.discountValue}
+                  onChange={(e) => {
+                    const next = [...(step.coupons || [])];
+                    next[idx] = { ...next[idx], discountValue: Number(e.target.value) || 0 };
+                    updateField('coupons', next);
+                  }}
+                  className="w-16 px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono"
+                  title="ערך ההנחה"
+                />
+
+                <div className="flex items-center gap-1">
+                  <span className="text-slate-500">מכסה:</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={cpn.maxUses ?? ''}
+                    placeholder="∞"
+                    onChange={(e) => {
+                      const next = [...(step.coupons || [])];
+                      next[idx] = {
+                        ...next[idx],
+                        maxUses: e.target.value === '' ? undefined : Number(e.target.value),
+                      };
+                      updateField('coupons', next);
+                    }}
+                    className="w-16 px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <span className="text-slate-500">עד תאריך:</span>
+                  <input
+                    type="date"
+                    value={cpn.validUntil || ''}
+                    onChange={(e) => {
+                      const next = [...(step.coupons || [])];
+                      next[idx] = { ...next[idx], validUntil: e.target.value || undefined };
+                      updateField('coupons', next);
+                    }}
+                    className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg"
+                  />
+                </div>
+
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={cpn.active !== false}
+                    onChange={(e) => {
+                      const next = [...(step.coupons || [])];
+                      next[idx] = { ...next[idx], active: e.target.checked };
+                      updateField('coupons', next);
+                    }}
+                    className="w-3.5 h-3.5 rounded text-emerald-600"
+                  />
+                  <span>פעיל</span>
+                </label>
+
+                <span className="text-[11px] text-slate-400">
+                  מומש: {cpn.usedCount || 0}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = [...(step.coupons || [])];
+                    next.splice(idx, 1);
+                    updateField('coupons', next);
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}

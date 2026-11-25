@@ -161,6 +161,8 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
     isSubmitting,
     isCompleted,
     submissionId,
+    ticketOrderCode,
+    ticketCodes,
     setStepAnswer,
     handleNext,
     handlePrev,
@@ -234,6 +236,8 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
             completion={form.completion}
             theme={theme}
             submissionId={submissionId}
+            ticketOrderCode={ticketOrderCode}
+            ticketCodes={ticketCodes}
             onReset={resetForm}
           />
         </div>
@@ -325,6 +329,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
           <StepRenderer
             key={currentStep.id}
             step={currentStep}
+            form={form}
             value={currentAnswer}
             onChange={setStepAnswer}
             onEnter={handleNext}

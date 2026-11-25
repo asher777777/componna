@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { FormStep, FormThemeSettings } from '../../types';
+import { FormStep, FormThemeSettings, SmartFormDefinition } from '../../types';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { transliterateHebrewToSlug, cleanEmailSpeech } from '../../utils/transliteration';
@@ -8,10 +8,13 @@ import { useSystemConnection } from '../../../../core/connection/SystemConnectio
 import { resolveActivePaymentProvider } from '../../../../core/connection/paymentProviderResolver';
 import { useTenantScope } from '../../../../core/tenant';
 import { NedarimCheckout } from '../../../KosNedarim/components/NedarimCheckout';
-import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2, Globe, Lock, CreditCard } from 'lucide-react';
+import { TicketBookingStepView, CouponCodeStepView } from './TicketAndCouponStepViews';
+import { resolveFinalPaymentAmount } from '../../services/ticketCouponService';
+import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2, Globe, Lock, CreditCard, CheckCircle2 } from 'lucide-react';
 
 export interface StepRendererProps {
   step: FormStep;
+  form?: SmartFormDefinition;
   value: any;
   onChange: (value: any) => void;
   onEnter?: () => void;
@@ -22,6 +25,7 @@ export interface StepRendererProps {
 
 export const StepRenderer: React.FC<StepRendererProps> = ({
   step,
+  form,
   value,
   onChange,
   onEnter,
@@ -531,14 +535,35 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
           </div>
         );
 
+      case 'ticket_booking':
+        return (
+          <TicketBookingStepView
+            step={step}
+            value={value}
+            onChange={onChange}
+          />
+        );
+
+      case 'coupon_code':
+        return (
+          <CouponCodeStepView
+            step={step}
+            form={form}
+            value={value}
+            onChange={onChange}
+            allAnswers={allAnswers}
+          />
+        );
+
       case 'payment': {
-        const rawAmount =
-          allAnswers?.payment_amount ||
-          allAnswers?.donation_amount ||
-          allAnswers?.amount ||
-          step.defaultValue ||
-          100;
-        const resolvedAmount = Number(rawAmount) || 100;
+        const {
+          subtotal,
+          discountAmount,
+          finalAmount: resolvedAmount,
+          isFreeByCoupon,
+          appliedCoupon,
+          ticketBooking,
+        } = resolveFinalPaymentAmount(allAnswers, Number(step.defaultValue) || 100);
         const resolvedClientName =
           allAnswers?.conta_name ||
           allAnswers?.name ||
@@ -568,12 +593,28 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
             <div className="p-4 bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-2xl text-right space-y-2 text-xs text-slate-600 dark:text-slate-300 shadow-sm backdrop-blur-xs">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                 <span className="font-bold text-slate-800 dark:text-slate-200">
-                  {isRecurring ? 'הוראת קבע חודשית (12 חודשים)' : 'תשלום חד-פעמי'}
+                  {ticketBooking
+                    ? `הזמנת כרטיסים (${ticketBooking.totalQuantity})`
+                    : isRecurring
+                    ? 'הוראת קבע חודשית (12 חודשים)'
+                    : 'תשלום חד-פעמי'}
                 </span>
                 <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">
                   ₪{resolvedAmount} {isRecurring ? '/ חודש' : ''}
                 </span>
               </div>
+              {ticketBooking && (
+                <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                  <span>פירוט:</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{ticketBooking.summaryText}</span>
+                </div>
+              )}
+              {appliedCoupon && (
+                <div className="flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400">
+                  <span>קופון {appliedCoupon.code} (מתוך ₪{subtotal}):</span>
+                  <span className="font-mono font-bold">-₪{discountAmount}</span>
+                </div>
+              )}
               {resolvedClientName && (
                 <div className="flex items-center justify-between text-[11px] text-slate-500">
                   <span>עבור:</span>
@@ -588,7 +629,28 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
               )}
             </div>
 
-            {activePaymentProvider === 'nedarim' ? (
+            {isFreeByCoupon || resolvedAmount === 0 ? (
+              <div className="p-6 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-2xl text-center space-y-3 shadow-md">
+                <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+                <h4 className="font-black text-white text-base">
+                  הזמנה ללא עלות (100% הנחה באמצעות קופון)
+                </h4>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  אין צורך בתשלום באשראי. לחץ על אישור ההזמנה או על כפתור השליחה להשלמת הרישום והפקת הכרטיסים.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onChange(`free_coupon_${appliedCoupon?.code || '100'}`)}
+                  className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                    value
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950'
+                  }`}
+                >
+                  {value ? 'אושר (100% הנחה)' : 'אשר הזמנה ללא עלות'}
+                </button>
+              </div>
+            ) : activePaymentProvider === 'nedarim' ? (
               <NedarimCheckout
                 amount={resolvedAmount}
                 clientName={resolvedClientName || 'לקוח'}

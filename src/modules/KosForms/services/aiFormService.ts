@@ -138,6 +138,8 @@ export async function generateSmartFormWithAI(
    - 'scale' (סולם 1-10)
    - 'date' (תאריך)
    - 'file_upload' (העלאת קובץ)
+   - 'ticket_booking' (הזמנת כרטיסים עם ticketTiers)
+   - 'coupon_code' (קוד קופון והנחה עם coupons)
 
 4. סנכרון CRM ומזהי קולקציה תקניים (קידומת חובה: kosun_crm_):
    כל שדה בטופס חייב להכיל mappingKey מדויק.

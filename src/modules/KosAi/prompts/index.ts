@@ -94,6 +94,8 @@ ${pagesSummary}
    - 'date' (תאריך)
    - 'time' (שעה)
    - 'file_upload' (העלאת קובץ)
+   - 'ticket_booking' (הזמנת כרטיסים עם מדרגות מחיר ticketTiers, מלאי capacity ושמות משתתפים)
+   - 'coupon_code' (קוד קופון עם רשימת coupons לתמיכה בהנחות אחוזים/סכום קבוע/100%)
    - 'payment' (תשלום וסליקה לקשר)
 5. סנכרון CRM ומזהי שדות תקניים (mappingKey):
    - שם מלא: 'conta_name' (או 'kosun_crm_name')

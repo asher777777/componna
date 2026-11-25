@@ -27,6 +27,7 @@ import {
   CreditCard,
   Heart,
   UserCheck,
+  Ticket,
 } from 'lucide-react';
 
 export const FormBuilderStudio: React.FC = () => {
@@ -47,7 +48,7 @@ export const FormBuilderStudio: React.FC = () => {
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
   const [creatingTemplateType, setCreatingTemplateType] = useState<string | null>(null);
 
-  const handleCreateTemplate = async (type: 'payment' | 'donation_recurring' | 'leads') => {
+  const handleCreateTemplate = async (type: 'payment' | 'donation_recurring' | 'leads' | 'tickets') => {
     try {
       setCreatingTemplateType(type);
       await createDefaultForm(type);
@@ -96,7 +97,7 @@ export const FormBuilderStudio: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* 1. Payment Checkout Template */}
             <div className="p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-800/50 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 rounded-3xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 group">
               <div className="space-y-3">
@@ -206,6 +207,44 @@ export const FormBuilderStudio: React.FC = () => {
                   <>
                     <Plus className="w-4 h-4" />
                     <span>הקם טופס לידים</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* 4. Ticket Booking + Coupon Template */}
+            <div className="p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-800/50 border border-slate-200 dark:border-slate-800 hover:border-amber-500/50 rounded-3xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 group">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20 group-hover:scale-105 transition-transform">
+                    <Ticket className="w-5 h-5" />
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                    אירועים וקופונים
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                    הזמנת כרטיסים וקוד קופון
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                    בחירת סוגי כרטיסים ומלאי, שמות משתתפים, קוד קופון (אחוזים/שקלים/חינם) וסליקה.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={creatingTemplateType !== null}
+                onClick={() => handleCreateTemplate('tickets')}
+                className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"
+              >
+                {creatingTemplateType === 'tickets' ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    <span>הקם טופס כרטיסים</span>
                   </>
                 )}
               </button>

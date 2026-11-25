@@ -2415,22 +2415,23 @@ exports.geminiAiProxy = functions.runWith({ timeoutSeconds: 120, memory: '512MB'
                         });
                         return;
                     }
-                    const html = (await pageRes.text()).slice(0, 350000);
-                    // Optionally fetch first stylesheet for richer color/font/radius extraction
+                    const html = (await pageRes.text()).slice(0, 450000);
+                    // Optionally fetch up to 4 stylesheets for richer color/font/radius extraction
                     let cssText = '';
                     const cssLinks = Array.from(html.matchAll(/<link[^>]+rel=["'][^"']*stylesheet[^"']*["'][^>]+href=["']([^"']+)["']/gi))
                         .map((m) => m[1])
                         .filter((href) => href && !href.includes('fonts.googleapis.com'))
-                        .slice(0, 2);
+                        .slice(0, 4);
                     for (const cssHref of cssLinks) {
                         try {
-                            const cssUrl = new URL(cssHref, parsedUrl.origin).toString();
+                            const resolvedHref = cssHref.startsWith('//') ? `${parsedUrl.protocol}${cssHref}` : cssHref;
+                            const cssUrl = new URL(resolvedHref, parsedUrl.origin).toString();
                             const cssCtrl = new AbortController();
                             const cssTimer = setTimeout(() => cssCtrl.abort(), 3500);
                             const cssResp = await fetch(cssUrl, { signal: cssCtrl.signal });
                             clearTimeout(cssTimer);
                             if (cssResp.ok) {
-                                cssText += '\n' + (await cssResp.text()).slice(0, 120000);
+                                cssText += '\n' + (await cssResp.text()).slice(0, 150000);
                             }
                         }
                         catch (_w) {
@@ -2476,8 +2477,9 @@ exports.geminiAiProxy = functions.runWith({ timeoutSeconds: 120, memory: '512MB'
                     const cssVars = {};
                     const varMatches = combinedStyleAndHtml.matchAll(/--([a-zA-Z0-9_-]*(?:color|primary|secondary|accent|bg|background|text|brand)[a-zA-Z0-9_-]*)\s*:\s*([^;}{]+)/gi);
                     for (const m of varMatches) {
-                        if (Object.keys(cssVars).length < 25) {
-                            cssVars[`--${m[1]}`] = m[2].trim();
+                        const val = m[2].trim();
+                        if (Object.keys(cssVars).length < 30 && !val.startsWith('var(')) {
+                            cssVars[`--${m[1]}`] = val;
                         }
                     }
                     // Extract fonts
@@ -2503,17 +2505,26 @@ exports.geminiAiProxy = functions.runWith({ timeoutSeconds: 120, memory: '512MB'
                         if (radiiSet.size >= 10)
                             break;
                     }
-                    // Extract headings & CTA texts
+                    // Strip header/nav/footer for main body extraction so we don't just read the header
+                    const bodyWithoutChrome = html
+                        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+                        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+                        .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+                        .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+                        .replace(/<header[\s\S]*?<\/header>/gi, ' ')
+                        .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
+                        .replace(/<footer[\s\S]*?<\/footer>/gi, ' ');
+                    // Extract headings & CTA texts from body
                     const headings = [];
-                    for (const m of html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)) {
+                    for (const m of bodyWithoutChrome.matchAll(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi)) {
                         const clean = m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-                        if (clean && clean.length > 2 && clean.length < 160)
+                        if (clean && clean.length > 2 && clean.length < 180 && !headings.includes(clean))
                             headings.push(clean);
-                        if (headings.length >= 16)
+                        if (headings.length >= 20)
                             break;
                     }
                     const ctaTexts = [];
-                    for (const m of html.matchAll(/<(?:button|a)[^>]*>([\s\S]*?)<\/(?:button|a)>/gi)) {
+                    for (const m of bodyWithoutChrome.matchAll(/<(?:button|a)[^>]*>([\s\S]*?)<\/(?:button|a)>/gi)) {
                         const clean = m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
                         if (clean && clean.length >= 2 && clean.length <= 45 && !ctaTexts.includes(clean)) {
                             ctaTexts.push(clean);
@@ -2526,23 +2537,20 @@ exports.geminiAiProxy = functions.runWith({ timeoutSeconds: 120, memory: '512MB'
                         hasHeader: /<header\b/i.test(html),
                         hasNav: /<nav\b/i.test(html),
                         hasHero: /hero|banner|jumbotron/i.test(html),
-                        hasGridOrCards: /grid|bento|card|cards/i.test(combinedStyleAndHtml),
+                        hasGridOrCards: /grid|bento|card|cards|elementor-grid/i.test(combinedStyleAndHtml),
                         hasTestimonials: /testimonial|review|המלצות|לקוחות מספרים/i.test(html),
                         hasPricing: /pricing|plan|מחיר|חבילות|מסלולים/i.test(html),
                         hasFaq: /faq|שאלות ותשובות|שאלות נפוצות/i.test(html),
                         hasForm: /<form\b/i.test(html),
                         hasFooter: /<footer\b/i.test(html),
                     };
-                    // Clean visible text
-                    const visibleText = html
-                        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-                        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-                        .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+                    // Clean visible body text
+                    const visibleText = bodyWithoutChrome
                         .replace(/<[^>]+>/g, ' ')
                         .replace(/&nbsp;/g, ' ')
                         .replace(/\s+/g, ' ')
                         .trim()
-                        .slice(0, 4500);
+                        .slice(0, 6000);
                     res.status(200).json({
                         success: true,
                         url: parsedUrl.toString(),

@@ -7,6 +7,8 @@ export interface FormCompletionScreenProps {
   completion: FormCompletionSettings;
   theme?: FormThemeSettings;
   submissionId?: string | null;
+  ticketOrderCode?: string | null;
+  ticketCodes?: string[];
   onReset?: () => void;
 }
 
@@ -14,6 +16,8 @@ export const FormCompletionScreen: React.FC<FormCompletionScreenProps> = ({
   completion,
   theme,
   submissionId,
+  ticketOrderCode,
+  ticketCodes,
   onReset,
 }) => {
   const accentColor = theme?.accentColor || '#D97706';
@@ -55,6 +59,29 @@ export const FormCompletionScreen: React.FC<FormCompletionScreenProps> = ({
           {completion.subtitle}
         </p>
       </div>
+
+      {ticketOrderCode && (
+        <div className="w-full max-w-md p-4 rounded-2xl bg-amber-500/10 border border-amber-500/40 text-right space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-amber-500">קוד הזמנת כרטיסים:</span>
+            <span className="font-mono font-black text-base text-slate-900 dark:text-white">
+              {ticketOrderCode}
+            </span>
+          </div>
+          {ticketCodes && ticketCodes.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1 border-t border-amber-500/20">
+              {ticketCodes.map((code) => (
+                <span
+                  key={code}
+                  className="px-2 py-0.5 rounded-lg bg-slate-900/80 text-amber-300 font-mono text-[11px]"
+                >
+                  {code}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {submissionId && (
         <div className="text-xs font-mono px-3 py-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-lg text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
