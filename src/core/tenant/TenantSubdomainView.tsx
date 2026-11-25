@@ -26,6 +26,7 @@ import { GeneratedCustomDashboard } from '../../modules/KosBoard/types';
 import { KosunBoardProvider } from '../../modules/KosBoard/context/ModuleContext';
 import { KosWebAiFrontDock } from '../../modules/KosWebAi';
 import { PublicPageView } from '../../modules/KosWebAi/components/PublicPageView';
+import { CustomHtmlLandingView } from '../../modules/KosWebAi/components/CustomHtmlLandingView';
 import { TenantAdminLoginView } from './TenantAdminLoginView';
 import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
 import { SubscriberPortalView } from '../../modules/KosSubscribed/components/SubscriberPortalView';
@@ -88,6 +89,7 @@ export const isPublicContentPath = (path: string): boolean => {
     p === '/p' ||
     p === '/p/' ||
     p.startsWith('/p/') ||
+    p.startsWith('/lp/') ||
     p === '/posts' ||
     p.startsWith('/posts/') ||
     p === '/page' ||
@@ -812,7 +814,12 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     return ensureHeaderSection(currentPageConfig);
   }, [currentPageConfig, homePageConfig]);
 
-  // 1. PUBLIC CONTENT PATHS: Render PublicPageView immediately for public content URLs (e.g. /kosass/*, /kosvidio/*, /p/*)
+  // 1. PUBLIC CONTENT PATHS: Render CustomHtmlLandingView for /lp/* or PublicPageView for /kosass/*, /kosvidio/*, /p/*
+  if (location.pathname.toLowerCase().startsWith('/lp/')) {
+    const lpSlug = decodeURIComponent(location.pathname.slice(4).split('/')[0] || '');
+    return <CustomHtmlLandingView slug={lpSlug} />;
+  }
+
   if (isPublicContentPath(location.pathname)) {
     return (
       <div className="min-h-screen flex flex-col bg-white dark:bg-[#0a0a0c] font-sans relative selection:bg-indigo-500 selection:text-white" dir="rtl">
@@ -1017,6 +1024,8 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
               <Route path="/kosvidio/*" element={<PublicPageView />} />
               <Route path="/p" element={<PublicPageView />} />
               <Route path="/p/:slug" element={<PublicPageView />} />
+              <Route path="/lp/:slug" element={<CustomHtmlLandingView />} />
+              <Route path="/lp/*" element={<CustomHtmlLandingView />} />
               <Route path="/posts" element={<PublicPageView />} />
               <Route path="/posts/:slug" element={<PublicPageView />} />
               <Route path="/page" element={<PublicPageView />} />
@@ -1070,6 +1079,11 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   }
 
   // 2. PUBLIC MODE (Visitor Landing Page / Live On-Page Editor for Owners)
+
+  if (location.pathname.toLowerCase().startsWith('/lp/')) {
+    const lpSlug = decodeURIComponent(location.pathname.slice(4).split('/')[0] || '');
+    return <CustomHtmlLandingView slug={lpSlug} />;
+  }
 
   if (isPublicContentPath(location.pathname)) {
     return (

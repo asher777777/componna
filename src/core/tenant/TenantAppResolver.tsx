@@ -87,6 +87,7 @@ export const TenantAppResolver: React.FC = () => {
       pathname === '/p' ||
       pathname === '/p/' ||
       pathname.startsWith('/p/') ||
+      pathname.startsWith('/lp/') ||
       pathname === '/posts' ||
       pathname.startsWith('/posts/') ||
       pathname === '/page' ||

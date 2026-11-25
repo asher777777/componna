@@ -223,6 +223,7 @@ export const WorkbenchApp: React.FC = () => {
   const isPublicPage =
     isDirectSlugPath ||
     location.pathname.startsWith('/p/') ||
+    location.pathname.startsWith('/lp/') ||
     location.pathname.startsWith('/to/') ||
     location.pathname.startsWith('/tube/') ||
     location.pathname.startsWith('/page/') ||
