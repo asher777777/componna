@@ -16,9 +16,13 @@ import {
   Trash2,
   ArrowRight,
   Save,
+  Image as ImageIcon,
+  Cloud,
 } from 'lucide-react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { MediaPickerContract } from '../../../core/contracts';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { SmartFormDefinition } from '../../KosForms/types';
 import { saveSmartForm } from '../../KosForms/services/formStorageService';
@@ -57,10 +61,14 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
 }) => {
   const { db } = useSystemConnection();
   const { tenantId, getScopedCollectionPath } = useTenantScope();
+  const { getCapability } = useHostCapabilities();
+  const mediaPicker = getCapability<MediaPickerContract>('media-picker');
 
   const [stage, setStage] = useState<Stage>('upload');
   const [flyerFile, setFlyerFile] = useState<File | null>(null);
+  const [flyerCloudUrl, setFlyerCloudUrl] = useState<string | undefined>(undefined);
   const [flyerPreviewUrl, setFlyerPreviewUrl] = useState<string | undefined>(undefined);
+  const [heroImageUrl, setHeroImageUrl] = useState<string>('');
   const [initialInstructions, setInitialInstructions] = useState<string>('');
   const [report, setReport] = useState<FlyerLandingReport | null>(null);
   const [refinements, setRefinements] = useState<string>('');
@@ -83,11 +91,15 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
       setSlug(editingPage.slug);
       setHtmlContent(editingPage.htmlContent);
       setFlyerPreviewUrl(editingPage.flyerPreviewUrl);
+      setFlyerCloudUrl(editingPage.flyerPreviewUrl);
+      setHeroImageUrl(editingPage.heroImageUrl || editingPage.report?.heroImageUrl || '');
       setStage('preview');
     } else {
       setStage('upload');
       setFlyerFile(null);
+      setFlyerCloudUrl(undefined);
       setFlyerPreviewUrl(undefined);
+      setHeroImageUrl('');
       setInitialInstructions('');
       setReport(null);
       setRefinements('');
@@ -107,6 +119,7 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
   const handleFilePick = (file: File | null) => {
     if (!file) return;
     setFlyerFile(file);
+    setFlyerCloudUrl(undefined);
     setError(null);
     if (file.type.startsWith('image/')) {
       const url = URL.createObjectURL(file);
@@ -116,9 +129,75 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
     }
   };
 
+  const handlePickFlyerFromCloudStore = async () => {
+    setError(null);
+    if (!mediaPicker?.openPicker) {
+      setError('מודל KOSCLOUD אינו זמין כרגע — ניתן להעלות קובץ מקומי למטה');
+      return;
+    }
+    try {
+      const picked = await mediaPicker.openPicker({
+        multiple: false,
+        initialTab: 'gallery',
+      });
+      const selectedUrl = Array.isArray(picked) ? picked[0] : picked;
+      if (selectedUrl) {
+        setFlyerFile(null);
+        setFlyerCloudUrl(selectedUrl);
+        setFlyerPreviewUrl(selectedUrl);
+        if (!heroImageUrl && !selectedUrl.toLowerCase().includes('.pdf')) {
+          setHeroImageUrl(selectedUrl);
+        }
+      }
+    } catch (err: any) {
+      setError(err?.message || 'לא הצלחנו לפתוח את KOSCLOUD');
+    }
+  };
+
+  const applyHeroUrlToHtml = (rawHtml: string, nextUrl: string): string => {
+    if (!rawHtml || !nextUrl) return rawHtml;
+    const imgRegex = /(<img\b[^>]*class=["'][^"']*kosun-hero-image[^"']*["'][^>]*\bsrc=["'])([^"']*)(["'][^>]*>)/i;
+    if (imgRegex.test(rawHtml)) {
+      return rawHtml.replace(imgRegex, `$1${nextUrl}$3`);
+    }
+    const heroImgBlock = `<div style="max-width:960px;margin:0 auto 24px auto;padding:0 16px;"><img class="kosun-hero-image" src="${nextUrl}" alt="${report?.title || 'Hero'}" style="width:100%;max-height:460px;object-fit:cover;border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,0.35);display:block;" /></div>`;
+    const rootOpenRegex = /(<div\b[^>]*class=["'][^"']*lp-root[^"']*["'][^>]*>)/i;
+    if (rootOpenRegex.test(rawHtml)) {
+      return rawHtml.replace(rootOpenRegex, `$1\n${heroImgBlock}`);
+    }
+    return `${heroImgBlock}\n${rawHtml}`;
+  };
+
+  const handlePickHeroFromCloudStore = async () => {
+    setError(null);
+    if (!mediaPicker?.openPicker) {
+      setError('מודל KOSCLOUD אינו זמין כרגע');
+      return;
+    }
+    try {
+      const picked = await mediaPicker.openPicker({
+        accept: 'image/*',
+        multiple: false,
+        initialTab: 'gallery',
+      });
+      const selectedUrl = Array.isArray(picked) ? picked[0] : picked;
+      if (selectedUrl) {
+        setHeroImageUrl(selectedUrl);
+        if (report) {
+          setReport({ ...report, heroImageUrl: selectedUrl });
+        }
+        if (stage === 'preview' && htmlContent) {
+          setHtmlContent((prev) => applyHeroUrlToHtml(prev, selectedUrl));
+        }
+      }
+    } catch (err: any) {
+      setError(err?.message || 'לא הצלחנו לפתוח את KOSCLOUD');
+    }
+  };
+
   const handleGenerateReport = async () => {
-    if (!flyerFile && !initialInstructions.trim()) {
-      setError('נא להעלות קובץ פלייר או להזין הנחיות כדי להתחיל');
+    if (!flyerFile && !flyerCloudUrl && !initialInstructions.trim()) {
+      setError('נא לבחור פלייר מ-KOSCLOUD, להעלות קובץ או להזין הנחיות כדי להתחיל');
       return;
     }
     setIsBusy(true);
@@ -128,6 +207,7 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
       const existingSlugs = kosWebPages.map((p) => p.slug).filter(Boolean);
       const res = await generateLandingReportFromFlyer({
         file: flyerFile,
+        flyerUrl: flyerCloudUrl,
         instructions: initialInstructions,
         companyName,
         existingKosWebSlugs: existingSlugs,
@@ -166,6 +246,7 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
         report,
         refinements,
         currentHtml: isIteration ? htmlContent : undefined,
+        heroImageUrl: heroImageUrl || report.heroImageUrl,
         companyName,
         slug: finalSlug,
         tenantId,
@@ -213,7 +294,8 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
         htmlContent,
         formId,
         formTitle,
-        flyerPreviewUrl: flyerPreviewUrl?.startsWith('http') ? flyerPreviewUrl : undefined,
+        flyerPreviewUrl: flyerCloudUrl || (flyerPreviewUrl?.startsWith('http') ? flyerPreviewUrl : undefined),
+        heroImageUrl: heroImageUrl || report?.heroImageUrl || undefined,
         report: report || editingPage?.report,
         status: 'published',
         viewsCount: editingPage?.viewsCount || 0,
@@ -327,34 +409,47 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <label className="text-sm font-bold text-slate-200 block">
-                  העלה קובץ פלייר (תמונה, PDF או טקסט)
+                  העלאת פלייר מ-KOSCLOUD (תמונה, PDF או טקסט)
                 </label>
-                <label className="flex flex-col items-center justify-center min-h-[260px] p-6 border-2 border-dashed border-slate-700 hover:border-amber-500 rounded-3xl bg-slate-900/50 cursor-pointer transition-colors text-center space-y-3">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={handlePickFlyerFromCloudStore}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') handlePickFlyerFromCloudStore();
+                  }}
+                  className="flex flex-col items-center justify-center min-h-[240px] p-6 border-2 border-dashed border-slate-700 hover:border-amber-500 rounded-3xl bg-slate-900/50 cursor-pointer transition-colors text-center space-y-3"
+                >
+                  {flyerPreviewUrl ? (
+                    <img
+                      src={flyerPreviewUrl}
+                      alt="תצוגת פלייר"
+                      className="max-h-52 rounded-2xl object-contain shadow-lg"
+                    />
+                  ) : (
+                    <>
+                      <Cloud className="w-10 h-10 text-amber-400" />
+                      <div className="space-y-1">
+                        <p className="font-bold text-sm text-white">
+                          {flyerFile ? flyerFile.name : flyerCloudUrl ? 'נבחר פלייר מ-KOSCLOUD' : 'לחץ לפתיחת מודל KOSCLOUD ובחירת פלייר'}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          בחירה מהגלריה או העלאה ישירות ל-CloudStore
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <label className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-amber-300 cursor-pointer">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>או העלה קובץ ישירות מהמחשב</span>
                   <input
                     type="file"
                     accept="image/*,.pdf,.md,.txt"
                     className="hidden"
                     onChange={(e) => handleFilePick(e.target.files?.[0] || null)}
                   />
-                  {flyerPreviewUrl ? (
-                    <img
-                      src={flyerPreviewUrl}
-                      alt="תצוגת פלייר"
-                      className="max-h-56 rounded-2xl object-contain shadow-lg"
-                    />
-                  ) : (
-                    <>
-                      <Upload className="w-10 h-10 text-amber-400" />
-                      <div className="space-y-1">
-                        <p className="font-bold text-sm text-white">
-                          {flyerFile ? flyerFile.name : 'לחץ לבחירת פלייר מהמחשב'}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          PNG, JPG, WEBP, PDF או קובץ טקסט
-                        </p>
-                      </div>
-                    </>
-                  )}
                 </label>
               </div>
 
@@ -630,6 +725,48 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
                 </div>
               </div>
 
+              {/* Hero Image from CloudStore */}
+              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  {heroImageUrl ? (
+                    <img
+                      src={heroImageUrl}
+                      alt="Hero"
+                      className="w-14 h-14 rounded-xl object-cover border border-slate-700"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
+                      <ImageIcon className="w-6 h-6" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-bold text-white">תמונת Hero לעמוד הנחיתה (KOSCLOUD)</p>
+                    <p className="text-[11px] text-slate-400 truncate max-w-xs" dir="ltr">
+                      {heroImageUrl || 'טרם נבחרה תמונת Hero'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePickHeroFromCloudStore}
+                    className="px-3.5 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Cloud className="w-3.5 h-3.5" />
+                    <span>{heroImageUrl ? 'החלף תמונה מ-KOSCLOUD' : 'בחר / העלה מ-KOSCLOUD'}</span>
+                  </button>
+                  {heroImageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setHeroImageUrl('')}
+                      className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+                    >
+                      הסר
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Additional Refinements to KOSAI */}
               <div className="space-y-2">
                 <label className="text-sm font-bold text-amber-300 block">
@@ -727,6 +864,14 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
                   >
                     <Code2 className="w-4 h-4" />
                     <span>עריכת קוד HTML</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePickHeroFromCloudStore}
+                    className="px-3.5 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    <span>{heroImageUrl ? 'החלף תמונת Hero' : 'הוסף תמונת Hero מ-KOSCLOUD'}</span>
                   </button>
                 </div>
 

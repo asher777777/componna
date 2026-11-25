@@ -26,6 +26,7 @@ export interface FlyerLandingReport {
   description: string;
   ctaText: string;
   suggestedSlug: string;
+  heroImageUrl?: string;
   eventDetails: {
     date?: string;
     time?: string;
@@ -62,6 +63,7 @@ export interface CustomHtmlLandingPage {
   formId: string;
   formTitle?: string;
   flyerPreviewUrl?: string;
+  heroImageUrl?: string;
   report?: FlyerLandingReport;
   status: 'published' | 'draft';
   viewsCount?: number;
@@ -261,34 +263,36 @@ export async function trackCustomHtmlLandingView(
   }
 }
 
-function fileToBase64(file: File): Promise<string> {
+function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const str = typeof reader.result === 'string' ? reader.result : '';
       resolve(str.includes('base64,') ? str.split('base64,')[1] : str);
     };
-    reader.onerror = () => reject(new Error('שגיאה בקריאת קובץ הפלייר'));
-    reader.readAsDataURL(file);
+    reader.onerror = () => reject(new Error('שגיאה בקריאת הקובץ'));
+    reader.readAsDataURL(blob);
   });
 }
 
 /**
- * Step 1 -> 2: Analyze uploaded flyer + user instructions via KOSAI to produce an editable report
+ * Step 1 -> 2: Analyze uploaded flyer (file or CloudStore URL) + user instructions via KOSAI to produce an editable report
  */
 export async function generateLandingReportFromFlyer(params: {
   file?: File | null;
+  flyerUrl?: string;
   instructions: string;
   companyName: string;
   existingKosWebSlugs: string[];
   tenantId?: string;
 }): Promise<{ report: FlyerLandingReport; previewImageDataUrl?: string }> {
-  const { file, instructions, companyName, existingKosWebSlugs, tenantId } = params;
+  const { file, flyerUrl, instructions, companyName, existingKosWebSlugs, tenantId } = params;
 
   let imageBase64: string | undefined;
   let mimeType: string | undefined;
   let textContent: string | undefined;
   let previewImageDataUrl: string | undefined;
+  let sourceName = file?.name || '';
 
   if (file) {
     const lower = file.name.toLowerCase();
@@ -300,15 +304,40 @@ export async function generateLandingReportFromFlyer(params: {
       textContent = await file.text();
     } else {
       mimeType = file.type || (lower.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
-      imageBase64 = await fileToBase64(file);
+      imageBase64 = await blobToBase64(file);
       if (mimeType.startsWith('image/')) {
         previewImageDataUrl = `data:${mimeType};base64,${imageBase64}`;
+      }
+    }
+  } else if (flyerUrl) {
+    sourceName = decodeURIComponent(flyerUrl.split('?')[0].split('/').pop() || 'flyer');
+    const lower = `${sourceName} ${flyerUrl}`.toLowerCase();
+    const res = await fetch(flyerUrl);
+    if (!res.ok) {
+      throw new Error(`לא ניתן לטעון את הקובץ מ-KOSCLOUD (${res.status})`);
+    }
+    const contentType = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    const isText =
+      lower.includes('.md') ||
+      lower.includes('.txt') ||
+      contentType.startsWith('text/');
+    if (isText) {
+      textContent = await res.text();
+    } else {
+      const blob = await res.blob();
+      mimeType =
+        contentType ||
+        blob.type ||
+        (lower.includes('.pdf') ? 'application/pdf' : 'image/jpeg');
+      imageBase64 = await blobToBase64(blob);
+      if (mimeType.startsWith('image/')) {
+        previewImageDataUrl = flyerUrl;
       }
     }
   }
 
   const prompt = `אתה אדריכל דפי נחיתה ומנהל קריאייטיב בכיר במערכת KOSAI עבור העסק "${companyName}".
-המשתמש העלה פלייר${file ? ` (${file.name})` : ''} והוסיף את ההנחיות הבאות:
+המשתמש העלה פלייר${sourceName ? ` (${sourceName})` : ''} והוסיף את ההנחיות הבאות:
 "${instructions || 'הפק דוח מפורט וממיר לבניית עמוד נחיתה HTML יוקרתי עם טופס הרשמה.'}"
 ${textContent ? `\nתוכן טקסטואלי מהקובץ:\n${textContent.slice(0, 8000)}\n` : ''}
 
@@ -387,17 +416,21 @@ export async function generateHtmlAndFormWithKosai(params: {
   report: FlyerLandingReport;
   refinements: string;
   currentHtml?: string;
+  heroImageUrl?: string;
   companyName: string;
   slug: string;
   tenantId?: string;
 }): Promise<KosaiHtmlAndFormOutput> {
-  const { report, refinements, currentHtml, companyName, slug, tenantId } = params;
+  const { report, refinements, currentHtml, heroImageUrl, companyName, slug, tenantId } = params;
+  const resolvedHeroImage = (heroImageUrl || report.heroImageUrl || '').trim();
 
   const prompt = `אתה KOSAI – מעצב על, מפתח Frontend בכיר ואדריכל טפסים חכמים (KSF) של קושאן עבור "${companyName}".
 המשימה: לייצר עמוד נחיתה **HTML + CSS עצמאי לחלוטין באיכות גבוהה** (שאינו משתמש באזורים של KosWebAi) **ביחד עם טופס חכם (SmartFormDefinition)** תואם.
 
 [הדוח הערוך מהמשתמש]:
 ${JSON.stringify(report, null, 2)}
+
+${resolvedHeroImage ? `[תמונת Hero נבחרת מ-CloudStore לשילוב באזור העליון (Hero) של העמוד]:\n${resolvedHeroImage}\nחובה לשלב תמונה זו באזור ה-Hero באמצעות <img class="kosun-hero-image" src="${resolvedHeroImage}" alt="${report.title}" /> בעיצוב רספונסיבי יוקרתי (object-fit: cover, border-radius, הצללה).\n` : ''}
 
 [הנחיות נוספות ודיוקים מהמשתמש]:
 "${refinements || 'שמור על עיצוב יוקרתי, נקי, ממיר וחד-משמעי בעברית.'}"
