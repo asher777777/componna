@@ -294,23 +294,38 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
       const finalPoster: EventPosterSectionConfig = {
         ...posterConfig,
         formId,
+        showEmbeddedForm: false,
       };
       setPosterConfig(finalPoster);
 
       const cleanSlug = sanitizeLandingSlug(slug);
       const now = new Date().toISOString();
       const pageId = `page_${Date.now()}`;
+      const smartFormSectionId = `sec_smartForm_${Date.now()}`;
 
-      // Save as a real KosWebAi PageBuilderConfig containing the EventPoster section
+      const smartFormSection = {
+        id: smartFormSectionId,
+        type: 'smartForm',
+        visible: true,
+        formId,
+        sectionTitle: finalPoster.formTitle || formTitle || 'שמירת מקום והרשמה',
+        sectionSubtitle: finalPoster.formSubtitle || '',
+        submitButtonText: finalPoster.submitButtonText || 'שליחה והרשמה',
+        containerWidth: 'md',
+        backgroundColor: finalPoster.semanticStyle?.surfaceColor || '#fdf9ef',
+      };
+
+      // Save as a real KosWebAi PageBuilderConfig containing two sections: EventPoster + SmartForm
       const pageConfig: PageBuilderConfig = {
         pageId,
         slug: cleanSlug,
         pageTitle: finalPoster.headline || report?.title || 'דף אירוע מפלייר',
         published: true,
         isHomePage: false,
-        sectionOrder: [finalPoster.id],
+        sectionOrder: [finalPoster.id, smartFormSectionId],
         sections: {
           [finalPoster.id]: finalPoster as any,
+          [smartFormSectionId]: smartFormSection as any,
         },
         globalSettings: {
           siteTitle: companyName,

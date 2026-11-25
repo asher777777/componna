@@ -787,12 +787,26 @@ ${existingSections ? `קונפיגורציה קודמת לעדכון:\n${JSON.st
     closingQuote: p.closingQuote || '',
     addressText: p.addressText || report?.eventDetails?.location || '',
     formId,
+    showEmbeddedForm: false,
     formTitle: p.formTitle || formDoc.title,
     formSubtitle: p.formSubtitle || '',
     submitButtonText: p.submitButtonText || report?.ctaText || 'שליחה והרשמה',
   };
 
-  const normalizedSections = [eventPosterSection];
+  const smartFormSecId = `sec_smartForm_${Date.now()}`;
+  const smartFormSection = {
+    id: smartFormSecId,
+    type: 'smartForm',
+    visible: true,
+    formId,
+    sectionTitle: p.formTitle || formDoc.title,
+    sectionSubtitle: p.formSubtitle || '',
+    submitButtonText: p.submitButtonText || report?.ctaText || 'שליחה והרשמה',
+    containerWidth: 'md',
+    backgroundColor: eventPosterSection.semanticStyle.surfaceColor || backgroundColor,
+  };
+
+  const normalizedSections = [eventPosterSection, smartFormSection];
 
   const pageId = existingPageId || `page_${Date.now()}`;
   const pagesColl =
@@ -809,9 +823,10 @@ ${existingSections ? `קונפיגורציה קודמת לעדכון:\n${JSON.st
       published: true,
       isHomePage: false,
       category: 'דפי נחיתה',
-      sectionOrder: [posterSecId],
+      sectionOrder: [posterSecId, smartFormSecId],
       sections: {
         [posterSecId]: eventPosterSection,
+        [smartFormSecId]: smartFormSection,
       },
       globalSettings: {
         primaryColor: eventPosterSection.semanticStyle.primaryColor || primaryColor,
