@@ -22,6 +22,10 @@ const PublicPageView = React.lazy(() =>
   import('../modules/KosWebAi').then((m) => ({ default: m.PublicPageView }))
 );
 
+const CustomHtmlLandingView = React.lazy(() =>
+  import('../modules/KosWebAi').then((m) => ({ default: m.CustomHtmlLandingView }))
+);
+
 const PublicVideoSeoPageView = React.lazy(() =>
   import('../modules/KosTube').then((m) => ({ default: m.PublicVideoSeoPageView }))
 );
@@ -501,6 +505,8 @@ export const WorkbenchApp: React.FC = () => {
             <Route path="/koscourse/:slug" element={<ModuleErrorBoundary moduleName="קורסים KOSCOURSE"><Suspense fallback={<ModuleLoadingFallback moduleName="קורסים KOSCOURSE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
 
             <Route path="/p/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/lp/:slug" element={<ModuleErrorBoundary moduleName="דף נחיתה HTML עצמאי"><Suspense fallback={<ModuleLoadingFallback moduleName="דף נחיתה HTML עצמאי" />}><CustomHtmlLandingView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/lp/*" element={<ModuleErrorBoundary moduleName="דף נחיתה HTML עצמאי"><Suspense fallback={<ModuleLoadingFallback moduleName="דף נחיתה HTML עצמאי" />}><CustomHtmlLandingView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/to/:slug" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/to/*" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
@@ -687,6 +693,8 @@ export const WorkbenchApp: React.FC = () => {
             <Route path="/koscourse-:slug" element={<ModuleErrorBoundary moduleName="קורסים KOSCOURSE"><Suspense fallback={<ModuleLoadingFallback moduleName="קורסים KOSCOURSE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/koscourse/:slug" element={<ModuleErrorBoundary moduleName="קורסים KOSCOURSE"><Suspense fallback={<ModuleLoadingFallback moduleName="קורסים KOSCOURSE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/lp/:slug" element={<ModuleErrorBoundary moduleName="דף נחיתה HTML עצמאי"><Suspense fallback={<ModuleLoadingFallback moduleName="דף נחיתה HTML עצמאי" />}><CustomHtmlLandingView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/lp/*" element={<ModuleErrorBoundary moduleName="דף נחיתה HTML עצמאי"><Suspense fallback={<ModuleLoadingFallback moduleName="דף נחיתה HTML עצמאי" />}><CustomHtmlLandingView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/to/:slug" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/to/*" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />

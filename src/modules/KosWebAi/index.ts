@@ -36,6 +36,8 @@ export * from './components/KosWebAiFrontDock';
 export * from './components/CookieConsentBanner';
 export * from './components/GoogleAnalyticsConsoleHub';
 export * from './components/KoswebQuickPageModelModal';
+export * from './components/CustomHtmlLandingView';
+export * from './components/FlyerToHtmlLandingModal';
 
 import { registerCapabilityUI } from '../../core/bridge/CapabilitySlot';
 import { KoswebQuickPageModelModal } from './components/KoswebQuickPageModelModal';
