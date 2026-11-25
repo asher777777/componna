@@ -964,7 +964,7 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
                 <div className="rounded-2xl border border-slate-800 p-4 bg-slate-950 max-h-[55vh] overflow-y-auto">
                   <EventPosterEditor
                     config={posterConfig}
-                    onUpdate={(partial) => setPosterConfig({ ...posterConfig, ...partial })}
+                    onChange={(updated) => setPosterConfig(updated)}
                   />
                 </div>
               )}
