@@ -17,8 +17,9 @@ import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
 import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
 import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
+import { PageBuilderIconPicker } from '../../ui/PageBuilderIconPicker';
+import { SectionStylePresetSelector } from '../../ui/SectionStylePresetSelector';
 import {
-  FLIP_CARD_ICON_MAP,
   DEFAULT_FLIP_PALETTE,
 } from './FlipCardsListingSection';
 import {
@@ -47,8 +48,6 @@ interface FlipCardsListingEditorProps {
 }
 
 type AccordionKey = 'source' | 'logic' | 'content' | 'design' | 'items';
-
-const AVAILABLE_ICON_KEYS = Object.keys(FLIP_CARD_ICON_MAP);
 
 export const FlipCardsListingEditor: React.FC<FlipCardsListingEditorProps> = ({
   config,
@@ -526,10 +525,48 @@ export const FlipCardsListingEditor: React.FC<FlipCardsListingEditorProps> = ({
         </div>
       )}
 
-      {/* 4. DESIGN & FLIP ANIMATION */}
-      <AccordionHeader id="design" title="עיצוב, היפוך תלת-ממד וצבעים" icon={Palette} />
+      {/* 4. DESIGN, BRANDING & FLIP ANIMATION */}
+      <AccordionHeader id="design" title="עיצוב, מיתוג, אייקונים והיפוך" icon={Palette} />
       {openSection === 'design' && (
         <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800 flex flex-col gap-4">
+          <SectionStylePresetSelector
+            value={formData.stylePreset === 'auto' ? 'standard' : (formData.stylePreset || 'standard')}
+            onChange={(preset) => updateConfig({ stylePreset: preset })}
+          />
+
+          <div className="flex flex-col gap-2 p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+            <span className="text-[11px] font-bold text-indigo-300">
+              חיבור אוטומטי לרכיב המיתוג (Brand DNA)
+            </span>
+            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.useBrandColors !== false}
+                onChange={(e) => updateConfig({ useBrandColors: e.target.checked })}
+                className="rounded border-slate-700 bg-slate-950"
+              />
+              החל צבעי מותג וטוקנים מרכיב המיתוג
+            </label>
+            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.useBrandMicrocopy !== false}
+                onChange={(e) => updateConfig({ useBrandMicrocopy: e.target.checked })}
+                className="rounded border-slate-700 bg-slate-950"
+              />
+              החל מיני-קופי וכותרות קטגוריות מרכיב המיתוג (uiVocabulary)
+            </label>
+            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.useBrandIcons !== false}
+                onChange={(e) => updateConfig({ useBrandIcons: e.target.checked })}
+                className="rounded border-slate-700 bg-slate-950"
+              />
+              שייך אייקונים מותאמי סגנון מרכיב המיתוג
+            </label>
+          </div>
+
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="block text-[11px] font-bold text-slate-400 mb-1">
@@ -716,27 +753,14 @@ export const FlipCardsListingEditor: React.FC<FlipCardsListingEditorProps> = ({
                             handleUpdateCustomItem(item.id, { linkUrl: val })
                           }
                         />
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                              אייקון
-                            </label>
-                            <select
-                              value={item.iconName || 'Sparkles'}
-                              onChange={(e) =>
-                                handleUpdateCustomItem(item.id, {
-                                  iconName: e.target.value,
-                                })
-                              }
-                              className="w-full rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-2 text-xs text-white"
-                            >
-                              {AVAILABLE_ICON_KEYS.map((k) => (
-                                <option key={k} value={k}>
-                                  {k}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <PageBuilderIconPicker
+                            label="אייקון מיתוג / Lucide"
+                            value={item.iconName || 'Sparkles'}
+                            onChange={(val) =>
+                              handleUpdateCustomItem(item.id, { iconName: val })
+                            }
+                          />
                           <PageBuilderColorPicker
                             label="צבע כרטיס"
                             value={item.accentColor || '#528a94'}
@@ -856,26 +880,14 @@ export const FlipCardsListingEditor: React.FC<FlipCardsListingEditorProps> = ({
                               updateItemOverride(ent.id, 'ctaText', val)
                             }
                           />
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                                אייקון
-                              </label>
-                              <select
-                                value={ov.iconName || ''}
-                                onChange={(e) =>
-                                  updateItemOverride(ent.id, 'iconName', e.target.value)
-                                }
-                                className="w-full rounded-lg bg-slate-900 border border-slate-800 px-2 py-1.5 text-xs text-white"
-                              >
-                                <option value="">ברירת מחדל</option>
-                                {AVAILABLE_ICON_KEYS.map((k) => (
-                                  <option key={k} value={k}>
-                                    {k}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <PageBuilderIconPicker
+                              label="אייקון מיתוג / Lucide"
+                              value={ov.iconName || 'Sparkles'}
+                              onChange={(val) =>
+                                updateItemOverride(ent.id, 'iconName', val)
+                              }
+                            />
                             <PageBuilderColorPicker
                               label="צבע כרטיס"
                               value={ov.accentColor || ''}

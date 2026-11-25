@@ -1909,7 +1909,12 @@ export interface FlipCardsListingSectionConfig extends BaseSectionConfig {
   maxItems?: number;
   sortBy?: FlipCardsSortBy;
 
-  // Layout & animation
+  // Design & Branding integration
+  stylePreset?: DynamicListingStylePreset | 'auto';
+  useBrandColors?: boolean;
+  useBrandIcons?: boolean;
+  useBrandMicrocopy?: boolean;
+  accentColor?: string;
   columns?: 2 | 3 | 4;
   flipDirection?: FlipCardsFlipDirection;
   cardHeight?: 'compact' | 'standard' | 'tall';

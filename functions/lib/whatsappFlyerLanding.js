@@ -232,11 +232,11 @@ function formatReportForWhatsApp(report, slug, tenantId) {
         ]
             .filter(Boolean)
             .join(', ') || 'לידים'})`,
-        `*כתובת ייחודית (ללא התנגשות ב-KOSWEB):* https://${host}/lp/${slug}`,
+        `*כתובת העמוד ב-KOSWEB:* https://${host}/p/${slug}`,
         `\n*מה תרצה לעשות עכשיו?*`,
         `- כתוב הוראות עריכה ודיוק (למשל: "שנה כותרת ל...", "הוסף קוד קופון VIP20")`,
         `- שלח תמונה נוספת אם תרצה להחליף את תמונת ה-Hero`,
-        `- כתוב *"אשר"* או *"צור דף"* כדי ש-KOSAI ייצור את ה-HTML והטופס ויפרסם מיד`,
+        `- כתוב *"אשר"* או *"צור דף"* כדי לבנות את העמוד מכמה אזורים + הטופס ב-KOSWEB`,
         `- כתוב *"בטל"* לביטול`,
     ]
         .filter(Boolean)
@@ -260,9 +260,8 @@ async function handleWhatsAppFlyerLanding(input) {
     const isSessionFresh = sessionData &&
         typeof sessionData.updatedAtMs === 'number' &&
         Date.now() - sessionData.updatedAtMs < 60 * 60 * 1000;
-    const hasLandingTrigger = Boolean(fileData === null || fileData === void 0 ? void 0 : fileData.downloadUrl) ||
-        /^(דף נחיתה|עמוד נחיתה|פלייר|צור דף|בנה דף)/.test(lower);
-    if (!isSessionFresh && !hasLandingTrigger) {
+    const isStartTrigger = /^קושאן[\s,:-]+(צריך|צור\s*לי|תכין\s*לי|בנה\s*לי)?\s*(עמוד|דף)\s+נחיתה/.test(lower);
+    if (!isSessionFresh && !isStartTrigger) {
         return false;
     }
     const authorized = await isAuthorizedLandingAdmin(db, tenantId, normPhone, apiKeys);
@@ -272,12 +271,23 @@ async function handleWhatsAppFlyerLanding(input) {
     // Cancel command
     if (isSessionFresh && /^(בטל|ביטול|סגור)$/.test(lower)) {
         await sessionRef.delete();
-        await sendGreenApiText(greenApiInstanceId, greenApiToken, targetChatId, 'תהליך בניית דף הנחיתה בוטל.');
+        await sendGreenApiText(greenApiInstanceId, greenApiToken, targetChatId, 'תהליך בניית עמוד הנחיתה בוטל.');
         return true;
     }
     try {
-        // CASE A: New flyer uploaded OR explicit landing trigger without active session
-        if (!isSessionFresh || ((fileData === null || fileData === void 0 ? void 0 : fileData.downloadUrl) && (sessionData === null || sessionData === void 0 ? void 0 : sessionData.stage) !== 'report_ready' && (sessionData === null || sessionData === void 0 ? void 0 : sessionData.stage) !== 'published')) {
+        // STEP 0: Admin initiates with "קושאן צריך/צור לי עמוד נחיתה" -> ask for flyer
+        if (isStartTrigger && !(fileData === null || fileData === void 0 ? void 0 : fileData.downloadUrl)) {
+            await sessionRef.set({
+                stage: 'awaiting_flyer',
+                tenantId,
+                updatedAtMs: Date.now(),
+            });
+            await sendGreenApiText(greenApiInstanceId, greenApiToken, targetChatId, 'אין בעיה בוס\nיש לך פלייר שאני יוכל להתחיל לעבוד עליו?');
+            return true;
+        }
+        // CASE A: Admin sends flyer/instructions while in awaiting_flyer (or together with start trigger + flyer)
+        if ((isSessionFresh && (sessionData === null || sessionData === void 0 ? void 0 : sessionData.stage) === 'awaiting_flyer') ||
+            (isStartTrigger && Boolean(fileData === null || fileData === void 0 ? void 0 : fileData.downloadUrl))) {
             if (!(fileData === null || fileData === void 0 ? void 0 : fileData.downloadUrl) && !trimmed) {
                 return false;
             }
@@ -320,10 +330,10 @@ async function handleWhatsAppFlyerLanding(input) {
             await sendGreenApiText(greenApiInstanceId, greenApiToken, targetChatId, formatReportForWhatsApp(report, uniqueSlug, tenantId));
             return true;
         }
-        // CASE B: Active session -> Approve & Generate HTML + Form with KOSAI
+        // CASE B: Active session -> Approve & Generate Multi-Section Page + Form with KOSAI
         if (sessionData.stage === 'report_ready' &&
             /^(אשר|אישור|צור דף|בנה דף|פרסם|קדימה)$/.test(lower)) {
-            await sendGreenApiText(greenApiInstanceId, greenApiToken, targetChatId, 'שולח ל-KOSAI ליצירת קוד HTML עצמאי באיכות גבוהה + הטופס החכם...');
+            await sendGreenApiText(greenApiInstanceId, greenApiToken, targetChatId, 'שולח ל-KOSAI לבניית תבנית מרובת-אזורים ב-KOSWEB + הטופס החכם...');
             const takenSlugs = await fetchExistingKosWebSlugs(db, tenantId);
             const finalSlug = ensureUniqueSlug(sessionData.slug || ((_a = sessionData.report) === null || _a === void 0 ? void 0 : _a.title), takenSlugs);
             const result = await generateAndPersistLanding({
@@ -341,11 +351,11 @@ async function handleWhatsAppFlyerLanding(input) {
                 slug: finalSlug,
                 pageId: result.pageId,
                 formId: result.formId,
-                htmlContent: result.htmlContent,
+                sections: result.sections,
                 updatedAtMs: Date.now(),
             }, { merge: true });
             const host = tenantId && tenantId !== '_master' ? `${tenantId}.kosun.pro` : 'compona.web.app';
-            await sendGreenApiText(greenApiInstanceId, greenApiToken, targetChatId, `העמוד והטופס פורסמו בהצלחה!\n\n*קישור חי:* https://${host}/lp/${finalSlug}\n\nרוצה לשנות משהו בעמוד? פשוט שלח לי הודעת תיקון ואעדכן מיד.`);
+            await sendGreenApiText(greenApiInstanceId, greenApiToken, targetChatId, `העמוד מרובה-האזורים והטופס פורסמו בהצלחה ב-KOSWEB!\n\n*קישור חי:* https://${host}/p/${finalSlug}\n\nניתן לערוך כל אזור בעורך העמודים, או לשלוח לי כאן הודעת תיקון ואעדכן מיד.`);
             return true;
         }
         // CASE C: Active session -> Refine Report or Update Published Page
@@ -394,14 +404,14 @@ ${JSON.stringify(sessionData.report, null, 2)}
                     nextHeroUrl = stored.publicUrl;
                 }
             }
-            await sendGreenApiText(greenApiInstanceId, greenApiToken, targetChatId, 'מעדכן את ה-HTML והטופס ב-KOSAI לפי ההנחיה החדשה...');
+            await sendGreenApiText(greenApiInstanceId, greenApiToken, targetChatId, 'מעדכן את אזורי העמוד והטופס ב-KOSWEB לפי ההנחיה החדשה...');
             const result = await generateAndPersistLanding({
                 db,
                 tenantId,
                 geminiKey,
                 report: sessionData.report,
-                refinements: trimmed || 'שלב את תמונת ה-Hero החדשה בעיצוב',
-                currentHtml: sessionData.htmlContent,
+                refinements: trimmed || 'שלב את תמונת ה-Hero החדשה באזור העליון',
+                existingSections: sessionData.sections,
                 slug: sessionData.slug,
                 existingPageId: sessionData.pageId,
                 existingFormId: sessionData.formId,
@@ -410,11 +420,11 @@ ${JSON.stringify(sessionData.report, null, 2)}
             });
             await sessionRef.set({
                 heroImageUrl: nextHeroUrl,
-                htmlContent: result.htmlContent,
+                sections: result.sections,
                 updatedAtMs: Date.now(),
             }, { merge: true });
             const host = tenantId && tenantId !== '_master' ? `${tenantId}.kosun.pro` : 'compona.web.app';
-            await sendGreenApiText(greenApiInstanceId, greenApiToken, targetChatId, `העמוד עודכן בהצלחה!\n*קישור חי:* https://${host}/lp/${sessionData.slug}`);
+            await sendGreenApiText(greenApiInstanceId, greenApiToken, targetChatId, `העמוד עודכן בהצלחה!\n*קישור חי:* https://${host}/p/${sessionData.slug}`);
             return true;
         }
     }
@@ -428,20 +438,61 @@ ${JSON.stringify(sessionData.report, null, 2)}
 exports.handleWhatsAppFlyerLanding = handleWhatsAppFlyerLanding;
 async function generateAndPersistLanding(params) {
     var _a;
-    const { db, tenantId, geminiKey, report, refinements, currentHtml, slug, existingPageId, existingFormId, heroImageUrl, flyerPreviewUrl, } = params;
-    const htmlPrompt = `אתה KOSAI – מעצב על ומפתח Frontend + אדריכל טפסים חכמים (KSF).
+    const { db, tenantId, geminiKey, report, refinements, existingSections, slug, existingPageId, existingFormId, heroImageUrl, } = params;
+    const design = (report === null || report === void 0 ? void 0 : report.designDirection) || {};
+    const primaryColor = design.primaryColor || '#f59e0b';
+    const backgroundColor = design.backgroundColor || '#090a0f';
+    const textColor = design.textColor || '#f8fafc';
+    const aiPrompt = `אתה KOSAI – אדריכל עמודים מרובי-אזורים ב-KOSWEB ואדריכל טפסים חכמים (KSF).
 הדוח הערוך: ${JSON.stringify(report, null, 2)}
-${heroImageUrl ? `תמונת Hero: ${heroImageUrl} — חובה לשלב ב-Hero באמצעות <img class="kosun-hero-image" src="${heroImageUrl}" alt="${(report === null || report === void 0 ? void 0 : report.title) || 'Hero'}" />.` : ''}
-${refinements ? `דיוקים נוספים: "${refinements}"` : ''}
-${currentHtml ? `קוד HTML קודם לעדכון:\n${currentHtml.slice(0, 14000)}` : ''}
+${heroImageUrl ? `תמונת Hero: ${heroImageUrl}` : ''}
+${refinements ? `דיוקים נוספים מהמנהל: "${refinements}"` : ''}
+${existingSections ? `אזורים קיימים לעדכון:\n${JSON.stringify(existingSections).slice(0, 10000)}` : ''}
 
-חוקים:
-1. HTML + <style> רספונסיבי RTL מלא עם גופן Heebo, ללא <html>/<head>/<body>.
-2. חובה לכלול במקום הטופס את הסמן המדויק: <div id="kosun-form-slot"></div> (לא לבנות <form> סטטי).
-3. אפס אימוג'ים.
+משימתך: לייצר עמוד נחיתה מרובה-אזורים (PageBuilderConfig) של KOSWEB + טופס חכם (SmartFormDefinition) שיוטמע באזור smartForm.
+אזורי התבנית המומלצים:
+1. "hero" (layout: 'split', title, subtitle, description, buttonsVisible: true, primaryButton: { text, url: '#smartForm' }, imageSrc: '${heroImageUrl || ''}')
+2. "richContent" (layout: 'highlight-box', heading, subtitle, body)
+3. "faq" (title, subtitle, items: [{ id, question, answer }])
+(ניתן להוסיף גם "statsBento" אם יש נתונים/פרטי אירוע).
+אסור להשתמש באימוג'ים.
+
 החזר JSON תקני בלבד:
 {
-  "htmlContent": "<style>...</style><div class=\\"lp-root\\" dir=\\"rtl\\">...<div id=\\"kosun-form-slot\\"></div>...</div>",
+  "sections": [
+    {
+      "id": "sec_hero",
+      "type": "hero",
+      "order": 0,
+      "isVisible": true,
+      "layout": "split",
+      "title": "...",
+      "subtitle": "...",
+      "description": "...",
+      "buttonsVisible": true,
+      "primaryButton": { "text": "...", "url": "#smartForm" },
+      "imageSrc": "${heroImageUrl || ''}"
+    },
+    {
+      "id": "sec_content",
+      "type": "richContent",
+      "order": 1,
+      "isVisible": true,
+      "layout": "highlight-box",
+      "heading": "...",
+      "subtitle": "...",
+      "body": "..."
+    },
+    {
+      "id": "sec_faq",
+      "type": "faq",
+      "order": 2,
+      "isVisible": true,
+      "title": "שאלות נפוצות",
+      "subtitle": "",
+      "items": [{ "id": "faq_1", "question": "...", "answer": "..." }]
+    }
+  ],
   "form": {
     "title": "כותרת הטופס",
     "description": "תיאור",
@@ -453,11 +504,7 @@ ${currentHtml ? `קוד HTML קודם לעדכון:\n${currentHtml.slice(0, 1400
     "completion": { "title": "תודה רבה!", "subtitle": "פרטיך נקלטו בהצלחה.", "iconName": "CheckCircle2", "showRedirectButton": false }
   }
 }`;
-    const generated = await callGeminiJson(geminiKey, htmlPrompt);
-    let htmlContent = String(generated.htmlContent || '').trim();
-    if (!htmlContent.includes('id="kosun-form-slot"') && !htmlContent.includes("id='kosun-form-slot'")) {
-        htmlContent += '\n<div id="kosun-form-slot"></div>';
-    }
+    const generated = await callGeminiJson(geminiKey, aiPrompt);
     const now = new Date().toISOString();
     const formId = existingFormId || `form_lp_${Date.now()}`;
     const formsColl = tenantId && tenantId !== '_master'
@@ -486,25 +533,47 @@ ${currentHtml ? `קוד HTML קודם לעדכון:\n${currentHtml.slice(0, 1400
         createdBy: 'KOSAI WhatsApp Agent',
     };
     await formsColl.doc(formId).set(formDoc, { merge: true });
-    const pageId = existingPageId || `lp_${Date.now()}`;
-    const lpColl = tenantId && tenantId !== '_master'
-        ? db.collection('tenants').doc(tenantId).collection('custom_html_landing_pages')
-        : db.collection('custom_html_landing_pages');
-    await lpColl.doc(pageId).set({
-        id: pageId,
-        slug,
-        title: (report === null || report === void 0 ? void 0 : report.title) || 'דף נחיתה מפלייר',
-        subtitle: (report === null || report === void 0 ? void 0 : report.subtitle) || '',
-        htmlContent,
+    const baseSections = Array.isArray(generated.sections) ? generated.sections : [];
+    const normalizedSections = baseSections.map((sec, idx) => {
+        var _a;
+        return (Object.assign(Object.assign(Object.assign({}, sec), { id: sec.id || `sec_${idx + 1}_${Date.now()}`, type: sec.type || sec.sectionType || 'richContent', order: idx, isVisible: (_a = sec.isVisible) !== null && _a !== void 0 ? _a : true }), (sec.type === 'hero' && heroImageUrl && !sec.imageSrc ? { imageSrc: heroImageUrl } : {})));
+    });
+    // Append real SmartForm section linked to the created formId
+    normalizedSections.push({
+        id: `sec_smartform_${Date.now()}`,
+        type: 'smartForm',
+        order: normalizedSections.length,
+        isVisible: true,
         formId,
-        formTitle: formDoc.title,
-        flyerPreviewUrl: flyerPreviewUrl || '',
-        heroImageUrl: heroImageUrl || '',
-        report,
-        status: 'published',
+        sectionTitle: formDoc.title,
+        sectionSubtitle: (report === null || report === void 0 ? void 0 : report.subtitle) || '',
+        submitButtonText: (report === null || report === void 0 ? void 0 : report.ctaText) || 'שליחה והרשמה',
+        containerWidth: 'md',
+        backgroundColor,
+    });
+    const pageId = existingPageId || `page_${Date.now()}`;
+    const pagesColl = tenantId && tenantId !== '_master'
+        ? db.collection('tenants').doc(tenantId).collection('kos_web_ai_documents')
+        : db.collection('kos_web_ai_documents');
+    await pagesColl.doc(pageId).set({
+        pageId,
+        slug,
+        pageTitle: (report === null || report === void 0 ? void 0 : report.title) || 'דף נחיתה מפלייר',
+        description: (report === null || report === void 0 ? void 0 : report.description) || '',
+        published: true,
+        isHomePage: false,
+        category: 'דפי נחיתה',
+        sections: normalizedSections,
+        globalStyles: {
+            primaryColor,
+            backgroundColor,
+            textColor,
+            fontFamily: 'Heebo',
+        },
         createdAt: now,
         updatedAt: now,
+        createdBy: 'KOSAI WhatsApp Agent',
     }, { merge: true });
-    return { pageId, formId, htmlContent };
+    return { pageId, formId, sections: normalizedSections };
 }
 //# sourceMappingURL=whatsappFlyerLanding.js.map

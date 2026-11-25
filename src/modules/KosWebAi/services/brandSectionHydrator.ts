@@ -707,6 +707,21 @@ export function hydrateSectionWithBrandDna(
       break;
     }
 
+    case 'flipCardsListing': {
+      cloned.title = headings.aboutHeading || (companyName ? `מה תמצאו אצל ${companyName}` : 'מה תמצאו כאן');
+      cloned.subtitle = headings.aboutSubtitle || slogan || 'בחרו את המתחם, השירות או הקטגוריה המתאימה לכם';
+      cloned.badge = companyName ? `• ${companyName} •` : '• תכנים וקטגוריות •';
+      cloned.defaultCtaText = uiVocab.primaryCta || cloned.defaultCtaText || 'לחצו כאן >>';
+      cloned.useBrandColors = true;
+      cloned.useBrandIcons = true;
+      cloned.useBrandMicrocopy = true;
+      cloned.accentColor = primaryColor;
+      if (brand.designTokens?.defaultStylePreset) {
+        cloned.stylePreset = brand.designTokens.defaultStylePreset;
+      }
+      break;
+    }
+
     case 'articlesListing': {
       cloned.title = companyName ? `מרכז הידע והתוכן של ${companyName}` : (headings.aboutHeading || 'מרכז הידע והתוכן');
       cloned.subtitle = slogan || 'מאמרים, שיעורים ומדריכים מעמיקים';
@@ -1004,7 +1019,8 @@ export function applyStylePresetToSection(sec: any, preset: string): any {
     sType === 'campaignDonors' ||
     sType === 'flowPlayer' ||
     sType === 'futureContent2027' ||
-    sType === 'liveAnalytics'
+    sType === 'liveAnalytics' ||
+    sType === 'flipCardsListing'
   ) {
     sec.stylePreset = preset;
     if (preset === 'feminine' || preset === 'spiritual') sec.buttonShape = 'pill';
