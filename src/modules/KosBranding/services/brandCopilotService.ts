@@ -1,5 +1,14 @@
-import { BrandDna, FlagshipSectionTitles, BrandUiVocabulary } from '../types/brandDna';
+import {
+  BrandDna,
+  FlagshipSectionTitles,
+  BrandUiVocabulary,
+  WebsiteScanScope,
+  LearnedWebsiteProfile,
+  TenantLayoutArchetype,
+  TenantStylePreset,
+} from '../types/brandDna';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
+import { resolveAiProxyUrl } from '../../../core/ai/cloudAiClient';
 import {
   dispatchBrandSummaryParagraphToKosai,
   dispatchBrandDiscoveryToKosai,
@@ -16,6 +25,7 @@ import {
   dispatchMarketResearchToKosai,
   dispatchAudienceAndPersonasFromEssenceToKosai,
   dispatchBrandUiVocabularyToKosai,
+  dispatchWebsiteLearnToKosai,
 } from '../kosai/promptToKosai';
 import { buildBrandSystemContext } from '../prompts';
 
@@ -1102,8 +1112,323 @@ export async function runMarketResearchAgent(brand: BrandDna, apiKey?: string): 
   };
 }
 
+export interface WebsiteLearnOptions {
+  scope?: WebsiteScanScope;
+  userPrompt?: string;
+  apiKey?: string;
+  tenantId?: string;
+}
+
+export interface WebsiteLearnResult {
+  success: boolean;
+  liveScraped?: boolean;
+  extractedBrand?: Partial<BrandDna>;
+  learnedSiteProfile?: LearnedWebsiteProfile;
+  rawSignals?: {
+    meta?: {
+      title?: string;
+      description?: string;
+      ogImage?: string;
+      themeColor?: string;
+      favicon?: string;
+    };
+    topColors?: Array<{ hex: string; count: number }>;
+    fonts?: string[];
+    borderRadii?: string[];
+    headings?: string[];
+    ctaTexts?: string[];
+    structureCues?: Record<string, boolean>;
+  };
+  positioningQuestions?: string[];
+  summary?: string;
+  error?: string;
+}
+
 /**
- * סריקת מותג מתוך אתר או קישור
+ * סורק אתר אמיתי דרך השרת (Cloud Function) ומלמד את KOSAI על הצבעים, הפריסה, האלמנטים העיצוביים והתוכן/מיני-קופי
+ * לפי בקשת המשתמש והסקופ שנבחר.
+ */
+export async function scrapeAndLearnWebsiteWithKosai(
+  targetUrl: string,
+  options?: WebsiteLearnOptions
+): Promise<WebsiteLearnResult> {
+  const activeKey = resolveGeminiApiKey(options?.apiKey);
+  if (!targetUrl || !targetUrl.trim()) {
+    return { success: false, error: 'יש להזין כתובת אתר תקינה' };
+  }
+
+  const cleanUrl = /^https?:\/\//i.test(targetUrl.trim())
+    ? targetUrl.trim()
+    : `https://${targetUrl.trim()}`;
+  const domainGuess = cleanUrl.replace(/^https?:\/\//, '').replace(/^www\./, '').split(/[\/?#]/)[0];
+
+  const scope: WebsiteScanScope = options?.scope || {
+    content: true,
+    colors: true,
+    designAndLayout: true,
+  };
+  const userPrompt = (options?.userPrompt || '').trim();
+
+  // 1. Live server-side scrape for real HTML/CSS/colors/layout/copy signals
+  let scrapedData: any = null;
+  let liveScraped = false;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 14000);
+    const resp = await fetch(resolveAiProxyUrl('scrape-url'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: cleanUrl, tenantId: options?.tenantId || '_master' }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (resp.ok) {
+      const json = await resp.json();
+      if (json?.success) {
+        scrapedData = json;
+        liveScraped = true;
+      }
+    }
+  } catch (err) {
+    console.warn('[brandCopilotService] Server scrape-url unavailable, falling back to URL AI analysis:', err);
+  }
+
+  const rawSignals = scrapedData
+    ? {
+        meta: scrapedData.meta,
+        topColors: scrapedData.designSignals?.topColors || [],
+        fonts: scrapedData.designSignals?.fonts || [],
+        borderRadii: scrapedData.designSignals?.borderRadii || [],
+        headings: scrapedData.contentSignals?.headings || [],
+        ctaTexts: scrapedData.contentSignals?.ctaTexts || [],
+        structureCues: scrapedData.designSignals?.structureCues || {},
+      }
+    : undefined;
+
+  const requestedParts: string[] = [];
+  if (scope.content) requestedParts.push('תוכן עסקי, זהות מותג, טון דיבור, קהל יעד ומיני-קופי (uiVocabulary)');
+  if (scope.colors) requestedParts.push('פלטת צבעים מלאה (primaryColor, secondaryColor, backgroundColor, textColor, textColorH1, textColorH2, buttonBgColor, buttonTextColor)');
+  if (scope.designAndLayout) requestedParts.push('אלמנטים עיצוביים ופריסה (fontFamily, borderRadius, buttonStyle, defaultStylePreset, defaultLayoutArchetype, סיכום אלמנטים עיצוביים והערות פריסה)');
+
+  const signalsBlock = scrapedData
+    ? `
+נתונים אמיתיים שנשאבו מסריקת האתר:
+- כותרת ותיאור Meta: ${JSON.stringify(scrapedData.meta || {})}
+- צבעים נפוצים בקוד האתר (Hex + תדירות): ${JSON.stringify((scrapedData.designSignals?.topColors || []).slice(0, 14))}
+- משתני CSS שנמצאו: ${JSON.stringify(scrapedData.designSignals?.cssVars || {})}
+- פונטים שזוהו: ${JSON.stringify(scrapedData.designSignals?.fonts || [])}
+- עיגולי פינות (border-radius): ${JSON.stringify(scrapedData.designSignals?.borderRadii || [])}
+- רמזי מבנה ופריסה: ${JSON.stringify(scrapedData.designSignals?.structureCues || {})}
+- כותרות (H1-H3): ${JSON.stringify((scrapedData.contentSignals?.headings || []).slice(0, 10))}
+- טקסטים של כפתורים (CTA): ${JSON.stringify((scrapedData.contentSignals?.ctaTexts || []).slice(0, 12))}
+- טקסט גלוי מהאתר (מקוצר): ${(scrapedData.contentSignals?.visibleText || '').slice(0, 2600)}
+`
+    : `לא ניתן היה למשוך HTML ישירות; נתח לפי כתובת האתר וההנחיה: "${cleanUrl}".`;
+
+  const prompt = `אתה KOSAI — ארכיטקט מיתוג, UX/UI ואנליסט אתרים בכיר.
+כתובת האתר לסריקה: "${cleanUrl}"
+דומיין: "${domainGuess}"
+
+המשתמש ביקש ללמוד ולהפיק דאטה עבור הטננט בתחומים הבאים בלבד:
+${requestedParts.map((p, i) => `${i + 1}. ${p}`).join('\n')}
+
+${userPrompt ? `הנחיה מיוחדת מהמשתמש: "${userPrompt}"` : ''}
+
+${signalsBlock}
+
+הנחיות מיפוי חובה:
+- עבור defaultStylePreset בחר אך ורק אחד מ: "standard" | "feminine" | "masculine" | "spiritual" | "sharp" | "analytical"
+- עבור defaultLayoutArchetype בחר אך ורק אחד מ: "bento_hub" | "editorial_boutique" | "warm_community" | "knowledge_academy" | "direct_showcase"
+- עבור borderRadius בחר אך ורק אחד מ: "none" | "sm" | "md" | "lg" | "full"
+- עבור buttonStyle בחר אך ורק אחד מ: "solid" | "gradient" | "outline" | "glass"
+- עבור fontFamily בחר מתוך: "Heebo, sans-serif" | "Assistant, sans-serif" | "Rubik, sans-serif" | "\\"Frank Ruhl Libre\\", serif" | "Alef, sans-serif" | "\\"Secular One\\", sans-serif" (התאם לסגנון הפונטים שנמצאו באתר).
+- ודא ניגודיות קריאה בצבעים (אל תחזיר טקסט בהיר על רקע בהיר או טקסט כהה על רקע כהה).
+
+החזר אך ורק אובייקט JSON תקין במבנה הבא:
+{
+  "summary": "סיכום תמציתי בעברית של מה שנלמד מהאתר (צבעים, פריסה, שפה)",
+  "positioningQuestions": ["שאלה 1", "שאלה 2", "שאלה 3"],
+  "learnedSiteProfile": {
+    "extractedPalette": ["#hex1", "#hex2", "#hex3", "#hex4"],
+    "detectedFonts": ["Font1"],
+    "recommendedLayoutArchetype": "bento_hub",
+    "recommendedStylePreset": "standard",
+    "designElementsSummary": "תיאור תמציתי של האלמנטים העיצוביים (כפתורים, כרטיסים, צלליות, ריווח)",
+    "layoutNotes": "תיאור מבנה הפריסה של האתר (סדר אזורים, הדר, הירו, רשתות)"
+  },
+  "extractedBrand": {
+    ${scope.content ? `"identity": {
+      "companyName": "שם המותג",
+      "organizationType": "חברה",
+      "organizationPurpose": "תכלית ותחום עיסוק",
+      "memberCount": "עד 10",
+      "slogan": "סלוגן קליט",
+      "companyVision": "חזון מותג",
+      "shortVision": "תמצית חזון במשפט אחד",
+      "logoUrl": "${scrapedData?.meta?.favicon || ''}"
+    },
+    "voice": {
+      "personality": { "formality": 3, "warmth": 4, "luxury": 3, "energy": 4 },
+      "genderAddressing": "plural",
+      "sectorCompliance": "general",
+      "powerWords": ["מילה 1", "מילה 2", "מילה 3"],
+      "forbiddenWords": ["מילה אסורה"]
+    },
+    "audience": {
+      "mainUvp": "הצעת הערך הייחודית",
+      "targetAudiences": ["קהל 1", "קהל 2"]
+    },
+    "uiVocabulary": {
+      "primaryCta": "טקסט כפתור ראשי",
+      "secondaryCta": "טקסט כפתור משני",
+      "whatsappCta": "דברו איתנו בוואטסאפ",
+      "formSubmitText": "שליחה",
+      "sectionHeadings": {
+        "heroTitle": "כותרת הירו מותאמת",
+        "heroSubtitle": "תת כותרת הירו",
+        "advantagesHeading": "היתרונות שלנו",
+        "testimonialsHeading": "לקוחות ממליצים",
+        "faqHeading": "שאלות נפוצות",
+        "contactHeading": "נשמח לשמוע מכם"
+      }
+    },` : ''}
+    ${(scope.colors || scope.designAndLayout) ? `"designTokens": {
+      ${scope.colors ? `"primaryColor": "#6366f1",
+      "secondaryColor": "#0ea5e9",
+      "backgroundColor": "#0f172a",
+      "textColor": "#f8fafc",
+      "textColorH1": "#ffffff",
+      "textColorH2": "#94a3b8",
+      "buttonBgColor": "#6366f1",
+      "buttonTextColor": "#ffffff",` : ''}
+      ${scope.designAndLayout ? `"fontFamily": "Heebo, sans-serif",
+      "borderRadius": "md",
+      "buttonStyle": "gradient",
+      "defaultStylePreset": "standard",
+      "defaultLayoutArchetype": "bento_hub"` : ''}
+    }` : ''}
+  }
+}`;
+
+  try {
+    const parsed = await dispatchWebsiteLearnToKosai(prompt, {
+      apiKey: activeKey,
+      tenantId: options?.tenantId,
+    });
+    if (parsed && typeof parsed === 'object') {
+      const eb = parsed.extractedBrand || {};
+      const lpRaw = parsed.learnedSiteProfile || {};
+      const learnedSiteProfile: LearnedWebsiteProfile = {
+        sourceUrl: cleanUrl,
+        scannedAt: new Date().toISOString(),
+        userPrompt: userPrompt || undefined,
+        learnedScopes: scope,
+        extractedPalette: Array.isArray(lpRaw.extractedPalette)
+          ? lpRaw.extractedPalette
+          : (rawSignals?.topColors || []).slice(0, 5).map((c: { hex: string; count: number }) => c.hex),
+        detectedFonts: Array.isArray(lpRaw.detectedFonts) ? lpRaw.detectedFonts : rawSignals?.fonts,
+        recommendedLayoutArchetype: (lpRaw.recommendedLayoutArchetype ||
+          eb?.designTokens?.defaultLayoutArchetype) as TenantLayoutArchetype | undefined,
+        recommendedStylePreset: (lpRaw.recommendedStylePreset ||
+          eb?.designTokens?.defaultStylePreset) as TenantStylePreset | undefined,
+        designElementsSummary: lpRaw.designElementsSummary,
+        layoutNotes: lpRaw.layoutNotes,
+      };
+
+      return {
+        success: true,
+        liveScraped,
+        summary: parsed.summary || `נותח בהצלחה: ${domainGuess}`,
+        extractedBrand: {
+          ...eb,
+          learnedSiteProfile,
+        },
+        learnedSiteProfile,
+        rawSignals,
+        positioningQuestions: Array.isArray(parsed.positioningQuestions)
+          ? parsed.positioningQuestions
+          : [
+              'מה היתרון המרכזי ביותר שמבדיל אתכם ממתחרים אחרים ברשת?',
+              'האם האתר פונה לקהל עסקי (B2B) או לצרכנים פרטיים (B2C)?',
+              'האם תרצו להחיל את הפריסה והצבעים שנלמדו על כל האתר או רק על עמודים נבחרים?',
+            ],
+      };
+    }
+  } catch (err) {
+    console.warn('[brandCopilotService] scrapeAndLearnWebsiteWithKosai live AI fallback:', err);
+  }
+
+  // Fallback using real scraped signals (if available) even if AI fails
+  const fallbackColors = (rawSignals?.topColors || []).map((c: { hex: string; count: number }) => c.hex);
+  const fallbackPrimary = scrapedData?.meta?.themeColor || fallbackColors[0] || '#6366f1';
+  const fallbackSecondary = fallbackColors[1] || '#0ea5e9';
+  const learnedSiteProfile: LearnedWebsiteProfile = {
+    sourceUrl: cleanUrl,
+    scannedAt: new Date().toISOString(),
+    userPrompt: userPrompt || undefined,
+    learnedScopes: scope,
+    extractedPalette: fallbackColors.slice(0, 5),
+    detectedFonts: rawSignals?.fonts,
+    recommendedLayoutArchetype: 'bento_hub',
+    recommendedStylePreset: 'standard',
+    designElementsSummary: 'כרטיסים מודרניים עם פינות מעוגלות וכפתורים מודגשים',
+    layoutNotes: 'הדר עליון, אזור פתיחה מרכזי, רשת שירותים/יתרונות, המלצות ויצירת קשר',
+  };
+
+  return {
+    success: true,
+    liveScraped,
+    summary: liveScraped
+      ? `נשאבו נתונים אמיתיים מהאתר ${domainGuess}`
+      : `נותח על בסיס הכתובת: ${domainGuess}`,
+    rawSignals,
+    learnedSiteProfile,
+    extractedBrand: {
+      ...(scope.content
+        ? {
+            identity: {
+              companyName: scrapedData?.meta?.title?.split(/[-|]/)[0]?.trim() || domainGuess.split('.')[0].toUpperCase(),
+              organizationPurpose: scrapedData?.meta?.description || `שירותים מקצועיים ופתרונות מתוך ${cleanUrl}`,
+              slogan: rawSignals?.headings?.[0] || 'איכות, מקצועיות ושירות ללא פשרות',
+              companyVision: scrapedData?.meta?.ogDescription || 'להיות הכתובת המובילה בתחום תוך מתן ערך מרבי לכל לקוח.',
+              shortVision: 'שירות מתקדם המותאם אישית לצרכים שלך.',
+              organizationType: 'חברה',
+              memberCount: 'עד 10',
+              logoUrl: scrapedData?.meta?.favicon || '',
+            },
+          }
+        : {}),
+      ...(scope.colors || scope.designAndLayout
+        ? {
+            designTokens: {
+              primaryColor: fallbackPrimary,
+              secondaryColor: fallbackSecondary,
+              backgroundColor: '#0f172a',
+              textColor: '#f8fafc',
+              textColorH1: '#ffffff',
+              textColorH2: '#94a3b8',
+              buttonBgColor: fallbackPrimary,
+              buttonTextColor: '#ffffff',
+              fontFamily: 'Heebo, sans-serif',
+              borderRadius: 'md',
+              buttonStyle: 'gradient',
+              defaultStylePreset: 'standard',
+              defaultLayoutArchetype: 'bento_hub',
+            },
+          }
+        : {}),
+      learnedSiteProfile,
+    },
+    positioningQuestions: [
+      'מה היתרון המרכזי ביותר שמבדיל אתכם ממתחרים אחרים ברשת?',
+      'האם האתר פונה לקהל עסקי (B2B) או לצרכנים פרטיים (B2C)?',
+      'מהו המוצר או השירות המרכזי שתרצו להבליט בראש האתר?',
+    ],
+  };
+}
+
+/**
+ * סריקת מותג מתוך אתר או קישור (תאימות לאחור)
  */
 export async function scrapeBrandFromUrlOrSocial(
   targetUrl: string,
@@ -1115,111 +1440,7 @@ export async function scrapeBrandFromUrlOrSocial(
   summary?: string;
   error?: string;
 }> {
-  const activeKey = resolveGeminiApiKey(apiKey);
-  if (!targetUrl || !targetUrl.trim()) {
-    return { success: false, error: 'יש להזין כתובת אתר או קישור לפייסבוק' };
-  }
-
-  const cleanUrl = targetUrl.trim();
-  const domainGuess = cleanUrl.replace(/^https?:\/\//, '').replace(/^www\./, '').split(/[\/?#]/)[0];
-
-  const prompt = `אתה מומחה חילוץ מותג וסורק תוכן דיגיטלי.
-קיבלת קישור לאתר אינטרנט או עמוד פייסבוק עסקי:
-כתובת URL: "${cleanUrl}"
-
-אנא נתח את מהות העסק המיוצגת בקישור זה, את תחום הפעילות וההקשר העסקי, וחלץ:
-1. נתוני Brand DNA משוערכים (שם, תכלית, סלוגן, חזון, טון דיבור, מילות כוח, קהלי יעד, והצעת ערך ייחודית UVP).
-2. 3 שאלות מיצוב חדות וממוקדות שיעזרו לבעל העסק לחדד את המיתוג שלו במערכת.
-3. סיכום תמציתי של מהות המותג שזוהתה.
-
-החזר אך ורק אובייקט JSON תקין ללא שום טקסט מסביב:
-{
-  "summary": "סיכום תמציתי של מהות המותג",
-  "positioningQuestions": [
-    "שאלה 1 לחידוד המיצוב",
-    "שאלה 2 לחידוד המיצוב",
-    "שאלה 3 לחידוד המיצוב"
-  ],
-  "extractedBrand": {
-    "identity": {
-      "companyName": "שם המותג",
-      "organizationType": "חברה",
-      "organizationPurpose": "תכלית ותחום עיסוק",
-      "memberCount": "עד 10",
-      "slogan": "סלוגן קליט",
-      "companyVision": "חזון מותג",
-      "shortVision": "תמצית חזון במשפט אחד"
-    },
-    "voice": {
-      "personality": { "formality": 3, "warmth": 4, "luxury": 3, "energy": 4 },
-      "genderAddressing": "plural",
-      "sectorCompliance": "general",
-      "powerWords": ["מובילות", "איכות", "שירות", "ביטחון"],
-      "forbiddenWords": ["חובבני"]
-    },
-    "audience": {
-      "mainUvp": "הצעת הערך הייחודית",
-      "targetAudiences": ["קהל 1", "קהל 2"]
-    }
-  }
-}`;
-
-  try {
-    const parsed = await dispatchEntityItemToKosai(prompt, { apiKey: activeKey });
-    if (parsed && typeof parsed === 'object') {
-      return {
-        success: true,
-        summary: parsed.summary || `נותח בהצלחה: ${domainGuess}`,
-        extractedBrand: parsed.extractedBrand || parsed,
-        positioningQuestions: Array.isArray(parsed.positioningQuestions) ? parsed.positioningQuestions : [
-          'מה היתרון המרכזי ביותר שמבדיל אתכם ממתחרים אחרים ברשת?',
-          'האם האתר פונה לקהל עסקי (B2B) או לצרכנים פרטיים (B2C)?',
-          'מהו המוצר או השירות הרווחי ביותר שתרצו להציב בפרונט של המותג?'
-        ],
-      };
-    }
-  } catch (err) {
-    console.warn('[brandCopilotService] scrapeBrandFromUrlOrSocial live AI fallback:', err);
-  }
-
-  // 0-token intelligent fallback
-  return {
-    success: true,
-    summary: `נותח על בסיס הכתובת: ${domainGuess}`,
-    extractedBrand: {
-      identity: {
-        companyName: domainGuess.split('.')[0].toUpperCase(),
-        organizationPurpose: `שירותים מקצועיים ופתרונות מקיפים מתוך ${cleanUrl}`,
-        slogan: 'איכות, מקצועיות ושירות ללא פשרות',
-        companyVision: 'להיות הכתובת המובילה בתחום תוך מתן ערך מרבי לכל לקוח.',
-        shortVision: 'שירות מתקדם המותאם אישית לצרכים שלך.',
-        organizationType: 'חברה',
-        memberCount: 'עד 10',
-        logoUrl: '',
-      },
-      voice: {
-        personality: { formality: 3, warmth: 4, luxury: 3, energy: 4 },
-        genderAddressing: 'plural',
-        sectorCompliance: 'general',
-        shabbatObservant: false,
-        powerWords: ['איכות', 'מובילות', 'ביטחון', 'מקצועיות', 'תוצאות'],
-        forbiddenWords: ['חובבני', 'זול', 'אולי'],
-      },
-      audience: {
-        mainUvp: 'מענה מקיף ומקצועי המשלב ידע מעמיק ושירות אישי.',
-        targetAudiences: ['לקוחות פרטיים', 'עסקים וחברות', 'מקבלי החלטות'],
-        personas: [],
-        commonObjections: [
-          { id: 'o-1', objection: 'האם השירות מתאים בדיוק עבורי?', rebuttal: 'אנו מתאימים את המעטפת באופן אישי ומדויק לכל צורך.' }
-        ],
-      },
-    },
-    positioningQuestions: [
-      'מה היתרון המרכזי ביותר שמבדיל אתכם ממתחרים אחרים ברשת?',
-      'האם האתר פונה לקהל עסקי (B2B) או לצרכנים פרטיים (B2C)?',
-      'מהו המוצר או השירות הרווחי ביותר שתרצו להציב בפרונט של המותג?',
-    ],
-  };
+  return scrapeAndLearnWebsiteWithKosai(targetUrl, { apiKey });
 }
 
 /**

@@ -293,3 +293,19 @@ export async function dispatchBrandUiVocabularyToKosai(
   });
   return result.data;
 }
+
+/**
+ * מנתח אתר סרוק באמצעות KOSAI ומפיק תוכן, צבעים, אלמנטים עיצוביים ופריסה לפי בחירת המשתמש
+ */
+export async function dispatchWebsiteLearnToKosai(
+  prompt: string,
+  options?: KosaiBrandDispatchOptions & { systemInstruction?: string }
+): Promise<any> {
+  const result = await kosaiBrandContract.analyzeScrapedWebsite(prompt, {
+    apiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+    systemInstruction: options?.systemInstruction,
+    maxOutputTokens: 2400,
+  });
+  return result.data;
+}

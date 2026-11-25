@@ -1,5 +1,5 @@
 import { Firestore } from 'firebase/firestore';
-import { TenantStylePreset, BrandDna } from '../../../core/contracts';
+import { TenantStylePreset, BrandDna, BrandDesignTokens } from '../../../core/contracts';
 import { GlobalPageSettings, PageBuilderConfig, PageDesignSnapshot, LayoutArchetype, LAYOUT_ARCHETYPES, SectionType } from '../types/pageBuilder.types';
 import { pageBuilderFirestore } from './pageBuilderFirestore';
 import { hydrateSectionWithBrandDna, applyStylePresetToSection, createDynamicSectionConfig } from './brandSectionHydrator';
@@ -389,4 +389,236 @@ export function applyLayoutArchetypeToPage(
   };
 
   return { updatedPage, snapshot };
+}
+
+/**
+ * Applies full BrandDesignTokens (colors, typography, radius, button style, preset) to a single page.
+ */
+export function applyBrandDesignTokensToPage(
+  page: PageBuilderConfig,
+  tokens: BrandDesignTokens
+): { updatedPage: PageBuilderConfig; snapshot: PageDesignSnapshot } {
+  const preset: TenantStylePreset = (tokens.defaultStylePreset as TenantStylePreset) || 'standard';
+  const now = new Date();
+  const formattedDate = now.toLocaleDateString('he-IL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+
+  const snapshot: PageDesignSnapshot = {
+    id: `snap_tokens_${Date.now()}`,
+    timestamp: now.toISOString(),
+    createdAtFormatted: formattedDate,
+    label: 'לפני החלת צבעים ועיצוב מיתוג (Brand Design Tokens)',
+    preset,
+    sections: JSON.parse(JSON.stringify(page.sections || {})),
+    theme: page.globalSettings?.theme,
+  };
+
+  const nextSections: Record<string, any> = {};
+  if (page.sections) {
+    for (const key of Object.keys(page.sections)) {
+      const styled = applyStylePresetToSection(page.sections[key], preset);
+      // Allow sections to inherit updated brand colors when useBrandColors is not explicitly false
+      if (styled && typeof styled === 'object' && styled.useBrandColors !== false) {
+        styled.useBrandColors = true;
+        styled.accentColor = tokens.primaryColor;
+        styled.primaryButtonColor = tokens.buttonBgColor || tokens.primaryColor;
+      }
+      nextSections[key] = styled;
+    }
+  }
+
+  const newGlobalSettings: GlobalPageSettings = {
+    ...(page.globalSettings || {}),
+    primaryColor: tokens.primaryColor,
+    secondaryColor: tokens.secondaryColor,
+    backgroundColor: tokens.backgroundColor,
+    textColor: tokens.textColor,
+    buttonBgColor: tokens.buttonBgColor,
+    buttonTextColor: tokens.buttonTextColor,
+    fontFamily: tokens.fontFamily,
+    borderRadius: tokens.borderRadius,
+    buttonStyle: tokens.buttonStyle,
+    theme: preset,
+  };
+
+  const updatedPage: PageBuilderConfig = {
+    ...page,
+    sections: nextSections,
+    globalSettings: newGlobalSettings,
+    designSnapshots: [snapshot, ...(page.designSnapshots || [])],
+    lastModified: Date.now(),
+  };
+
+  return { updatedPage, snapshot };
+}
+
+/**
+ * Bulk applies BrandDesignTokens (colors, fonts, radius, button style, preset) to ALL pages of a tenant.
+ */
+export async function applyBrandDesignTokensToAllTenantPages(
+  db: Firestore | null,
+  tenantId: string,
+  tokens: BrandDesignTokens
+): Promise<{ updatedCount: number; pages: PageBuilderConfig[] }> {
+  const allPages = await pageBuilderFirestore.getAllPages(db, tenantId);
+  const updatedPages: PageBuilderConfig[] = [];
+
+  for (const page of allPages) {
+    const { updatedPage } = applyBrandDesignTokensToPage(page, tokens);
+    await pageBuilderFirestore.savePage(updatedPage, db, tenantId);
+    updatedPages.push(updatedPage);
+  }
+
+  if (typeof window !== 'undefined' && updatedPages.length > 0) {
+    const activePage = updatedPages.find((p) => p.isHomePage) || updatedPages[0];
+    window.dispatchEvent(
+      new CustomEvent('kos_page_sections_updated', {
+        detail: {
+          sections: activePage?.sections,
+          preset: tokens.defaultStylePreset || 'standard',
+          globalSettings: activePage?.globalSettings,
+          tenantId,
+          allPagesUpdated: true,
+        },
+      })
+    );
+  }
+
+  return { updatedCount: updatedPages.length, pages: updatedPages };
+}
+
+/**
+ * Bulk applies a LayoutArchetype to ALL pages of a tenant.
+ */
+export async function applyLayoutArchetypeToAllTenantPages(
+  db: Firestore | null,
+  tenantId: string,
+  archetype: LayoutArchetype,
+  brandDna?: BrandDna | null
+): Promise<{ updatedCount: number; pages: PageBuilderConfig[] }> {
+  const allPages = await pageBuilderFirestore.getAllPages(db, tenantId);
+  const updatedPages: PageBuilderConfig[] = [];
+
+  for (const page of allPages) {
+    const { updatedPage } = applyLayoutArchetypeToPage(page, archetype, brandDna, tenantId);
+    await pageBuilderFirestore.savePage(updatedPage, db, tenantId);
+    updatedPages.push(updatedPage);
+  }
+
+  if (typeof window !== 'undefined' && updatedPages.length > 0) {
+    const activePage = updatedPages.find((p) => p.isHomePage) || updatedPages[0];
+    window.dispatchEvent(
+      new CustomEvent('kos_page_sections_updated', {
+        detail: {
+          sections: activePage?.sections,
+          globalSettings: activePage?.globalSettings,
+          tenantId,
+          allPagesUpdated: true,
+        },
+      })
+    );
+  }
+
+  return { updatedCount: updatedPages.length, pages: updatedPages };
+}
+
+export interface SingleSectionDesignPatch {
+  preset?: TenantStylePreset;
+  useBrandColors?: boolean;
+  backgroundColor?: string;
+  titleColor?: string;
+  descriptionColor?: string;
+  accentColor?: string;
+  primaryButtonColor?: string;
+  buttonShape?: string;
+  layout?: string;
+}
+
+/**
+ * Updates design settings for a single specific section on a specific page and saves to Firestore.
+ */
+export async function updateSingleSectionDesign(
+  db: Firestore | null,
+  tenantId: string,
+  pageId: string,
+  sectionKey: string,
+  patch: SingleSectionDesignPatch
+): Promise<{ success: boolean; updatedPage?: PageBuilderConfig; error?: string }> {
+  try {
+    const allPages = await pageBuilderFirestore.getAllPages(db, tenantId);
+    const targetPage = allPages.find((p) => p.pageId === pageId || p.slug === pageId);
+    if (!targetPage) {
+      return { success: false, error: 'העמוד המבוקש לא נמצא' };
+    }
+
+    const existingSection = targetPage.sections?.[sectionKey];
+    if (!existingSection) {
+      return { success: false, error: 'האזור המבוקש לא נמצא בעמוד' };
+    }
+
+    const now = new Date();
+    const snapshot: PageDesignSnapshot = {
+      id: `snap_sec_${Date.now()}`,
+      timestamp: now.toISOString(),
+      createdAtFormatted: now.toLocaleDateString('he-IL', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      label: `לפני עריכת אזור פרטני (${existingSection.title || existingSection.type || sectionKey})`,
+      preset: (targetPage.globalSettings?.theme as TenantStylePreset) || 'standard',
+      sections: JSON.parse(JSON.stringify(targetPage.sections || {})),
+      theme: targetPage.globalSettings?.theme,
+    };
+
+    let nextSection = JSON.parse(JSON.stringify(existingSection));
+    if (patch.preset) {
+      nextSection = applyStylePresetToSection(nextSection, patch.preset);
+    }
+    if (patch.useBrandColors !== undefined) nextSection.useBrandColors = patch.useBrandColors;
+    if (patch.backgroundColor !== undefined) nextSection.backgroundColor = patch.backgroundColor;
+    if (patch.titleColor !== undefined) nextSection.titleColor = patch.titleColor;
+    if (patch.descriptionColor !== undefined) nextSection.descriptionColor = patch.descriptionColor;
+    if (patch.accentColor !== undefined) nextSection.accentColor = patch.accentColor;
+    if (patch.primaryButtonColor !== undefined) nextSection.primaryButtonColor = patch.primaryButtonColor;
+    if (patch.buttonShape !== undefined) nextSection.buttonShape = patch.buttonShape;
+    if (patch.layout !== undefined) nextSection.layout = patch.layout;
+
+    const updatedPage: PageBuilderConfig = {
+      ...targetPage,
+      sections: {
+        ...targetPage.sections,
+        [sectionKey]: nextSection,
+      },
+      designSnapshots: [snapshot, ...(targetPage.designSnapshots || [])],
+      lastModified: Date.now(),
+    };
+
+    await pageBuilderFirestore.savePage(updatedPage, db, tenantId);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('kos_page_sections_updated', {
+          detail: {
+            sections: updatedPage.sections,
+            globalSettings: updatedPage.globalSettings,
+            tenantId,
+            pageId: updatedPage.pageId,
+          },
+        })
+      );
+    }
+
+    return { success: true, updatedPage };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'שגיאה בעדכון האזור' };
+  }
 }

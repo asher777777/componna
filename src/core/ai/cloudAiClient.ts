@@ -42,7 +42,7 @@ const CLOUD_AI_PROXY_BASE = 'https://us-central1-glowmanage.cloudfunctions.net/g
  * Resolves the exclusive server-side Gemini AI proxy endpoint.
  * ZERO direct browser calls to Google Generative Language API.
  */
-export function resolveAiProxyUrl(endpoint: 'generate' | 'image' | 'cache' | 'test'): string {
+export function resolveAiProxyUrl(endpoint: 'generate' | 'image' | 'cache' | 'test' | 'scrape-url'): string {
   const isLocalDev =
     typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');

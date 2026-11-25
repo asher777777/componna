@@ -161,4 +161,28 @@ export const kosaiBrandContract = {
       category: 'content',
     });
   },
+
+  /**
+   * Analyzes scraped website HTML/CSS/layout signals and synthesizes Brand DNA (content, colors, design & layout).
+   */
+  async analyzeScrapedWebsite(
+    prompt: string,
+    options?: {
+      apiKey?: string;
+      tenantId?: string;
+      systemInstruction?: string;
+      maxOutputTokens?: number;
+    }
+  ): Promise<KosaiContractResult<any>> {
+    return executeKosaiAi('KosBranding', prompt, {
+      model: 'gemini-3.8-flash-lite',
+      systemInstruction: options?.systemInstruction,
+      responseMimeType: 'application/json',
+      temperature: 0.35,
+      maxOutputTokens: options?.maxOutputTokens || 2400,
+      customApiKey: options?.apiKey,
+      tenantId: options?.tenantId,
+      category: 'content',
+    });
+  },
 };

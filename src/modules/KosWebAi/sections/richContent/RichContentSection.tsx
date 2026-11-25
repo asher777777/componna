@@ -339,12 +339,14 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
           'items-center text-center'
       )}
     >
-      <div className="inline-flex mb-4">
-        <span className={tokens.badge.className}>
-          {renderBadgeIcon()}
-          <span>אודות / תוכן מעוצב</span>
-        </span>
-      </div>
+      {(config as any).badge && (
+        <div className="inline-flex mb-4">
+          <span className={tokens.badge.className}>
+            {renderBadgeIcon()}
+            <span>{(config as any).badge}</span>
+          </span>
+        </div>
+      )}
 
       <h2
         className={clsx(
@@ -558,7 +560,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
             </div>
           </div>
         ) : isStack || !imageBlock ? (
-          <div className="flex flex-col gap-8">
+          <div className="max-w-4xl mx-auto w-full flex flex-col gap-8 text-right">
             {pos === 'top' && imageBlock}
             {wrapTextWithOptionalBg(mainContentBody)}
             {pos === 'bottom' && imageBlock}

@@ -31,7 +31,7 @@ import {
 import { STYLE_GLOBAL_THEMES, PRESET_TITLE_MAP } from '../services/pageStylePresetService';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { resolveLiveBrandDna } from '../services/brandSectionHydrator';
-import { scanFlyerFileForPageModel } from '../services/flyerScannerService';
+import { scanFlyerFileForPageModel, scanFlyerUrlForPageModel } from '../services/flyerScannerService';
 import { FlyerScanPaletteOption, FlyerScanReport } from '../kosai/promptToKosai';
 
 interface KoswebQuickPageModelModalProps {
@@ -154,6 +154,7 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
   const [cloudAssetLabel, setCloudAssetLabel] = useState('');
   const [generateHeroImageWithAi, setGenerateHeroImageWithAi] = useState(true);
   const [isCloudPickerFallbackOpen, setIsCloudPickerFallbackOpen] = useState(false);
+  const [cloudPickerPurpose, setCloudPickerPurpose] = useState<'flyer' | 'asset'>('asset');
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -166,8 +167,57 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
   const isImageUrl = (url: string) =>
     /^data:image\//i.test(url) || /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(url);
 
+  const handleScanFlyerUrl = async (url: string, label?: string) => {
+    setErrorMessage(null);
+    const derivedName = label || decodeURIComponent(url.split('?')[0].split('/').pop() || 'flyer');
+    setFlyerFileName(derivedName);
+    setIsScanningFlyer(true);
+    try {
+      const { report, previewImageDataUrl } = await scanFlyerUrlForPageModel({
+        url,
+        fileName: derivedName,
+        companyName: liveDna?.identity?.companyName || 'העסק שלי',
+        tenantId,
+      });
+      setFlyerReport(report);
+      setFlyerPreviewUrl(previewImageDataUrl);
+      setSelectedFlyerPalette(report.designPlan.extractedPalette);
+      setSelectedHeroLayout(report.designPlan.heroLayout);
+      setSelectedContentLayout(report.designPlan.contentLayout);
+      setUseFlyerImageAsHero(Boolean(previewImageDataUrl && report.designPlan.heroLayout === 'split'));
+      setFlowMode('flyer_review');
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'לא הצלחנו לסרוק את הקובץ מ-KOSCLOUD, נסה קובץ אחר או המשך לשאלון המהיר');
+    } finally {
+      setIsScanningFlyer(false);
+    }
+  };
+
+  const handleOpenKoscloudFlyerPicker = async () => {
+    setErrorMessage(null);
+    setCloudPickerPurpose('flyer');
+    if (mediaPicker?.openPicker) {
+      try {
+        const picked = await mediaPicker.openPicker({
+          multiple: false,
+          initialTab: 'gallery',
+        });
+        const selectedUrl = Array.isArray(picked) ? picked[0] : picked;
+        if (selectedUrl) {
+          await handleScanFlyerUrl(selectedUrl);
+        }
+        return;
+      } catch (err: any) {
+        setErrorMessage(err?.message || 'לא הצלחנו לפתוח את KOSCLOUD');
+        return;
+      }
+    }
+    setIsCloudPickerFallbackOpen(true);
+  };
+
   const handleOpenKoscloudPicker = async () => {
     setErrorMessage(null);
+    setCloudPickerPurpose('asset');
     if (mediaPicker?.openPicker) {
       try {
         const picked = await mediaPicker.openPicker({
@@ -406,17 +456,12 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
               </p>
             </div>
 
-            <label className="block rounded-2xl border-2 border-dashed border-indigo-300 dark:border-indigo-700 bg-indigo-50/40 dark:bg-indigo-950/20 hover:bg-indigo-50/80 dark:hover:bg-indigo-950/40 transition-all p-6 text-center cursor-pointer">
-              <input
-                type="file"
-                accept="image/*,.pdf,application/pdf,.md,.markdown,.txt,text/markdown"
-                disabled={isScanningFlyer}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFlyerFileSelected(file);
-                }}
-                className="hidden"
-              />
+            <button
+              type="button"
+              disabled={isScanningFlyer}
+              onClick={handleOpenKoscloudFlyerPicker}
+              className="w-full rounded-2xl border-2 border-dashed border-indigo-300 dark:border-indigo-700 bg-indigo-50/40 dark:bg-indigo-950/20 hover:bg-indigo-50/80 dark:hover:bg-indigo-950/40 transition-all p-6 text-center cursor-pointer disabled:opacity-60"
+            >
               {isScanningFlyer ? (
                 <div className="flex flex-col items-center gap-3 py-4">
                   <Loader2 className="w-9 h-9 animate-spin text-indigo-600" />
@@ -433,14 +478,14 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
                     <CloudUpload className="w-6 h-6" />
                   </div>
                   <div className="text-sm font-black text-slate-900 dark:text-white">
-                    לחץ להעלאת פלייר (תמונה, PDF או MD)
+                    פתח את KOSCLOUD להעלאה או בחירת פלייר (תמונה, PDF או MD)
                   </div>
                   <div className="text-xs text-slate-500">
-                    תמיכה ב־JPG, PNG, WEBP, PDF, Markdown (.md)
+                    מתוך KOSCLOUD ניתן להעלות קובץ חדש או לבחור קובץ קיים מהכספת שלך
                   </div>
                 </div>
               )}
-            </label>
+            </button>
 
             {errorMessage && (
               <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-center gap-2 text-xs font-bold text-rose-700 dark:text-rose-300">
@@ -1112,11 +1157,15 @@ export const KoswebQuickPageModelModal: React.FC<KoswebQuickPageModelModalProps>
             title: 'KOSCLOUD — בחירה והעלאת קובץ',
             onSelectMedia: (items: Array<{ name?: string; url?: string }>) => {
               const first = items?.[0];
-              if (first?.url) {
-                setCloudAssetUrl(first.url);
-                setCloudAssetLabel(first.name || 'קובץ מ-KOSCLOUD');
-              }
               setIsCloudPickerFallbackOpen(false);
+              if (first?.url) {
+                if (cloudPickerPurpose === 'flyer') {
+                  void handleScanFlyerUrl(first.url, first.name);
+                } else {
+                  setCloudAssetUrl(first.url);
+                  setCloudAssetLabel(first.name || 'קובץ מ-KOSCLOUD');
+                }
+              }
             },
           }}
         />

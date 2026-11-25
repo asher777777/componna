@@ -692,6 +692,9 @@ export interface CoreEventMap {
   'player:interaction': { videoId: string; eventType: string; timestamp: number };
   'brand:updated': { brandDna: BrandDna; updatedAt: string };
   'brand:apply_style_to_all_pages': { preset: TenantStylePreset; tenantId: string; updatedAt?: string };
+  'brand:apply_design_tokens_to_all_pages': { tenantId: string; designTokens: BrandDesignTokens; updatedAt?: string };
+  'brand:apply_layout_to_all_pages': { tenantId: string; layoutArchetype: TenantLayoutArchetype; brandDna?: BrandDna; updatedAt?: string };
+  'brand:apply_microcopy_to_all_pages': { tenantId: string; brandDna: BrandDna; updatedAt?: string };
   'brand:reset_all_pages': { tenantId: string; brandDna?: BrandDna; updatedAt?: string };
   'brand:logo_updated': { logoUrl: string; updatedAt?: string };
   'brand:vibe_image_added': { imageUrl: string; updatedAt: string };
@@ -893,6 +896,32 @@ export interface BrandAudience {
 
 export type TenantStylePreset = 'feminine' | 'masculine' | 'standard' | 'spiritual' | 'sharp' | 'analytical';
 
+export type TenantLayoutArchetype =
+  | 'bento_hub'
+  | 'editorial_boutique'
+  | 'warm_community'
+  | 'knowledge_academy'
+  | 'direct_showcase';
+
+export interface WebsiteScanScope {
+  content: boolean;
+  colors: boolean;
+  designAndLayout: boolean;
+}
+
+export interface LearnedWebsiteProfile {
+  sourceUrl: string;
+  scannedAt: string;
+  userPrompt?: string;
+  learnedScopes: WebsiteScanScope;
+  extractedPalette?: string[];
+  detectedFonts?: string[];
+  recommendedLayoutArchetype?: TenantLayoutArchetype;
+  recommendedStylePreset?: TenantStylePreset;
+  designElementsSummary?: string;
+  layoutNotes?: string;
+}
+
 export interface BrandDesignTokens {
   primaryColor: string;
   secondaryColor: string;
@@ -906,6 +935,7 @@ export interface BrandDesignTokens {
   borderRadius: BorderRadiusStyle;
   buttonStyle: ButtonStyleType;
   defaultStylePreset?: TenantStylePreset;
+  defaultLayoutArchetype?: TenantLayoutArchetype;
 }
 
 export interface BrandTrustAndCheckout {
@@ -1091,6 +1121,7 @@ export interface BrandDna {
   serviceSlugs?: Record<string, string>;
   brandSummaryParagraph?: string;
   uiVocabulary?: BrandUiVocabulary;
+  learnedSiteProfile?: LearnedWebsiteProfile;
   updatedAt?: string;
 }
 

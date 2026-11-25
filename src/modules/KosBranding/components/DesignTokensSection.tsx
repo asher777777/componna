@@ -3,6 +3,7 @@ import { useBrandDna } from '../hooks/useBrandDna';
 import { BorderRadiusStyle, ButtonStyleType, TenantStylePreset } from '../types/brandDna';
 import { useTenantScope } from '../../../core/tenant';
 import { eventBus } from '../../../core/bridge/EventBus';
+import { SiteDesignScopePanel } from './SiteDesignScopePanel';
 import {
   Palette,
   Type,
@@ -216,7 +217,11 @@ const TENANT_STYLE_OPTIONS: Array<{
   },
 ];
 
-export const DesignTokensSection: React.FC = () => {
+interface DesignTokensSectionProps {
+  onOpenScraper?: () => void;
+}
+
+export const DesignTokensSection: React.FC<DesignTokensSectionProps> = ({ onOpenScraper }) => {
   const { brandDna, updateDesignTokens, saveNow, isSaving } = useBrandDna();
   const { tenantId } = useTenantScope();
   const tokens = brandDna.designTokens;
@@ -833,6 +838,8 @@ export const DesignTokensSection: React.FC = () => {
         </div>
       </div>
 
-          </div>
+      {/* 5. KOSAI Site Learning, Global Bulk Impact & Per-Page/Per-Section Design Control */}
+      <SiteDesignScopePanel onOpenScraper={onOpenScraper} />
+    </div>
   );
 };

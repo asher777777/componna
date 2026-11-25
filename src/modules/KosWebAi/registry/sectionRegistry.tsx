@@ -664,11 +664,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       body: '<p class="text-lg font-semibold leading-relaxed"><strong>החזון שלנו:</strong> להוביל, לחדש וליצור ערך אמיתי ואיכותי עבור לקוחותינו והקהילה.</p><p class="leading-relaxed">אנו פועלים מתוך מחויבות עמוקה למקצועיות, שקיפות וחדשנות טכנולוגית, ומספקים פתרונות מותאמים אישית לכל אתגר.</p><blockquote class="border-r-4 border-amber-500 pr-4 italic my-3 text-slate-300">״מצוינות איננה מעשה בודד, אלא הרגל של יצירה והתמדה״</blockquote>',
       layout: 'standard',
       contentLayout: 'standard',
-      buttonsVisible: true,
-      primaryButton: {
-        text: 'קראו עוד על החזון',
-        url: '#richContent',
-      },
+      buttonsVisible: false,
       backgroundColor: 'transparent',
     },
   },

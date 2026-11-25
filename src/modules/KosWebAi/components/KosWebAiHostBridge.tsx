@@ -21,7 +21,14 @@ import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import { resolveLiveBrandDna } from '../services/brandSectionHydrator';
 import { KosvidioGalleryItem } from '../types/sectionConfigs';
-import { applyStylePresetToAllTenantPages, resetAllTenantPagesToBrand, applyStylePresetToPage } from '../services/pageStylePresetService';
+import {
+  applyStylePresetToAllTenantPages,
+  resetAllTenantPagesToBrand,
+  applyStylePresetToPage,
+  applyBrandDesignTokensToAllTenantPages,
+  applyLayoutArchetypeToAllTenantPages,
+} from '../services/pageStylePresetService';
+import { syncAllTenantPagesWithBrandDna } from '../services/pageBrandSyncService';
 import { TenantStylePreset } from '../../../core/contracts';
 
 export const KosWebAiHostBridge: React.FC = () => {
@@ -534,6 +541,31 @@ export const KosWebAiHostBridge: React.FC = () => {
 
     const unsubApply = eventBus.subscribe('brand:apply_style_to_all_pages', handleApplyAll);
     const unsubReset = eventBus.subscribe('brand:reset_all_pages', handleResetAll);
+    const unsubTokens = eventBus.subscribe('brand:apply_design_tokens_to_all_pages', async (data) => {
+      const targetTenant = data.tenantId || tenantId || '_master';
+      try {
+        await applyBrandDesignTokensToAllTenantPages(db || null, targetTenant, data.designTokens);
+      } catch (err) {
+        console.error('[KosWebAiHostBridge] Error applying design tokens to all pages:', err);
+      }
+    });
+    const unsubLayout = eventBus.subscribe('brand:apply_layout_to_all_pages', async (data) => {
+      const targetTenant = data.tenantId || tenantId || '_master';
+      try {
+        const liveBrandDna = data.brandDna || resolveLiveBrandDna(null, targetTenant);
+        await applyLayoutArchetypeToAllTenantPages(db || null, targetTenant, data.layoutArchetype as any, liveBrandDna);
+      } catch (err) {
+        console.error('[KosWebAiHostBridge] Error applying layout archetype to all pages:', err);
+      }
+    });
+    const unsubMicrocopy = eventBus.subscribe('brand:apply_microcopy_to_all_pages', async (data) => {
+      const targetTenant = data.tenantId || tenantId || '_master';
+      try {
+        await syncAllTenantPagesWithBrandDna(db || undefined, targetTenant, data.brandDna);
+      } catch (err) {
+        console.error('[KosWebAiHostBridge] Error applying microcopy to all pages:', err);
+      }
+    });
 
     const onWinApply = (e: any) => {
       if (e?.detail?.preset) {
@@ -551,6 +583,9 @@ export const KosWebAiHostBridge: React.FC = () => {
       unregisterCapability('page-builder');
       unsubApply();
       unsubReset();
+      unsubTokens();
+      unsubLayout();
+      unsubMicrocopy();
       window.removeEventListener('kos_brand_apply_all_pages', onWinApply);
       window.removeEventListener('kos_brand_reset_all_pages', onWinReset);
     };

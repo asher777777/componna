@@ -54,7 +54,8 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
   const resolvedSlug = (() => {
     if (slug) return slug;
 
-    const extractFromParts = (parts: string[]): string => {
+    const extractFromParts = (rawParts: string[]): string => {
+      const parts = rawParts[0]?.toLowerCase() === 'preview' ? rawParts.slice(1) : rawParts;
       if (parts.length === 0) return '';
       const archivePrefixes = [
         'p', 'page', 'to',
@@ -107,7 +108,10 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
     return '';
   })();
 
-  const isPreviewMode = searchParams.get('preview') === 'true';
+  const isPreviewPath =
+    location.pathname.toLowerCase().startsWith('/preview/') ||
+    location.hash.toLowerCase().startsWith('#/preview/');
+  const isPreviewMode = searchParams.get('preview') === 'true' || isPreviewPath;
   const [isEditing, setIsEditing] = useState<boolean>(() => searchParams.get('edit') === 'true');
   const [isSaving, setIsSaving] = useState(false);
   const [, setThemeVersion] = useState(0);

@@ -69,7 +69,7 @@ export const TEMPLATE_PAYMENT_CHECKOUT: SmartFormDefinition = {
       iconName: 'User',
       placeholder: 'שם פרטי ומשפחה',
       required: true,
-      mappingKey: 'conta_name',
+      mappingKey: 'kosun_crm_name',
     },
     {
       id: 'pay_step_phone',
@@ -80,7 +80,7 @@ export const TEMPLATE_PAYMENT_CHECKOUT: SmartFormDefinition = {
       iconName: 'Phone',
       placeholder: '050-0000000',
       required: true,
-      mappingKey: 'conta_phone',
+      mappingKey: 'kosun_crm_phone',
     },
     {
       id: 'pay_step_email',
@@ -91,7 +91,7 @@ export const TEMPLATE_PAYMENT_CHECKOUT: SmartFormDefinition = {
       iconName: 'Mail',
       placeholder: 'your@email.com',
       required: true,
-      mappingKey: 'email',
+      mappingKey: 'kosun_crm_email',
     },
     {
       id: 'pay_step_process',
@@ -196,7 +196,7 @@ export const TEMPLATE_DONATION_RECURRING: SmartFormDefinition = {
       iconName: 'User',
       placeholder: 'שם התורם / שם החברה',
       required: true,
-      mappingKey: 'conta_name',
+      mappingKey: 'kosun_crm_name',
     },
     {
       id: 'step_don_phone',
@@ -207,7 +207,7 @@ export const TEMPLATE_DONATION_RECURRING: SmartFormDefinition = {
       iconName: 'Phone',
       placeholder: '050-0000000',
       required: true,
-      mappingKey: 'conta_phone',
+      mappingKey: 'kosun_crm_phone',
     },
     {
       id: 'step_don_email',
@@ -218,7 +218,7 @@ export const TEMPLATE_DONATION_RECURRING: SmartFormDefinition = {
       iconName: 'Mail',
       placeholder: 'donor@example.com',
       required: true,
-      mappingKey: 'email',
+      mappingKey: 'kosun_crm_email',
     },
     {
       id: 'step_don_payment',
@@ -278,7 +278,7 @@ export const TEMPLATE_LEAD_CAPTURE: SmartFormDefinition = {
       iconName: 'User',
       placeholder: 'ישראל ישראלי',
       required: true,
-      mappingKey: 'conta_name',
+      mappingKey: 'kosun_crm_name',
     },
     {
       id: 'step_lead_phone',
@@ -289,7 +289,7 @@ export const TEMPLATE_LEAD_CAPTURE: SmartFormDefinition = {
       iconName: 'Phone',
       placeholder: '050-0000000',
       required: true,
-      mappingKey: 'conta_phone',
+      mappingKey: 'kosun_crm_phone',
     },
     {
       id: 'step_lead_email',
@@ -300,7 +300,7 @@ export const TEMPLATE_LEAD_CAPTURE: SmartFormDefinition = {
       iconName: 'Mail',
       placeholder: 'name@example.com',
       required: true,
-      mappingKey: 'email',
+      mappingKey: 'kosun_crm_email',
     },
     {
       id: 'step_lead_company',
@@ -311,7 +311,7 @@ export const TEMPLATE_LEAD_CAPTURE: SmartFormDefinition = {
       iconName: 'Building',
       placeholder: 'שם החברה / הארגון',
       required: false,
-      mappingKey: 'company_name',
+      mappingKey: 'kosun_crm_company',
     },
     {
       id: 'step_lead_notes',
@@ -322,7 +322,7 @@ export const TEMPLATE_LEAD_CAPTURE: SmartFormDefinition = {
       iconName: 'FileText',
       placeholder: 'כתוב את תוכן הפנייה כאן...',
       required: false,
-      mappingKey: 'notes',
+      mappingKey: 'kosun_crm_notes',
     },
   ],
 };
@@ -429,7 +429,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'User',
         placeholder: 'ישראל ישראלי | חברת אופק דיגיטל',
         required: true,
-        mappingKey: 'conta_name',
+        mappingKey: 'kosun_crm_name',
       },
       {
         id: 'step_phone',
@@ -440,7 +440,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'Phone',
         placeholder: '050-1234567',
         required: true,
-        mappingKey: 'conta_phone',
+        mappingKey: 'kosun_crm_phone',
       },
       {
         id: 'step_email',
@@ -451,7 +451,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'Mail',
         placeholder: 'name@company.com',
         required: true,
-        mappingKey: 'email',
+        mappingKey: 'kosun_crm_email',
       },
     ],
   },
@@ -528,7 +528,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'User',
         placeholder: 'שם מלא',
         required: true,
-        mappingKey: 'conta_name',
+        mappingKey: 'kosun_crm_name',
       },
       {
         id: 'step_student_phone',
@@ -539,7 +539,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'Phone',
         placeholder: '050-1234567',
         required: true,
-        mappingKey: 'conta_phone',
+        mappingKey: 'kosun_crm_phone',
       },
       {
         id: 'step_student_email',
@@ -549,7 +549,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'Mail',
         placeholder: 'student@example.com',
         required: true,
-        mappingKey: 'email',
+        mappingKey: 'kosun_crm_email',
       },
     ],
   },
@@ -620,7 +620,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'UserCheck',
         placeholder: 'דוד כהן, מנכ"ל ובעלים',
         required: true,
-        mappingKey: 'conta_name',
+        mappingKey: 'kosun_crm_name',
       },
       {
         id: 'step_phone_vip',
@@ -630,7 +630,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'PhoneCall',
         placeholder: '052-1234567',
         required: true,
-        mappingKey: 'conta_phone',
+        mappingKey: 'kosun_crm_phone',
       },
       {
         id: 'step_email_vip',
@@ -640,7 +640,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'Mail',
         placeholder: 'david@company.co.il',
         required: true,
-        mappingKey: 'email',
+        mappingKey: 'kosun_crm_email',
       },
     ],
   },
@@ -701,7 +701,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'User',
         placeholder: 'שם פרטי ומשפחה',
         required: true,
-        mappingKey: 'conta_name',
+        mappingKey: 'kosun_crm_name',
       },
       {
         id: 'step_ambassador_phone',
@@ -711,7 +711,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'Phone',
         placeholder: '050-1234567',
         required: true,
-        mappingKey: 'conta_phone',
+        mappingKey: 'kosun_crm_phone',
       },
       {
         id: 'step_ambassador_city',
@@ -721,7 +721,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'MapPin',
         placeholder: 'למשל: ירושלים / פתח תקווה',
         required: false,
-        mappingKey: 'mh_crm_city',
+        mappingKey: 'kosun_crm_city',
       },
     ],
   },
@@ -802,7 +802,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'User',
         placeholder: 'שם התורם / שם החברה',
         required: true,
-        mappingKey: 'conta_name',
+        mappingKey: 'kosun_crm_name',
       },
       {
         id: 'step_donor_phone',
@@ -812,7 +812,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'Phone',
         placeholder: '050-1234567',
         required: true,
-        mappingKey: 'conta_phone',
+        mappingKey: 'kosun_crm_phone',
       },
       {
         id: 'step_donor_email',
@@ -822,7 +822,7 @@ export const SMART_FORM_TEMPLATES: SmartFormDefinition[] = [
         iconName: 'Mail',
         placeholder: 'donor@example.com',
         required: true,
-        mappingKey: 'email',
+        mappingKey: 'kosun_crm_email',
       },
     ],
   },

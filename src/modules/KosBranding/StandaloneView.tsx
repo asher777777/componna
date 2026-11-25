@@ -527,7 +527,7 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
                   {activeTab === 'voice' && <BrandVoiceSection />}
                   {activeTab === 'audience' && <TargetAudienceSection />}
                   {activeTab === 'ecosystem' && <BrandEcosystemSection />}
-                  {activeTab === 'design' && <DesignTokensSection />}
+                  {activeTab === 'design' && <DesignTokensSection onOpenScraper={() => setIsScraperModalOpen(true)} />}
                   {activeTab === 'trust' && <TrustCheckoutSection />}
                   {activeTab === 'market' && <MarketResearchAgentSection />}
               </div>

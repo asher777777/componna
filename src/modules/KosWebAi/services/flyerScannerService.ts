@@ -70,7 +70,7 @@ function normalizePaletteOption(
   };
 }
 
-function fileToBase64(file: File): Promise<string> {
+function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -79,49 +79,11 @@ function fileToBase64(file: File): Promise<string> {
       resolve(base64);
     };
     reader.onerror = () => reject(new Error('שגיאה בקריאת הקובץ'));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   });
 }
 
-export async function scanFlyerFileForPageModel(params: {
-  file: File;
-  companyName: string;
-  availableIconNames?: string[];
-  tenantId?: string;
-}): Promise<{ report: FlyerScanReport; previewImageDataUrl?: string }> {
-  const { file, companyName, availableIconNames, tenantId } = params;
-  const lowerName = file.name.toLowerCase();
-  const isMarkdown =
-    lowerName.endsWith('.md') ||
-    lowerName.endsWith('.markdown') ||
-    lowerName.endsWith('.txt') ||
-    file.type.startsWith('text/');
-
-  let imageBase64: string | undefined;
-  let mimeType: string | undefined;
-  let markdownText: string | undefined;
-  let previewImageDataUrl: string | undefined;
-
-  if (isMarkdown) {
-    markdownText = await file.text();
-  } else {
-    mimeType = file.type || (lowerName.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
-    imageBase64 = await fileToBase64(file);
-    if (mimeType.startsWith('image/')) {
-      previewImageDataUrl = `data:${mimeType};base64,${imageBase64}`;
-    }
-  }
-
-  const raw = await dispatchFlyerScanToKosai({
-    companyName,
-    fileName: file.name,
-    imageBase64,
-    mimeType,
-    markdownText,
-    availableIconNames,
-    tenantId,
-  });
-
+function normalizeScanReport(raw: FlyerScanReport, fallbackTitle: string): FlyerScanReport {
   const extractedPalette = normalizePaletteOption(
     raw?.designPlan?.extractedPalette,
     'flyer_extracted',
@@ -192,8 +154,8 @@ export async function scanFlyerFileForPageModel(params: {
   if (!sectionOrder.includes('hero')) sectionOrder.unshift('hero');
   if (!sectionOrder.includes('smartForm')) sectionOrder.push('smartForm');
 
-  const normalized: FlyerScanReport = {
-    title: String(raw?.title || file.name.replace(/\.[^.]+$/, '')).trim(),
+  return {
+    title: String(raw?.title || fallbackTitle).trim(),
     subtitle: String(raw?.subtitle || '').trim(),
     description: String(raw?.description || '').trim(),
     eventDetails: {
@@ -243,6 +205,109 @@ export async function scanFlyerFileForPageModel(params: {
       ).trim(),
     },
   };
+}
 
-  return { report: normalized, previewImageDataUrl };
+export async function scanFlyerUrlForPageModel(params: {
+  url: string;
+  fileName?: string;
+  companyName: string;
+  availableIconNames?: string[];
+  tenantId?: string;
+}): Promise<{ report: FlyerScanReport; previewImageDataUrl?: string }> {
+  const { url, fileName, companyName, availableIconNames, tenantId } = params;
+  const derivedName =
+    fileName ||
+    decodeURIComponent(url.split('?')[0].split('/').pop() || 'flyer');
+  const lower = `${derivedName} ${url}`.toLowerCase();
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`לא ניתן לטעון את הקובץ מ-KOSCLOUD (${res.status})`);
+  }
+
+  const contentType = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  const isMarkdown =
+    lower.includes('.md') ||
+    lower.includes('.markdown') ||
+    lower.includes('.txt') ||
+    contentType.startsWith('text/');
+
+  let imageBase64: string | undefined;
+  let mimeType: string | undefined;
+  let markdownText: string | undefined;
+  let previewImageDataUrl: string | undefined;
+
+  if (isMarkdown) {
+    markdownText = await res.text();
+  } else {
+    const blob = await res.blob();
+    mimeType =
+      contentType ||
+      blob.type ||
+      (lower.includes('.pdf') ? 'application/pdf' : 'image/jpeg');
+    imageBase64 = await blobToBase64(blob);
+    if (mimeType.startsWith('image/')) {
+      previewImageDataUrl = url;
+    }
+  }
+
+  const raw = await dispatchFlyerScanToKosai({
+    companyName,
+    fileName: derivedName,
+    imageBase64,
+    mimeType,
+    markdownText,
+    availableIconNames,
+    tenantId,
+  });
+
+  return {
+    report: normalizeScanReport(raw, derivedName.replace(/\.[^.]+$/, '')),
+    previewImageDataUrl,
+  };
+}
+
+export async function scanFlyerFileForPageModel(params: {
+  file: File;
+  companyName: string;
+  availableIconNames?: string[];
+  tenantId?: string;
+}): Promise<{ report: FlyerScanReport; previewImageDataUrl?: string }> {
+  const { file, companyName, availableIconNames, tenantId } = params;
+  const lowerName = file.name.toLowerCase();
+  const isMarkdown =
+    lowerName.endsWith('.md') ||
+    lowerName.endsWith('.markdown') ||
+    lowerName.endsWith('.txt') ||
+    file.type.startsWith('text/');
+
+  let imageBase64: string | undefined;
+  let mimeType: string | undefined;
+  let markdownText: string | undefined;
+  let previewImageDataUrl: string | undefined;
+
+  if (isMarkdown) {
+    markdownText = await file.text();
+  } else {
+    mimeType = file.type || (lowerName.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+    imageBase64 = await blobToBase64(file);
+    if (mimeType.startsWith('image/')) {
+      previewImageDataUrl = `data:${mimeType};base64,${imageBase64}`;
+    }
+  }
+
+  const raw = await dispatchFlyerScanToKosai({
+    companyName,
+    fileName: file.name,
+    imageBase64,
+    mimeType,
+    markdownText,
+    availableIconNames,
+    tenantId,
+  });
+
+  return {
+    report: normalizeScanReport(raw, file.name.replace(/\.[^.]+$/, '')),
+    previewImageDataUrl,
+  };
 }

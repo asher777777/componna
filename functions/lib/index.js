@@ -2329,8 +2329,9 @@ exports.geminiAiProxy = functions.runWith({ timeoutSeconds: 120, memory: '512MB'
             const action = String(body.action ||
                 (pathLower.includes('/image') ? 'image'
                     : pathLower.includes('/cache') ? (req.method === 'DELETE' ? 'cache-delete' : 'cache-create')
-                        : pathLower.includes('/test') ? 'test'
-                            : 'generate')).toLowerCase();
+                        : pathLower.includes('/scrape-url') ? 'scrape-url'
+                            : pathLower.includes('/test') ? 'test'
+                                : 'generate')).toLowerCase();
             const tenantId = String(body.tenantId || '_master').trim().toLowerCase();
             // 1. TEST CONNECTION (/api/ai/test)
             if (action === 'test') {
@@ -2359,6 +2360,227 @@ exports.geminiAiProxy = functions.runWith({ timeoutSeconds: 120, memory: '512MB'
                     error: sanitizeSecretFromError(((_a = errJson === null || errJson === void 0 ? void 0 : errJson.error) === null || _a === void 0 ? void 0 : _a.message) || `Google API error (${testRes.status})`),
                 });
                 return;
+            }
+            // 1.5 WEBSITE SCRAPE & DESIGN SIGNAL EXTRACTOR (/api/ai/scrape-url)
+            if (action === 'scrape-url') {
+                const rawUrl = String(body.url || '').trim();
+                if (!rawUrl) {
+                    res.status(400).json({ success: false, error: 'Missing url parameter' });
+                    return;
+                }
+                const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+                let parsedUrl;
+                try {
+                    parsedUrl = new URL(normalizedUrl);
+                }
+                catch (_v) {
+                    res.status(400).json({ success: false, error: 'Invalid URL format' });
+                    return;
+                }
+                if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+                    res.status(400).json({ success: false, error: 'Unsupported URL protocol' });
+                    return;
+                }
+                const host = parsedUrl.hostname.toLowerCase();
+                if (host === 'localhost' ||
+                    host === '127.0.0.1' ||
+                    host === '0.0.0.0' ||
+                    host === '::1' ||
+                    host.startsWith('10.') ||
+                    host.startsWith('192.168.') ||
+                    host.startsWith('169.254.') ||
+                    /^172\.(1[6-9]|2\d|3[01])\./.test(host)) {
+                    res.status(403).json({ success: false, error: 'Access to internal network hosts is not allowed' });
+                    return;
+                }
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                try {
+                    const pageRes = await fetch(parsedUrl.toString(), {
+                        method: 'GET',
+                        redirect: 'follow',
+                        signal: controller.signal,
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                            'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
+                        },
+                    });
+                    clearTimeout(timeoutId);
+                    if (!pageRes.ok) {
+                        res.status(200).json({
+                            success: false,
+                            status: pageRes.status,
+                            error: `האתר החזיר שגיאה (${pageRes.status})`,
+                        });
+                        return;
+                    }
+                    const html = (await pageRes.text()).slice(0, 350000);
+                    // Optionally fetch first stylesheet for richer color/font/radius extraction
+                    let cssText = '';
+                    const cssLinks = Array.from(html.matchAll(/<link[^>]+rel=["'][^"']*stylesheet[^"']*["'][^>]+href=["']([^"']+)["']/gi))
+                        .map((m) => m[1])
+                        .filter((href) => href && !href.includes('fonts.googleapis.com'))
+                        .slice(0, 2);
+                    for (const cssHref of cssLinks) {
+                        try {
+                            const cssUrl = new URL(cssHref, parsedUrl.origin).toString();
+                            const cssCtrl = new AbortController();
+                            const cssTimer = setTimeout(() => cssCtrl.abort(), 3500);
+                            const cssResp = await fetch(cssUrl, { signal: cssCtrl.signal });
+                            clearTimeout(cssTimer);
+                            if (cssResp.ok) {
+                                cssText += '\n' + (await cssResp.text()).slice(0, 120000);
+                            }
+                        }
+                        catch (_w) {
+                            // ignore optional css fetch errors
+                        }
+                    }
+                    const combinedStyleAndHtml = html + '\n' + cssText;
+                    const getMeta = (pattern) => {
+                        var _a;
+                        const m = html.match(pattern);
+                        return ((_a = m === null || m === void 0 ? void 0 : m[1]) === null || _a === void 0 ? void 0 : _a.trim()) || '';
+                    };
+                    const title = getMeta(/<title[^>]*>([\s\S]*?)<\/title>/i).replace(/\s+/g, ' ');
+                    const description = getMeta(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+                        getMeta(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+                    const ogTitle = getMeta(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i);
+                    const ogDescription = getMeta(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+                    const ogImageRaw = getMeta(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+                    const themeColor = getMeta(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i);
+                    const faviconRaw = getMeta(/<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["']([^"']+)["']/i);
+                    const resolveAsset = (raw) => {
+                        if (!raw)
+                            return '';
+                        try {
+                            return new URL(raw, parsedUrl.origin).toString();
+                        }
+                        catch (_a) {
+                            return raw;
+                        }
+                    };
+                    // Extract hex colors & counts
+                    const colorCounts = new Map();
+                    const hexMatches = combinedStyleAndHtml.match(/#[0-9a-fA-F]{6}\b/g) || [];
+                    for (const hex of hexMatches) {
+                        const norm = hex.toLowerCase();
+                        colorCounts.set(norm, (colorCounts.get(norm) || 0) + 1);
+                    }
+                    const topColors = Array.from(colorCounts.entries())
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 20)
+                        .map(([hex, count]) => ({ hex, count }));
+                    // Extract CSS custom properties related to colors
+                    const cssVars = {};
+                    const varMatches = combinedStyleAndHtml.matchAll(/--([a-zA-Z0-9_-]*(?:color|primary|secondary|accent|bg|background|text|brand)[a-zA-Z0-9_-]*)\s*:\s*([^;}{]+)/gi);
+                    for (const m of varMatches) {
+                        if (Object.keys(cssVars).length < 25) {
+                            cssVars[`--${m[1]}`] = m[2].trim();
+                        }
+                    }
+                    // Extract fonts
+                    const fontSet = new Set();
+                    const googleFontMatches = html.matchAll(/fonts\.googleapis\.com\/css2?\?[^"']*family=([^"'&]+)/gi);
+                    for (const m of googleFontMatches) {
+                        fontSet.add(decodeURIComponent(m[1]).split(':')[0].replace(/\+/g, ' '));
+                    }
+                    const fontFamilyMatches = combinedStyleAndHtml.matchAll(/font-family\s*:\s*([^;}{]+)/gi);
+                    for (const m of fontFamilyMatches) {
+                        const firstFont = m[1].split(',')[0].replace(/["']/g, '').trim();
+                        if (firstFont && !/^(inherit|initial|unset|sans-serif|serif|monospace|system-ui)$/i.test(firstFont)) {
+                            fontSet.add(firstFont);
+                        }
+                        if (fontSet.size >= 8)
+                            break;
+                    }
+                    // Extract border-radius samples
+                    const radiiSet = new Set();
+                    const radiusMatches = combinedStyleAndHtml.matchAll(/border-radius\s*:\s*([^;}{]+)/gi);
+                    for (const m of radiusMatches) {
+                        radiiSet.add(m[1].trim());
+                        if (radiiSet.size >= 10)
+                            break;
+                    }
+                    // Extract headings & CTA texts
+                    const headings = [];
+                    for (const m of html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)) {
+                        const clean = m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                        if (clean && clean.length > 2 && clean.length < 160)
+                            headings.push(clean);
+                        if (headings.length >= 16)
+                            break;
+                    }
+                    const ctaTexts = [];
+                    for (const m of html.matchAll(/<(?:button|a)[^>]*>([\s\S]*?)<\/(?:button|a)>/gi)) {
+                        const clean = m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                        if (clean && clean.length >= 2 && clean.length <= 45 && !ctaTexts.includes(clean)) {
+                            ctaTexts.push(clean);
+                        }
+                        if (ctaTexts.length >= 16)
+                            break;
+                    }
+                    // Structural layout cues
+                    const structureCues = {
+                        hasHeader: /<header\b/i.test(html),
+                        hasNav: /<nav\b/i.test(html),
+                        hasHero: /hero|banner|jumbotron/i.test(html),
+                        hasGridOrCards: /grid|bento|card|cards/i.test(combinedStyleAndHtml),
+                        hasTestimonials: /testimonial|review|המלצות|לקוחות מספרים/i.test(html),
+                        hasPricing: /pricing|plan|מחיר|חבילות|מסלולים/i.test(html),
+                        hasFaq: /faq|שאלות ותשובות|שאלות נפוצות/i.test(html),
+                        hasForm: /<form\b/i.test(html),
+                        hasFooter: /<footer\b/i.test(html),
+                    };
+                    // Clean visible text
+                    const visibleText = html
+                        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+                        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+                        .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+                        .replace(/<[^>]+>/g, ' ')
+                        .replace(/&nbsp;/g, ' ')
+                        .replace(/\s+/g, ' ')
+                        .trim()
+                        .slice(0, 4500);
+                    res.status(200).json({
+                        success: true,
+                        url: parsedUrl.toString(),
+                        domain: host,
+                        meta: {
+                            title,
+                            description,
+                            ogTitle,
+                            ogDescription,
+                            ogImage: resolveAsset(ogImageRaw),
+                            themeColor,
+                            favicon: resolveAsset(faviconRaw),
+                        },
+                        designSignals: {
+                            topColors,
+                            cssVars,
+                            fonts: Array.from(fontSet),
+                            borderRadii: Array.from(radiiSet),
+                            structureCues,
+                        },
+                        contentSignals: {
+                            headings,
+                            ctaTexts,
+                            visibleText,
+                        },
+                    });
+                    return;
+                }
+                catch (scrapeErr) {
+                    clearTimeout(timeoutId);
+                    res.status(200).json({
+                        success: false,
+                        error: (scrapeErr === null || scrapeErr === void 0 ? void 0 : scrapeErr.name) === 'AbortError'
+                            ? 'פג זמן ההמתנה לטעינת האתר (Timeout)'
+                            : ((scrapeErr === null || scrapeErr === void 0 ? void 0 : scrapeErr.message) || 'שגיאה בגישה לכתובת האתר'),
+                    });
+                    return;
+                }
             }
             // Resolve server-side key for all other actions (NEVER trust client-supplied keys in production)
             const apiKey = await resolveServerGeminiKey(tenantId);
