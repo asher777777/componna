@@ -22,8 +22,10 @@ import {
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
-import { MediaPickerContract } from '../../../core/contracts';
+import { MediaPickerContract, BrandDnaContract } from '../../../core/contracts';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
+import { EventPosterSectionConfig } from '../types/sectionConfigs';
+import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { SmartFormDefinition } from '../../KosForms/types';
 import { saveSmartForm } from '../../KosForms/services/formStorageService';
 import { DEFAULT_FORMS_COLLECTION } from '../../KosForms/config/constants';
@@ -31,12 +33,13 @@ import {
   CustomHtmlLandingPage,
   FlyerLandingReport,
   checkSlugAvailability,
-  generateHtmlAndFormWithKosai,
+  generateEventPosterAndFormWithKosai,
   generateLandingReportFromFlyer,
   sanitizeLandingSlug,
   saveCustomHtmlLandingPage,
 } from '../services/customHtmlLandingService';
-import { CustomHtmlWithFormRenderer } from './CustomHtmlLandingView';
+import { EventPosterSection } from '../sections/eventPoster/EventPosterSection';
+import { EventPosterEditor } from '../sections/eventPoster/EventPosterEditor';
 
 export interface FlyerToHtmlLandingModalProps {
   isOpen: boolean;
@@ -63,6 +66,7 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
   const { tenantId, getScopedCollectionPath } = useTenantScope();
   const { getCapability } = useHostCapabilities();
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
+  const brandDnaContract = getCapability<BrandDnaContract>('brand-dna');
 
   const [stage, setStage] = useState<Stage>('upload');
   const [flyerFile, setFlyerFile] = useState<File | null>(null);
@@ -73,9 +77,9 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
   const [report, setReport] = useState<FlyerLandingReport | null>(null);
   const [refinements, setRefinements] = useState<string>('');
   const [slug, setSlug] = useState<string>('');
-  const [htmlContent, setHtmlContent] = useState<string>('');
+  const [posterConfig, setPosterConfig] = useState<EventPosterSectionConfig | null>(null);
   const [generatedForm, setGeneratedForm] = useState<SmartFormDefinition | null>(null);
-  const [previewTab, setPreviewTab] = useState<'live' | 'code'>('live');
+  const [previewTab, setPreviewTab] = useState<'live' | 'editor'>('live');
   const [isBusy, setIsBusy] = useState<boolean>(false);
   const [busyLabel, setBusyLabel] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -89,11 +93,11 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
     if (editingPage) {
       setReport(editingPage.report || null);
       setSlug(editingPage.slug);
-      setHtmlContent(editingPage.htmlContent);
       setFlyerPreviewUrl(editingPage.flyerPreviewUrl);
       setFlyerCloudUrl(editingPage.flyerPreviewUrl);
       setHeroImageUrl(editingPage.heroImageUrl || editingPage.report?.heroImageUrl || '');
-      setStage('preview');
+      setPosterConfig(null);
+      setStage('report');
     } else {
       setStage('upload');
       setFlyerFile(null);
@@ -104,7 +108,7 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
       setReport(null);
       setRefinements('');
       setSlug('');
-      setHtmlContent('');
+      setPosterConfig(null);
       setGeneratedForm(null);
     }
   }, [isOpen, editingPage]);
@@ -186,8 +190,8 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
         if (report) {
           setReport({ ...report, heroImageUrl: selectedUrl });
         }
-        if (stage === 'preview' && htmlContent) {
-          setHtmlContent((prev) => applyHeroUrlToHtml(prev, selectedUrl));
+        if (stage === 'preview' && posterConfig) {
+          setPosterConfig({ ...posterConfig, venueImageUrl: selectedUrl });
         }
       }
     } catch (err: any) {
@@ -234,38 +238,40 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
     setIsBusy(true);
     setBusyLabel(
       isIteration
-        ? 'KOSAI מעדכן את קוד ה-HTML והטופס לפי הדיוקים שלך...'
-        : 'KOSAI בונה קוד HTML עצמאי באיכות גבוהה + טופס חכם...'
+        ? 'KOSAI מעדכן את אזור הפוסטר והטופס לפי הדיוקים שלך...'
+        : 'KOSAI בונה את תבנית הפוסטר (EventPoster) + הטופס החכם...'
     );
     setError(null);
     try {
       const finalSlug = slugCheck.available ? sanitizeLandingSlug(slug) : slugCheck.suggestedSlug;
       setSlug(finalSlug);
 
-      const out = await generateHtmlAndFormWithKosai({
+      const brandLogo = brandDnaContract?.getBrandDna?.()?.identity?.logoUrl || '';
+      const out = await generateEventPosterAndFormWithKosai({
         report,
         refinements,
-        currentHtml: isIteration ? htmlContent : undefined,
+        currentPosterConfig: isIteration ? posterConfig : null,
         heroImageUrl: heroImageUrl || report.heroImageUrl,
+        logoUrl: brandLogo,
         companyName,
         slug: finalSlug,
         tenantId,
       });
-      setHtmlContent(out.htmlContent);
+      setPosterConfig(out.posterConfig);
       setGeneratedForm(out.form);
       setRefinements('');
       setStage('preview');
       setPreviewTab('live');
     } catch (err: any) {
-      setError(err?.message || 'שגיאה ביצירת ה-HTML ב-KOSAI');
+      setError(err?.message || 'שגיאה ביצירת התבנית ב-KOSAI');
     } finally {
       setIsBusy(false);
     }
   };
 
   const handlePublishAndSave = async () => {
-    if (!htmlContent.trim()) {
-      setError('אין תוכן HTML לשמירה');
+    if (!posterConfig) {
+      setError('אין תבנית פוסטר לשמירה');
       return;
     }
     if (!slugCheck.available) {
@@ -273,11 +279,11 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
       return;
     }
     setIsBusy(true);
-    setBusyLabel('שומר את הטופס החכם ודף הנחיתה העצמאי...');
+    setBusyLabel('שומר את הטופס החכם ואת דף ה-EventPoster ב-KOSWEB...');
     setError(null);
     try {
-      let formId = editingPage?.formId || '';
-      let formTitle = editingPage?.formTitle || '';
+      let formId = posterConfig.formId || editingPage?.formId || '';
+      let formTitle = generatedForm?.title || editingPage?.formTitle || posterConfig.formTitle || '';
 
       if (generatedForm) {
         const formsCollection = getScopedCollectionPath(DEFAULT_FORMS_COLLECTION);
@@ -285,36 +291,74 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
         formTitle = generatedForm.title;
       }
 
+      const finalPoster: EventPosterSectionConfig = {
+        ...posterConfig,
+        formId,
+      };
+      setPosterConfig(finalPoster);
+
       const cleanSlug = sanitizeLandingSlug(slug);
-      const pageToSave: CustomHtmlLandingPage = {
-        id: editingPage?.id || `lp_${Date.now()}`,
+      const now = new Date().toISOString();
+      const pageId = `page_${Date.now()}`;
+
+      // Save as a real KosWebAi PageBuilderConfig containing the EventPoster section
+      const pageConfig: PageBuilderConfig = {
+        pageId,
         slug: cleanSlug,
-        title: report?.title || editingPage?.title || 'דף נחיתה מפלייר',
-        subtitle: report?.subtitle || editingPage?.subtitle || '',
-        htmlContent,
+        pageTitle: finalPoster.headline || report?.title || 'דף אירוע מפלייר',
+        published: true,
+        isHomePage: false,
+        sectionOrder: [finalPoster.id],
+        sections: {
+          [finalPoster.id]: finalPoster as any,
+        },
+        globalSettings: {
+          siteTitle: companyName,
+          siteLogoUrl: finalPoster.logoUrl || '',
+          primaryColor: finalPoster.semanticStyle?.primaryColor || '#0f5c66',
+          backgroundColor: finalPoster.semanticStyle?.surfaceColor || '#fdf9ef',
+          textColor: finalPoster.semanticStyle?.textColor || '#0d3b42',
+          fontFamily: 'Heebo',
+        },
+        seoSettings: {
+          title: finalPoster.headline || report?.title || companyName,
+          description: finalPoster.subtitle || report?.description || '',
+        },
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      await pageBuilderFirestore.savePage(pageConfig, db, tenantId);
+
+      // Also record metadata entry for quick tracking
+      const pageToSave: CustomHtmlLandingPage = {
+        id: editingPage?.id || pageId,
+        slug: cleanSlug,
+        title: finalPoster.headline || 'דף אירוע מפלייר',
+        subtitle: finalPoster.subtitle || '',
+        htmlContent: '',
         formId,
         formTitle,
         flyerPreviewUrl: flyerCloudUrl || (flyerPreviewUrl?.startsWith('http') ? flyerPreviewUrl : undefined),
-        heroImageUrl: heroImageUrl || report?.heroImageUrl || undefined,
+        heroImageUrl: finalPoster.venueImageUrl || heroImageUrl || undefined,
         report: report || editingPage?.report,
         status: 'published',
         viewsCount: editingPage?.viewsCount || 0,
-        createdAt: editingPage?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: editingPage?.createdAt || now,
+        updatedAt: now,
       };
 
-      const savedId = await saveCustomHtmlLandingPage(pageToSave, db, tenantId);
-      const finalSaved = { ...pageToSave, id: savedId };
-      setSavedPage(finalSaved);
-      onSaved(finalSaved);
+      await saveCustomHtmlLandingPage(pageToSave, db, tenantId);
+      setSavedPage(pageToSave);
+      onSaved(pageToSave);
     } catch (err: any) {
-      setError(err?.message || 'שגיאה בשמירת דף הנחיתה');
+      setError(err?.message || 'שגיאה בשמירת העמוד והטופס');
     } finally {
       setIsBusy(false);
     }
   };
 
-  const publicUrl = `${window.location.origin}/lp/${sanitizeLandingSlug(slug)}`;
+  const publicUrl = `${window.location.origin}/p/${sanitizeLandingSlug(slug)}`;
 
   return (
     <div
@@ -330,10 +374,10 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
             </div>
             <div>
               <h2 className="font-black text-base sm:text-lg">
-                מפלייר לדף נחיתה HTML עצמאי + טופס חכם (KOSAI)
+                מפלייר לתבנית פוסטר אירוע (EventPoster) + טופס KFS (KOSAI)
               </h2>
               <p className="text-xs text-slate-400">
-                סלאג ייחודי שאינו קיים ב-KOSWEB • ללא שימוש באזורים הסטנדרטיים
+                יוצר עמוד KOSWEB עם האזור החדש, עריכה חיה, סגנון סמנטי וטופס KFS בתחתית
               </p>
             </div>
           </div>
@@ -376,15 +420,15 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
           <span className="text-slate-600">←</span>
           <button
             type="button"
-            disabled={!htmlContent || isBusy}
-            onClick={() => htmlContent && setStage('preview')}
+            disabled={!posterConfig || isBusy}
+            onClick={() => posterConfig && setStage('preview')}
             className={`px-3 py-1.5 rounded-xl transition-colors disabled:opacity-40 ${
               stage === 'preview'
                 ? 'bg-amber-500 text-slate-950'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            3. HTML איכותי + טופס ופרסום
+            3. תבנית EventPoster + טופס ופרסום
           </button>
         </div>
 
@@ -797,20 +841,20 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
                   className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-sm flex items-center gap-2 shadow-lg"
                 >
                   <Wand2 className="w-4 h-4" />
-                  <span>שלח ל-KOSAI וצור HTML + טופס</span>
+                  <span>שלח ל-KOSAI וצור תבנית EventPoster + טופס</span>
                 </button>
               </div>
             </div>
           )}
 
-          {/* STAGE 3: Live HTML + Form Preview, Code Editor, KOSAI Iteration & Publish */}
-          {!isBusy && stage === 'preview' && (
+          {/* STAGE 3: Live EventPoster + Form Preview, Visual Editor, KOSAI Iteration & Publish */}
+          {!isBusy && stage === 'preview' && posterConfig && (
             <div className="space-y-4">
               {savedPage && (
                 <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-sm font-bold text-emerald-300">
                     <CheckCircle2 className="w-5 h-5" />
-                    <span>דף הנחיתה והטופס פורסמו בהצלחה!</span>
+                    <span>התבנית והטופס פורסמו בהצלחה ב-KOSWEB!</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -826,7 +870,7 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
                       <span>{copiedUrl ? 'הועתק!' : 'העתק קישור'}</span>
                     </button>
                     <a
-                      href={`/lp/${savedPage.slug}`}
+                      href={`/p/${savedPage.slug}`}
                       target="_blank"
                       rel="noreferrer"
                       className="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 text-xs font-black flex items-center gap-1.5"
@@ -851,19 +895,19 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
                     }`}
                   >
                     <Eye className="w-4 h-4" />
-                    <span>תצוגה מקדימה (HTML + טופס)</span>
+                    <span>תצוגה מקדימה (EventPoster + KFS)</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPreviewTab('code')}
+                    onClick={() => setPreviewTab('editor')}
                     className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 ${
-                      previewTab === 'code'
+                      previewTab === 'editor'
                         ? 'bg-amber-500 text-slate-950'
                         : 'bg-slate-800 text-slate-300'
                     }`}
                   >
                     <Code2 className="w-4 h-4" />
-                    <span>עריכת קוד HTML</span>
+                    <span>עורך האזור (סגנונות, KOSCLOUD ומיתוג)</span>
                   </button>
                   <button
                     type="button"
@@ -871,13 +915,13 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
                     className="px-3.5 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 text-xs font-bold flex items-center gap-1.5"
                   >
                     <ImageIcon className="w-4 h-4" />
-                    <span>{heroImageUrl ? 'החלף תמונת Hero' : 'הוסף תמונת Hero מ-KOSCLOUD'}</span>
+                    <span>{heroImageUrl ? 'החלף תמונת רקע' : 'הוסף תמונת רקע מ-KOSCLOUD'}</span>
                   </button>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono text-slate-400" dir="ltr">
-                    /lp/{sanitizeLandingSlug(slug)}
+                    /p/{sanitizeLandingSlug(slug)}
                   </span>
                   <button
                     type="button"
@@ -885,7 +929,7 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
                     className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md"
                   >
                     <Save className="w-4 h-4" />
-                    <span>שמור ופרסם דף + טופס</span>
+                    <span>שמור ופרסם ב-KOSWEB</span>
                   </button>
                 </div>
               </div>
@@ -897,7 +941,7 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
                     type="text"
                     value={refinements}
                     onChange={(e) => setRefinements(e.target.value)}
-                    placeholder="דיוק נוסף ל-KOSAI (למשל: שנה רקע לבהיר יותר, הדגש את לוח הזמנים)..."
+                    placeholder="דיוק נוסף ל-KOSAI (למשל: שנה לסגנון בורדו וזהב, הדגש את לוח הזמנים)..."
                     className="flex-1 min-w-[240px] px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white outline-none focus:border-amber-500"
                   />
                   <button
@@ -911,24 +955,18 @@ export const FlyerToHtmlLandingModal: React.FC<FlyerToHtmlLandingModalProps> = (
                 </div>
               )}
 
-              {/* Preview or Raw HTML Editor */}
+              {/* Live EventPoster Preview or EventPosterEditor */}
               {previewTab === 'live' ? (
                 <div className="rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 max-h-[55vh] overflow-y-auto">
-                  <CustomHtmlWithFormRenderer
-                    htmlContent={htmlContent}
-                    formId={editingPage?.formId}
-                    inlineForm={generatedForm}
-                    previewMode
-                  />
+                  <EventPosterSection config={posterConfig} />
                 </div>
               ) : (
-                <textarea
-                  rows={18}
-                  dir="ltr"
-                  value={htmlContent}
-                  onChange={(e) => setHtmlContent(e.target.value)}
-                  className="w-full p-4 rounded-2xl bg-slate-900 border border-slate-700 font-mono text-xs text-emerald-300 outline-none"
-                />
+                <div className="rounded-2xl border border-slate-800 p-4 bg-slate-950 max-h-[55vh] overflow-y-auto">
+                  <EventPosterEditor
+                    config={posterConfig}
+                    onUpdate={(partial) => setPosterConfig({ ...posterConfig, ...partial })}
+                  />
+                </div>
               )}
             </div>
           )}

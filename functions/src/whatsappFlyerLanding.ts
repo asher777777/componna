@@ -648,60 +648,50 @@ async function generateAndPersistLanding(params: {
   const backgroundColor = design.backgroundColor || '#090a0f';
   const textColor = design.textColor || '#f8fafc';
 
-  const aiPrompt = `אתה KOSAI – אדריכל עמודים מרובי-אזורים ב-KOSWEB ואדריכל טפסים חכמים (KSF).
+  const aiPrompt = `אתה KOSAI – מעצב אירועים ואדריכל טפסים חכמים (KSF) של KOSWEB.
 הדוח הערוך: ${JSON.stringify(report, null, 2)}
-${heroImageUrl ? `תמונת Hero: ${heroImageUrl}` : ''}
+${heroImageUrl ? `תמונת רקע/אולם: ${heroImageUrl}` : ''}
 ${refinements ? `דיוקים נוספים מהמנהל: "${refinements}"` : ''}
-${existingSections ? `אזורים קיימים לעדכון:\n${JSON.stringify(existingSections).slice(0, 10000)}` : ''}
+${existingSections ? `קונפיגורציה קודמת לעדכון:\n${JSON.stringify(existingSections).slice(0, 8000)}` : ''}
 
-משימתך: לייצר עמוד נחיתה מרובה-אזורים (PageBuilderConfig) של KOSWEB + טופס חכם (SmartFormDefinition) שיוטמע באזור smartForm.
-אזורי התבנית המומלצים:
-1. "hero" (layout: 'split', title, subtitle, description, buttonsVisible: true, primaryButton: { text, url: '#smartForm' }, imageSrc: '${heroImageUrl || ''}')
-2. "richContent" (layout: 'highlight-box', heading, subtitle, body)
-3. "faq" (title, subtitle, items: [{ id, question, answer }])
-(ניתן להוסיף גם "statsBento" אם יש נתונים/פרטי אירוע).
+משימתך: למלא את אזור הפוסטר האירועי ("eventPoster") ביחד עם הטופס החכם (SmartFormDefinition) שיוטמע בתחתיתו.
 אסור להשתמש באימוג'ים.
 
 החזר JSON תקני בלבד:
 {
-  "sections": [
-    {
-      "id": "sec_hero",
-      "type": "hero",
-      "order": 0,
-      "isVisible": true,
-      "layout": "split",
-      "title": "...",
-      "subtitle": "...",
-      "description": "...",
-      "buttonsVisible": true,
-      "primaryButton": { "text": "...", "url": "#smartForm" },
-      "imageSrc": "${heroImageUrl || ''}"
-    },
-    {
-      "id": "sec_content",
-      "type": "richContent",
-      "order": 1,
-      "isVisible": true,
-      "layout": "highlight-box",
-      "heading": "...",
-      "subtitle": "...",
-      "body": "..."
-    },
-    {
-      "id": "sec_faq",
-      "type": "faq",
-      "order": 2,
-      "isVisible": true,
-      "title": "שאלות נפוצות",
-      "subtitle": "",
-      "items": [{ "id": "faq_1", "question": "...", "answer": "..." }]
+  "posterConfig": {
+    "headline": "כותרת ראשית חזקה",
+    "dateBadge": "תגית תאריך עברי / מועד",
+    "subtitle": "כותרת אווירה",
+    "highlightTitle": "כותרת כרטיס ההדגשה",
+    "highlightSpeaker": "שם הדוברת / אורחת",
+    "featuredBannerTopText": "טקסט עליון בבאנר המרכזי",
+    "featuredBannerTitle": "כותרת בולטת בבאנר המרכזי",
+    "featuredDescription": "פירוט נוסף",
+    "hospitalityBadge": "תגית אירוח / סעודה",
+    "eventDateLabel": "יום ותאריך",
+    "eventTimeLabel": "20:00",
+    "priceLines": ["מחיר מנויות", "מחיר רגיל"],
+    "closingQuote": "משפט סיום השראתי",
+    "addressText": "כתובת מלאה",
+    "formTitle": "שמירת מקום ורכישת כרטיסים",
+    "formSubtitle": "מלא את הפרטים להרשמה מהירה",
+    "submitButtonText": "שליחה והרשמה",
+    "semanticStyle": {
+      "moodLabel": "שם הסגנון",
+      "primaryColor": "#0f5c66",
+      "accentColor": "#d4a24c",
+      "secondaryColor": "#0b444c",
+      "surfaceColor": "#fdf9ef",
+      "cardBgColor": "#f5e3ba",
+      "textColor": "#0d3b42",
+      "frameBorderColor": "#c8943c"
     }
-  ],
+  },
   "form": {
     "title": "כותרת הטופס",
     "description": "תיאור",
-    "category": "דפי נחיתה",
+    "category": "אירועים",
     "tone": "executive_luxury",
     "steps": [
       { "id": "step_1", "order": 1, "title": "מהו שמך המלא?", "fieldType": "text", "iconName": "User", "required": true, "mappingKey": "kosun_crm_name" }
@@ -743,29 +733,48 @@ ${existingSections ? `אזורים קיימים לעדכון:\n${JSON.stringify(
   };
   await formsColl.doc(formId).set(formDoc, { merge: true });
 
-  const baseSections = Array.isArray(generated.sections) ? generated.sections : [];
-  const normalizedSections = baseSections.map((sec: any, idx: number) => ({
-    ...sec,
-    id: sec.id || `sec_${idx + 1}_${Date.now()}`,
-    type: sec.type || sec.sectionType || 'richContent',
-    order: idx,
-    isVisible: sec.isVisible ?? true,
-    ...(sec.type === 'hero' && heroImageUrl && !sec.imageSrc ? { imageSrc: heroImageUrl } : {}),
-  }));
-
-  // Append real SmartForm section linked to the created formId
-  normalizedSections.push({
-    id: `sec_smartform_${Date.now()}`,
-    type: 'smartForm',
-    order: normalizedSections.length,
-    isVisible: true,
+  const posterSecId = `sec_eventPoster_${Date.now()}`;
+  const p = generated.posterConfig || {};
+  const eventPosterSection = {
+    id: posterSecId,
+    type: 'eventPoster',
+    visible: true,
+    anchorId: 'event-poster',
+    stylePreset: 'standard',
+    semanticStyle: p.semanticStyle || {
+      moodLabel: 'מלכותי טורקיז וזהב',
+      primaryColor: '#0f5c66',
+      accentColor: '#d4a24c',
+      secondaryColor: '#0b444c',
+      surfaceColor: '#fdf9ef',
+      cardBgColor: '#f5e3ba',
+      textColor: '#0d3b42',
+      frameBorderColor: '#c8943c',
+    },
+    logoUrl: '',
+    venueImageUrl: heroImageUrl || '',
+    speakerImageUrl: '',
+    headline: p.headline || report?.title || 'אירוע חגיגי',
+    dateBadge: p.dateBadge || report?.eventDetails?.date || '',
+    subtitle: p.subtitle || report?.subtitle || '',
+    highlightTitle: p.highlightTitle || '',
+    highlightSpeaker: p.highlightSpeaker || '',
+    featuredBannerTopText: p.featuredBannerTopText || '',
+    featuredBannerTitle: p.featuredBannerTitle || '',
+    featuredDescription: p.featuredDescription || report?.description || '',
+    hospitalityBadge: p.hospitalityBadge || '',
+    eventDateLabel: p.eventDateLabel || report?.eventDetails?.date || '',
+    eventTimeLabel: p.eventTimeLabel || report?.eventDetails?.time || '',
+    priceLines: Array.isArray(p.priceLines) ? p.priceLines : [],
+    closingQuote: p.closingQuote || '',
+    addressText: p.addressText || report?.eventDetails?.location || '',
     formId,
-    sectionTitle: formDoc.title,
-    sectionSubtitle: report?.subtitle || '',
-    submitButtonText: report?.ctaText || 'שליחה והרשמה',
-    containerWidth: 'md',
-    backgroundColor,
-  });
+    formTitle: p.formTitle || formDoc.title,
+    formSubtitle: p.formSubtitle || '',
+    submitButtonText: p.submitButtonText || report?.ctaText || 'שליחה והרשמה',
+  };
+
+  const normalizedSections = [eventPosterSection];
 
   const pageId = existingPageId || `page_${Date.now()}`;
   const pagesColl =
@@ -777,16 +786,19 @@ ${existingSections ? `אזורים קיימים לעדכון:\n${JSON.stringify(
     {
       pageId,
       slug,
-      pageTitle: report?.title || 'דף נחיתה מפלייר',
+      pageTitle: eventPosterSection.headline,
       description: report?.description || '',
       published: true,
       isHomePage: false,
       category: 'דפי נחיתה',
-      sections: normalizedSections,
-      globalStyles: {
-        primaryColor,
-        backgroundColor,
-        textColor,
+      sectionOrder: [posterSecId],
+      sections: {
+        [posterSecId]: eventPosterSection,
+      },
+      globalSettings: {
+        primaryColor: eventPosterSection.semanticStyle.primaryColor || primaryColor,
+        backgroundColor: eventPosterSection.semanticStyle.surfaceColor || backgroundColor,
+        textColor: eventPosterSection.semanticStyle.textColor || textColor,
         fontFamily: 'Heebo',
       },
       createdAt: now,

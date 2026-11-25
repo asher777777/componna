@@ -15,6 +15,7 @@ import {
 import { db as defaultDb } from '../../../services/firebase';
 import { executeKosaiAi } from '../../KosAi/modelsAiService/executeKosaiAi';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
+import { EventPosterSectionConfig } from '../types/sectionConfigs';
 import { SmartFormDefinition } from '../../KosForms/types';
 import { DEFAULT_THEME_SETTINGS, DEFAULT_COMPLETION_SETTINGS } from '../../KosForms/config/constants';
 
@@ -543,4 +544,203 @@ ${currentHtml ? `[קוד HTML קודם לשיפור ועריכה לפי הדיו
   };
 
   return { htmlContent, form: fullForm };
+}
+
+export interface KosaiEventPosterAndFormOutput {
+  posterConfig: EventPosterSectionConfig;
+  form: SmartFormDefinition;
+}
+
+/**
+ * Generate an EventPosterSectionConfig + linked KFS SmartFormDefinition via KOSAI
+ */
+export async function generateEventPosterAndFormWithKosai(params: {
+  report: FlyerLandingReport;
+  refinements: string;
+  currentPosterConfig?: EventPosterSectionConfig | null;
+  heroImageUrl?: string;
+  logoUrl?: string;
+  companyName: string;
+  slug: string;
+  tenantId?: string;
+}): Promise<KosaiEventPosterAndFormOutput> {
+  const {
+    report,
+    refinements,
+    currentPosterConfig,
+    heroImageUrl,
+    logoUrl,
+    companyName,
+    slug,
+    tenantId,
+  } = params;
+
+  const resolvedVenueImg = (heroImageUrl || report.heroImageUrl || currentPosterConfig?.venueImageUrl || '').trim();
+  const resolvedLogo = (logoUrl || currentPosterConfig?.logoUrl || '').trim();
+
+  const prompt = `אתה KOSAI – מעצב אירועים ואדריכל טפסים חכמים (KSF) של קושאן עבור "${companyName}".
+המשימה: למלא קונפיגורציית JSON עבור אזור פוסטר אירוע ("eventPoster") ביחד עם טופס KFS ("SmartFormDefinition") שיוטמע בתחתיתו.
+
+[הדוח הערוך]:
+${JSON.stringify(report, null, 2)}
+
+[הנחיות נוספות ודיוקים]:
+"${refinements || 'עצב פוסטר חגיגי, יוקרתי ומניע להרשמה בעברית.'}"
+
+${currentPosterConfig ? `[קונפיגורציה קודמת לעדכון]:\n${JSON.stringify(currentPosterConfig, null, 2).slice(0, 6000)}\n` : ''}
+
+חוקים:
+1. אפס אימוג'ים בכל הטקסטים.
+2. semanticStyle חייב להכיל צבעי HEX תקניים עם ניגודיות גבוהה בין surfaceColor ל-textColor ובין cardBgColor ל-textColor.
+3. התאם את הטופס (steps) למהות האירוע (כולל ticket_booking / coupon_code / payment אם סומן בדוח או בהנחיות).
+
+החזר אך ורק JSON תקני במבנה הבא:
+{
+  "posterConfig": {
+    "headline": "כותרת ראשית חזקה",
+    "dateBadge": "תגית תאריך עברי / מועד",
+    "subtitle": "כותרת אווירה",
+    "highlightTitle": "כותרת כרטיס ההדגשה",
+    "highlightSpeaker": "שם הדוברת / אורחת",
+    "featuredBannerTopText": "טקסט עליון בבאנר המרכזי",
+    "featuredBannerTitle": "כותרת בולטת בבאנר המרכזי",
+    "featuredDescription": "פירוט נוסף",
+    "hospitalityBadge": "תגית אירוח / סעודה",
+    "eventDateLabel": "יום ותאריך",
+    "eventTimeLabel": "20:00",
+    "priceLines": ["מחיר מנויות", "מחיר רגיל"],
+    "closingQuote": "משפט סיום השראתי",
+    "addressText": "כתובת מלאה",
+    "formTitle": "שמירת מקום ורכישת כרטיסים",
+    "formSubtitle": "מלא את הפרטים להרשמה מהירה",
+    "submitButtonText": "שליחה והרשמה",
+    "semanticStyle": {
+      "moodLabel": "שם הסגנון",
+      "primaryColor": "#0f5c66",
+      "accentColor": "#d4a24c",
+      "secondaryColor": "#0b444c",
+      "surfaceColor": "#fdf9ef",
+      "cardBgColor": "#f5e3ba",
+      "textColor": "#0d3b42",
+      "frameBorderColor": "#c8943c"
+    }
+  },
+  "form": {
+    "title": "כותרת הטופס",
+    "description": "תיאור קצר",
+    "category": "אירועים",
+    "tone": "executive_luxury",
+    "steps": [ ... ],
+    "completion": {
+      "title": "תודה רבה! ההרשמה התקבלה",
+      "subtitle": "פרטיך נקלטו בהצלחה.",
+      "iconName": "CheckCircle2",
+      "showRedirectButton": false
+    }
+  }
+}`;
+
+  const result = await executeKosaiAi<{
+    posterConfig: Partial<EventPosterSectionConfig>;
+    form: Partial<SmartFormDefinition>;
+  }>('KosWebAi:GenerateEventPosterAndForm', prompt, {
+    model: 'gemini-3.8-flash',
+    temperature: 0.45,
+    maxOutputTokens: 6144,
+    responseMimeType: 'application/json',
+    tenantId,
+    category: 'content',
+    skipCache: true,
+    timeoutMs: 90000,
+  });
+
+  if (!result.success || !result.data || !result.data.posterConfig) {
+    throw new Error(result.error || 'יצירת תבנית הפוסטר והטופס ב-KOSAI נכשלה');
+  }
+
+  const now = new Date().toISOString();
+  const rawForm = result.data.form || {};
+  const normalizedSteps = (Array.isArray(rawForm.steps) ? rawForm.steps : []).map((s: any, idx: number) => ({
+    id: s.id || `step_${idx + 1}`,
+    order: idx + 1,
+    title: s.title || `שאלה ${idx + 1}`,
+    subtitle: s.subtitle || '',
+    fieldType: s.fieldType || 'text',
+    iconName: s.iconName || 'Sparkles',
+    placeholder: s.placeholder || '',
+    required: s.required ?? true,
+    mappingKey: s.mappingKey || `field_${idx + 1}`,
+    ...(s.options ? { options: s.options } : {}),
+    ...(s.ticketTiers ? { ticketTiers: s.ticketTiers } : {}),
+    ...(s.collectAttendeeNames !== undefined ? { collectAttendeeNames: s.collectAttendeeNames } : {}),
+    ...(s.coupons ? { coupons: s.coupons } : {}),
+  }));
+
+  const fullForm: SmartFormDefinition = {
+    id: `form_ep_${Date.now()}`,
+    title: rawForm.title || report.formPlan?.formTitle || report.title,
+    slug: `${slug}-form`,
+    description: rawForm.description || report.subtitle || '',
+    category: rawForm.category || report.formPlan?.formCategory || 'אירועים',
+    tone: (rawForm.tone as any) || 'executive_luxury',
+    steps: normalizedSteps,
+    theme: {
+      ...DEFAULT_THEME_SETTINGS,
+      primaryColor:
+        result.data.posterConfig.semanticStyle?.primaryColor ||
+        report.designDirection?.primaryColor ||
+        DEFAULT_THEME_SETTINGS.primaryColor,
+      accentColor:
+        result.data.posterConfig.semanticStyle?.accentColor ||
+        report.designDirection?.primaryColor ||
+        DEFAULT_THEME_SETTINGS.accentColor,
+    },
+    completion: {
+      ...DEFAULT_COMPLETION_SETTINGS,
+      ...(rawForm.completion || {}),
+    },
+    status: 'published',
+    isCrmSyncEnabled: true,
+    crmDefaultTags: ['פוסטר אירוע', report.title].filter(Boolean),
+    createdAt: now,
+    updatedAt: now,
+    createdBy: 'KOSAI EventPoster Builder',
+  };
+
+  const p = result.data.posterConfig;
+  const posterConfig: EventPosterSectionConfig = {
+    id: currentPosterConfig?.id || `sec_eventPoster_${Date.now()}`,
+    type: 'eventPoster',
+    visible: true,
+    anchorId: 'event-poster',
+    stylePreset: currentPosterConfig?.stylePreset || 'standard',
+    semanticStyle: p.semanticStyle || currentPosterConfig?.semanticStyle,
+    logoUrl: resolvedLogo,
+    venueImageUrl: resolvedVenueImg,
+    speakerImageUrl: currentPosterConfig?.speakerImageUrl || '',
+    headline: p.headline || report.title,
+    dateBadge: p.dateBadge || report.eventDetails?.date || '',
+    subtitle: p.subtitle || report.subtitle || '',
+    highlightTitle: p.highlightTitle || report.highlights?.[0]?.title || '',
+    highlightSpeaker: p.highlightSpeaker || report.highlights?.[0]?.description || '',
+    featuredBannerTopText: p.featuredBannerTopText || '',
+    featuredBannerTitle: p.featuredBannerTitle || '',
+    featuredDescription: p.featuredDescription || report.description || '',
+    hospitalityBadge: p.hospitalityBadge || '',
+    eventDateLabel: p.eventDateLabel || report.eventDetails?.date || '',
+    eventTimeLabel: p.eventTimeLabel || report.eventDetails?.time || '',
+    priceLines: Array.isArray(p.priceLines)
+      ? p.priceLines
+      : report.eventDetails?.price
+      ? [report.eventDetails.price]
+      : [],
+    closingQuote: p.closingQuote || '',
+    addressText: p.addressText || report.eventDetails?.location || '',
+    formId: fullForm.id,
+    formTitle: p.formTitle || fullForm.title,
+    formSubtitle: p.formSubtitle || '',
+    submitButtonText: p.submitButtonText || report.ctaText || 'שליחה והרשמה',
+  };
+
+  return { posterConfig, form: fullForm };
 }

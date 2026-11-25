@@ -1036,6 +1036,8 @@ export interface EventPosterSectionConfig extends BaseSectionConfig {
   type: 'eventPoster';
   stylePreset?: string;
   semanticStyle?: EventPosterSemanticStyle;
+  posterBackgroundImageUrl?: string;
+  posterBackgroundMode?: 'overlay_text' | 'print_exact';
   logoUrl?: string;
   venueImageUrl?: string;
   speakerImageUrl?: string;

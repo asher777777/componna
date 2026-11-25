@@ -16,6 +16,8 @@ export const EventPosterSection: React.FC<EventPosterSectionProps> = ({
 }) => {
   const theme = resolveEventPosterTheme(config.stylePreset, config.semanticStyle);
   const priceLines = Array.isArray(config.priceLines) ? config.priceLines : [];
+  const hasCustomBg = Boolean(config.posterBackgroundImageUrl);
+  const isPrintExact = hasCustomBg && config.posterBackgroundMode === 'print_exact';
 
   return (
     <section
@@ -31,13 +33,28 @@ export const EventPosterSection: React.FC<EventPosterSectionProps> = ({
       <div
         className="relative max-w-3xl mx-auto rounded-[2rem] overflow-hidden shadow-2xl border-2"
         style={{
-          backgroundColor: theme.surfaceColor,
+          backgroundColor: hasCustomBg ? 'transparent' : theme.surfaceColor,
+          backgroundImage:
+            hasCustomBg && !isPrintExact
+              ? `url(${config.posterBackgroundImageUrl})`
+              : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
           color: theme.textColor,
           borderColor: theme.frameBorderColor,
         }}
       >
-        {/* Top-Left Atmospheric Venue Backdrop */}
-        {config.venueImageUrl && (
+        {isPrintExact ? (
+          <img
+            src={config.posterBackgroundImageUrl}
+            alt={config.headline || 'פלייר'}
+            className="w-full h-auto block"
+          />
+        ) : (
+          <>
+        {/* Top-Left Atmospheric Venue Backdrop (only when no full poster background is set) */}
+        {!hasCustomBg && config.venueImageUrl && (
           <div
             className="absolute top-0 left-0 w-1/2 h-64 bg-cover bg-center opacity-25 pointer-events-none"
             style={{
@@ -48,19 +65,23 @@ export const EventPosterSection: React.FC<EventPosterSectionProps> = ({
           />
         )}
 
-        {/* Decorative Draped Accent Corners (matching poster composition) */}
-        <div
-          className="absolute -top-16 -left-16 w-56 h-56 rounded-full opacity-25 blur-2xl pointer-events-none"
-          style={{ backgroundColor: theme.primaryColor }}
-        />
-        <div
-          className="absolute -bottom-20 -right-20 w-72 h-72 rounded-full opacity-20 blur-3xl pointer-events-none"
-          style={{ backgroundColor: theme.primaryColor }}
-        />
-        <div
-          className="absolute top-1/3 -left-12 w-44 h-80 rounded-full opacity-15 blur-2xl pointer-events-none"
-          style={{ backgroundColor: theme.accentColor }}
-        />
+        {/* Decorative Draped Accent Corners (hidden when user supplies exact print background) */}
+        {!hasCustomBg && (
+          <>
+            <div
+              className="absolute -top-16 -left-16 w-56 h-56 rounded-full opacity-25 blur-2xl pointer-events-none"
+              style={{ backgroundColor: theme.primaryColor }}
+            />
+            <div
+              className="absolute -bottom-20 -right-20 w-72 h-72 rounded-full opacity-20 blur-3xl pointer-events-none"
+              style={{ backgroundColor: theme.primaryColor }}
+            />
+            <div
+              className="absolute top-1/3 -left-12 w-44 h-80 rounded-full opacity-15 blur-2xl pointer-events-none"
+              style={{ backgroundColor: theme.accentColor }}
+            />
+          </>
+        )}
 
         {/* Top Header: Logo (Right) & Subtle Gold Swirl */}
         <div className="relative z-10 px-6 sm:px-10 pt-7 flex items-start justify-between">
@@ -307,6 +328,8 @@ export const EventPosterSection: React.FC<EventPosterSectionProps> = ({
             </div>
           )}
         </div>
+          </>
+        )}
 
         {/* Bottom KFS Smart Form Slot (Zero Cross-Module Direct Import) */}
         <div
