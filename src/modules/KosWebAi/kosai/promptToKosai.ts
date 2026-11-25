@@ -795,3 +795,51 @@ export async function dispatchFlyerScanToKosai(params: {
 
   return result.data;
 }
+
+export async function generateEventPosterSemanticStyle(params: {
+  semanticPrompt: string;
+  companyName?: string;
+  tenantId?: string;
+}): Promise<{
+  moodLabel: string;
+  primaryColor: string;
+  accentColor: string;
+  secondaryColor: string;
+  surfaceColor: string;
+  cardBgColor: string;
+  textColor: string;
+  frameBorderColor: string;
+}> {
+  const prompt = `אתה מעצב מותג בכיר של KOSAI עבור "${params.companyName || 'קושאן'}".
+המשתמש ביקש סגנון סמנטי חדש לפוסטר אירוע לפי התיאור:
+"${params.semanticPrompt}"
+
+הפק פלטת צבעים סמנטית (HEX תקני של 6 ספרות) עם ניגודיות קריאה גבוהה בין surfaceColor ל-textColor ובין cardBgColor ל-textColor.
+החזר אך ורק JSON תקני במבנה הבא:
+{
+  "moodLabel": "שם קצר בעברית לסגנון (2-4 מילים)",
+  "primaryColor": "#0f5c66",
+  "accentColor": "#d4a24c",
+  "secondaryColor": "#0b444c",
+  "surfaceColor": "#fdf9ef",
+  "cardBgColor": "#f5e3ba",
+  "textColor": "#0d3b42",
+  "frameBorderColor": "#c8943c"
+}`;
+
+  const result = await executeKosaiAi<any>('KosWebAi:EventPosterSemanticStyle', prompt, {
+    model: 'gemini-3.8-flash',
+    temperature: 0.5,
+    maxOutputTokens: 1024,
+    responseMimeType: 'application/json',
+    tenantId: params.tenantId,
+    category: 'content',
+    skipCache: true,
+    timeoutMs: 30000,
+  });
+
+  if (!result.success || !result.data) {
+    throw new Error(result.error || 'יצירת הסגנון הסמנטי נכשלה');
+  }
+  return result.data;
+}

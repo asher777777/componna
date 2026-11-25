@@ -1021,6 +1021,44 @@ export interface EventRsvpSectionConfig extends BaseSectionConfig {
   accentColor?: string;
 }
 
+export interface EventPosterSemanticStyle {
+  moodLabel?: string;
+  primaryColor: string;
+  accentColor: string;
+  secondaryColor: string;
+  surfaceColor: string;
+  cardBgColor: string;
+  textColor: string;
+  frameBorderColor: string;
+}
+
+export interface EventPosterSectionConfig extends BaseSectionConfig {
+  type: 'eventPoster';
+  stylePreset?: string;
+  semanticStyle?: EventPosterSemanticStyle;
+  logoUrl?: string;
+  venueImageUrl?: string;
+  speakerImageUrl?: string;
+  headline: string;
+  dateBadge: string;
+  subtitle: string;
+  highlightTitle: string;
+  highlightSpeaker: string;
+  featuredBannerTopText: string;
+  featuredBannerTitle: string;
+  featuredDescription: string;
+  hospitalityBadge: string;
+  eventDateLabel: string;
+  eventTimeLabel: string;
+  priceLines: string[];
+  closingQuote: string;
+  addressText: string;
+  formId?: string;
+  formTitle?: string;
+  formSubtitle?: string;
+  submitButtonText?: string;
+}
+
 export interface KosvidioComment {
   id: string;
   authorName: string;

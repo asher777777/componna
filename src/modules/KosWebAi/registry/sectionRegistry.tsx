@@ -84,6 +84,8 @@ import { LiveAnalyticsSection } from '../sections/liveAnalytics/LiveAnalyticsSec
 import { LiveAnalyticsEditor } from '../sections/liveAnalytics/LiveAnalyticsEditor';
 import { EventRsvpSection } from '../sections/eventRsvp/EventRsvpSection';
 import { EventRsvpEditor } from '../sections/eventRsvp/EventRsvpEditor';
+import { EventPosterSection } from '../sections/eventPoster/EventPosterSection';
+import { EventPosterEditor } from '../sections/eventPoster/EventPosterEditor';
 
 
 // Icons
@@ -820,6 +822,39 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       type: 'customHtml',
       visible: true,
       rawHtmlTemplate: '',
+    },
+  },
+
+  eventPoster: {
+    type: 'eventPoster',
+    name: 'פוסטר אירוע יוקרתי + טופס KFS',
+    category: 'marketing',
+    description: 'רכיב תצוגה מעוצב בסגנון פוסטר אירוע עם תמיכה בסגנונות סמנטיים מ-AI, KOSCLOUD, מיתוג וטופס KFS בתחתית',
+    icon: Sparkles,
+    viewComponent: EventPosterSection as any,
+    editorComponent: EventPosterEditor as any,
+    defaultConfig: {
+      type: 'eventPoster',
+      visible: true,
+      anchorId: 'event-poster',
+      stylePreset: 'standard',
+      headline: 'פותחות שערים של גאולה!',
+      dateBadge: 'י״ט כסלו',
+      subtitle: 'חגיגה של חסידות, השראה וניגון',
+      highlightTitle: 'תניא – המפתח לגאולה',
+      highlightSpeaker: 'עם בלה בוקובזה',
+      featuredBannerTopText: 'מופע מוזיקלי חי עם הזמרת',
+      featuredBannerTitle: 'לירן ברוש',
+      featuredDescription: 'התוועדות חסידית\nוניגונים, שמחה ואווירה מרוממת',
+      hospitalityBadge: 'סעודה בשרית עשירה',
+      eventDateLabel: 'יום שני\nכ כסלו 30.11',
+      eventTimeLabel: '20:00',
+      priceLines: ['30 ש״ח למנויות', '65 ש״ח כרטיס רגיל'],
+      closingQuote: 'ערב של חיבור, התעוררות ושמחה חסידית,\nכי הגאולה מתחילה כשפותחים את הלב.',
+      addressText: 'מרכז לאה שלום עליכם 34 רמת גן',
+      formTitle: 'שמירת מקום ורכישת כרטיסים',
+      formSubtitle: 'מלאי את הפרטים מטה להשלמת ההרשמה',
+      submitButtonText: 'שליחה והרשמה',
     },
   },
 

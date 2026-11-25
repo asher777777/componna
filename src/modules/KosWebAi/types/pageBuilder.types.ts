@@ -28,6 +28,7 @@ export type SectionType =
   | 'flowPlayer'
   | 'customHtml'
   | 'eventRsvp'
+  | 'eventPoster'
   | 'kosvidio'
   | 'kosvidioGallery'
   | 'videoEngagement'

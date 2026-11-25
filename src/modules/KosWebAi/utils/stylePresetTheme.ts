@@ -132,3 +132,100 @@ export function resolveStylePresetTokens(presetOrLayout?: string): StylePresetTo
   }
   return STYLE_PRESET_TOKENS.standard;
 }
+
+export interface EventPosterThemeTokens {
+  moodLabel: string;
+  primaryColor: string;
+  accentColor: string;
+  secondaryColor: string;
+  surfaceColor: string;
+  cardBgColor: string;
+  textColor: string;
+  frameBorderColor: string;
+  presetTokens: StylePresetTokens;
+}
+
+export const EVENT_POSTER_PRESET_PALETTES: Record<string, Omit<EventPosterThemeTokens, 'presetTokens'>> = {
+  standard: {
+    moodLabel: 'מלכותי טורקיז וזהב',
+    primaryColor: '#0f5c66',
+    accentColor: '#d4a24c',
+    secondaryColor: '#0b444c',
+    surfaceColor: '#fdf9ef',
+    cardBgColor: '#f5e3ba',
+    textColor: '#0d3b42',
+    frameBorderColor: '#c8943c',
+  },
+  feminine: {
+    moodLabel: 'נשי רך שמנת ורוז-גולד',
+    primaryColor: '#881337',
+    accentColor: '#e11d48',
+    secondaryColor: '#be185d',
+    surfaceColor: '#fff7f8',
+    cardBgColor: '#ffe4e6',
+    textColor: '#4c0519',
+    frameBorderColor: '#f43f5e',
+  },
+  spiritual: {
+    moodLabel: 'רוחני סגול וזהב',
+    primaryColor: '#4c1d95',
+    accentColor: '#d97706',
+    secondaryColor: '#6d28d9',
+    surfaceColor: '#faf5ff',
+    cardBgColor: '#ede9fe',
+    textColor: '#2e1065',
+    frameBorderColor: '#a855f7',
+  },
+  masculine: {
+    moodLabel: 'עסקי כחול כהה וכסף',
+    primaryColor: '#1e3a8a',
+    accentColor: '#3b82f6',
+    secondaryColor: '#0f172a',
+    surfaceColor: '#f8fafc',
+    cardBgColor: '#dbeafe',
+    textColor: '#0f172a',
+    frameBorderColor: '#2563eb',
+  },
+  sharp: {
+    moodLabel: 'חד כהה וניאון',
+    primaryColor: '#0891b2',
+    accentColor: '#22d3ee',
+    secondaryColor: '#0f172a',
+    surfaceColor: '#090d16',
+    cardBgColor: '#111827',
+    textColor: '#f8fafc',
+    frameBorderColor: '#06b6d4',
+  },
+  analytical: {
+    moodLabel: 'רענן ירוק וזהב',
+    primaryColor: '#065f46',
+    accentColor: '#d97706',
+    secondaryColor: '#047857',
+    surfaceColor: '#f0fdf4',
+    cardBgColor: '#dcfce7',
+    textColor: '#064e3b',
+    frameBorderColor: '#10b981',
+  },
+};
+
+export function resolveEventPosterTheme(
+  stylePreset?: string,
+  semanticStyle?: Partial<Omit<EventPosterThemeTokens, 'presetTokens'>>
+): EventPosterThemeTokens {
+  const presetTokens = resolveStylePresetTokens(stylePreset);
+  const base =
+    (stylePreset && EVENT_POSTER_PRESET_PALETTES[stylePreset]) ||
+    EVENT_POSTER_PRESET_PALETTES.standard;
+
+  return {
+    moodLabel: semanticStyle?.moodLabel || base.moodLabel,
+    primaryColor: semanticStyle?.primaryColor || base.primaryColor,
+    accentColor: semanticStyle?.accentColor || base.accentColor,
+    secondaryColor: semanticStyle?.secondaryColor || base.secondaryColor,
+    surfaceColor: semanticStyle?.surfaceColor || base.surfaceColor,
+    cardBgColor: semanticStyle?.cardBgColor || base.cardBgColor,
+    textColor: semanticStyle?.textColor || base.textColor,
+    frameBorderColor: semanticStyle?.frameBorderColor || base.frameBorderColor,
+    presetTokens,
+  };
+}
