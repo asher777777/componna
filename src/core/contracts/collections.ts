@@ -69,6 +69,7 @@ export const SYSTEM_COLLECTIONS = {
   BRAND_DNA_DOC: 'kos_branding_dna',
   KOS_BRANDING: 'kos_branding_dna',
   KOS_BRANDING_TO: 'kos_branding_to', // קולקציית מיתוג ייעודית לקהילות (KosBrandingTo)
+  MARKET_RESEARCH: 'kos_branding_market_research', // קולקציית מחקר שוק וסריקות אתרים (מחקר שוק)
   
   // 9. Ambassador Campaigns & Crowdfunding
   CAMPAIGNS: 'mod_campaigns',

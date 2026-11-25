@@ -487,7 +487,10 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
               fallback={
                 <KosBrandDashboard 
                   onOpenWizard={() => setIsWizardOpen(true)}
-                  onOpenScraper={() => setIsScraperModalOpen(true)}
+                  onOpenScraper={() => {
+                    setActiveTab('market');
+                    setViewMode('tabs');
+                  }}
                   onOpenStrategy={() => setIsStrategyModalOpen(true)}
                   onSwitchToTab={(tabId) => {
                     setActiveTab(tabId as TabType);
@@ -527,7 +530,14 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
                   {activeTab === 'voice' && <BrandVoiceSection />}
                   {activeTab === 'audience' && <TargetAudienceSection />}
                   {activeTab === 'ecosystem' && <BrandEcosystemSection />}
-                  {activeTab === 'design' && <DesignTokensSection onOpenScraper={() => setIsScraperModalOpen(true)} />}
+                  {activeTab === 'design' && (
+                    <DesignTokensSection
+                      onOpenScraper={() => {
+                        setActiveTab('market');
+                        setViewMode('tabs');
+                      }}
+                    />
+                  )}
                   {activeTab === 'trust' && <TrustCheckoutSection />}
                   {activeTab === 'market' && <MarketResearchAgentSection />}
               </div>

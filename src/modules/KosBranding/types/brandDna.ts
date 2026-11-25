@@ -8,6 +8,8 @@ export type {
   TenantLayoutArchetype,
   WebsiteScanScope,
   LearnedWebsiteProfile,
+  MarketResearchCompetitor,
+  MarketResearchItem,
   PersonaItem,
   ObjectionItem,
   BrandIdentity,

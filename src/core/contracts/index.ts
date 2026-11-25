@@ -1125,6 +1125,39 @@ export interface BrandDna {
   updatedAt?: string;
 }
 
+export interface MarketResearchCompetitor {
+  name: string;
+  pricingTier?: string;
+  strengths?: string;
+  weaknesses?: string;
+}
+
+export interface MarketResearchItem {
+  id: string;
+  title: string;
+  type: 'market_research' | 'website_scan';
+  sourceUrl?: string;
+  summary: string;
+  marketTrends?: string[];
+  competitiveness?: string;
+  pricingRecommendations?: string;
+  designLanguageRecommendations?: string;
+  competitors?: MarketResearchCompetitor[];
+  actionableUpdates?: {
+    slogan?: string;
+    primaryColor?: string;
+    newService?: string;
+  };
+  learnedSiteProfile?: LearnedWebsiteProfile;
+  extractedBrand?: Partial<BrandDna>;
+  rawColors?: Array<{ hex: string; count: number }>;
+  infoPageId?: string;
+  infoPageSlug?: string;
+  infoPageUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface BrandDnaContract {
   getBrandDna: () => BrandDna;
   getSystemPrompt: (moduleRole?: string) => string;
