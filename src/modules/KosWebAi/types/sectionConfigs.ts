@@ -1827,3 +1827,107 @@ export interface DecorativeDividerSectionConfig extends BaseSectionConfig {
   textFontWeight?: 'normal' | 'bold' | 'extrabold';
   textPosition?: 'none' | 'before' | 'after' | 'center-overlay';
 }
+
+// ==========================================
+// Flip Cards Listing Section Config (אזור כרטיסיות מתהפכות דינמי)
+// ==========================================
+export type FlipCardsSourceMode =
+  | 'all-pages'
+  | 'categories'
+  | 'pages-and-categories'
+  | 'custom';
+
+export type FlipCardsLogicCondition =
+  | 'none'
+  | 'published-only'
+  | 'has-description'
+  | 'has-activity'
+  | 'hide-empty-categories'
+  | 'exclude-drafts';
+
+export type FlipCardsSectionVisibilityRule =
+  | 'always'
+  | 'when-has-items'
+  | 'when-min-items'
+  | 'only-on-home'
+  | 'date-range';
+
+export type FlipCardsSortBy =
+  | 'manual'
+  | 'title-asc'
+  | 'title-desc'
+  | 'date-desc'
+  | 'views-desc';
+
+export type FlipCardsFlipDirection = 'horizontal' | 'vertical' | 'fade-scale';
+
+export interface FlipCardItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  hoverTitle?: string;
+  ctaText?: string;
+  iconName?: string;
+  iconUrl?: string;
+  accentColor?: string;
+  iconBgColor?: string;
+  linkUrl: string;
+  categoryKey?: string;
+  pageId?: string;
+  published?: boolean;
+  viewsCount?: number;
+  leadsCount?: number;
+  createdAt?: string;
+  hidden?: boolean;
+}
+
+export interface FlipCardItemOverride {
+  title?: string;
+  subtitle?: string;
+  hoverTitle?: string;
+  ctaText?: string;
+  iconName?: string;
+  accentColor?: string;
+  iconBgColor?: string;
+  linkUrl?: string;
+}
+
+export interface FlipCardsListingSectionConfig extends BaseSectionConfig {
+  type: 'flipCardsListing';
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  titleColor?: string;
+  subtitleColor?: string;
+  backgroundColor?: string;
+  cardBgColor?: string;
+
+  // Dynamic data source & KosWebAi categories
+  sourceMode?: FlipCardsSourceMode;
+  selectedPageCategories?: string[]; // Empty or ['all'] means all KosWebAi categories
+  includeArchives?: boolean;
+  maxItems?: number;
+  sortBy?: FlipCardsSortBy;
+
+  // Layout & animation
+  columns?: 2 | 3 | 4;
+  flipDirection?: FlipCardsFlipDirection;
+  cardHeight?: 'compact' | 'standard' | 'tall';
+  defaultCtaText?: string;
+  showCategoryFilterBar?: boolean;
+  showSearchBar?: boolean;
+  enableAutoColorPalette?: boolean;
+  colorPalette?: string[];
+
+  // Logical visibility conditions (תנאים לוגיים להצגה)
+  itemLogicCondition?: FlipCardsLogicCondition;
+  sectionVisibilityRule?: FlipCardsSectionVisibilityRule;
+  minItemsToShow?: number;
+  visibleFromDate?: string;
+  visibleUntilDate?: string;
+  hiddenItemIds?: string[];
+
+  // Manual items & per-item overrides for dynamic items
+  items?: FlipCardItem[];
+  itemOverrides?: Record<string, FlipCardItemOverride>;
+}

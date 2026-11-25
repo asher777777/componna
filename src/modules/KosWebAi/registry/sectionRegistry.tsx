@@ -34,6 +34,7 @@ import { TiktokHeroSection } from '../sections/tiktokHero/TiktokHeroSection';
 import { DynamicListingSection } from '../sections/dynamicListing/DynamicListingSection';
 import { FutureContentSection } from '../sections/futureContent/FutureContentSection';
 import { DynamicCategoriesSection } from '../sections/dynamicCategories/DynamicCategoriesSection';
+import { FlipCardsListingSection } from '../sections/flipCardsListing/FlipCardsListingSection';
 import { ArticlesListingSection } from '../sections/articlesListing/ArticlesListingSection';
 import { EventsListingSection } from '../sections/eventsListing/EventsListingSection';
 
@@ -46,6 +47,7 @@ import { TiktokHeroEditor } from '../sections/tiktokHero/TiktokHeroEditor';
 import { DynamicListingEditor } from '../sections/dynamicListing/DynamicListingEditor';
 import { FutureContentEditor } from '../sections/futureContent/FutureContentEditor';
 import { DynamicCategoriesEditor } from '../sections/dynamicCategories/DynamicCategoriesEditor';
+import { FlipCardsListingEditor } from '../sections/flipCardsListing/FlipCardsListingEditor';
 import { ArticlesListingEditor } from '../sections/articlesListing/ArticlesListingEditor';
 import { EventsListingEditor } from '../sections/eventsListing/EventsListingEditor';
 import { DecorativeDividerSection } from '../sections/decorativeDivider/DecorativeDividerSection';
@@ -1295,6 +1297,42 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
           linkUrl: '#articles',
         },
       ],
+    },
+  },
+
+  flipCardsListing: {
+    type: 'flipCardsListing',
+    name: 'ליסטינג כרטיסיות מתהפכות (דינמי + תנאים)',
+    category: 'content',
+    description: 'גריד כרטיסיות אינטראקטיבי המתהפך בריחוף ומציג צבע מותג וכפתור פעולה, מחובר דינמית לעמודי הטננט וקטגוריות KOSWEBAI עם תנאים לוגיים',
+    icon: Layers,
+    viewComponent: FlipCardsListingSection as any,
+    editorComponent: FlipCardsListingEditor as any,
+    defaultConfig: {
+      type: 'flipCardsListing',
+      visible: true,
+      anchorId: 'flip-cards-listing',
+      title: 'מה תמצאו כאן',
+      subtitle: 'בחרו את המתחם, השירות או הקטגוריה המתאימה לכם',
+      sourceMode: 'pages-and-categories',
+      selectedPageCategories: [],
+      includeArchives: true,
+      maxItems: 12,
+      sortBy: 'manual',
+      columns: 3,
+      flipDirection: 'horizontal',
+      cardHeight: 'standard',
+      defaultCtaText: 'לחצו כאן >>',
+      showCategoryFilterBar: false,
+      showSearchBar: false,
+      enableAutoColorPalette: true,
+      itemLogicCondition: 'none',
+      sectionVisibilityRule: 'always',
+      minItemsToShow: 1,
+      hiddenItemIds: [],
+      items: [],
+      itemOverrides: {},
+      backgroundColor: 'transparent',
     },
   },
 

@@ -10,7 +10,7 @@ import { callGeminiApi } from '../api/kosaiApi';
 import { buildKosaiSystemPrompt, KosaiPromptContext } from '../prompts';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
-import { KosaiAgentContract, MediaPickerContract, AiTextAssistantContract } from '../../../core/contracts';
+import { KosaiAgentContract, MediaPickerContract, AiTextAssistantContract, FormBuilderContract } from '../../../core/contracts';
 import { kosaiImageAgentService } from '../services/kosaiImageAgentService';
 import { kosaiDataGroundingService } from '../services/kosaiDataGroundingService';
 import { kosaiContactAutoSyncService } from '../services/kosaiContactAutoSyncService';
@@ -564,9 +564,19 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }));
 
       // Fetch live data from allowed data sources under tenant scope
-      const allowedSources = currentRule?.allowedDataSources?.length 
-        ? currentRule.allowedDataSources 
+      const isKsfActive =
+        activeModule.moduleId === 'KSF' ||
+        activeModule.moduleId === 'smart-forms' ||
+        activeModule.moduleId === 'smart-form';
+
+      const rawAllowedSources = currentRule?.allowedDataSources?.length
+        ? currentRule.allowedDataSources
         : activeModule.allowedDataSources;
+
+      // For KSF (form builder), never dump contacts/groups into the prompt to keep it fast and focused
+      const allowedSources = isKsfActive
+        ? rawAllowedSources.filter((s) => s !== 'contacts' && s !== 'crm_groups' && s !== 'groups')
+        : rawAllowedSources;
 
       let groundingData = '';
       try {
@@ -578,13 +588,18 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         console.warn('[KosaiContext] Grounding data retrieval notice:', groundingErr);
       }
 
+      const activeForm = isKsfActive
+        ? getCapability<FormBuilderContract>('form-builder')?.getActiveForm?.() || null
+        : null;
+
       const promptContext: KosaiPromptContext = {
         isLoggedIn,
         userRole: authState?.role,
         roleMode: activeRoleMode,
         activeModuleId: activeModule.moduleId,
-        tenantPages,
+        tenantPages: isKsfActive ? tenantPages.slice(0, 8) : tenantPages,
         activeSections: pageSections,
+        activeForm,
         groundingData,
       };
 

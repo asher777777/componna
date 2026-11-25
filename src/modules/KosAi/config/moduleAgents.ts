@@ -107,8 +107,6 @@ export const MODULE_AGENTS_MAP: Record<string, ModuleAgentMeta> = {
     ],
     allowedDataSources: [
       SYSTEM_COLLECTIONS.SMART_FORMS,
-      SYSTEM_COLLECTIONS.CONTACTS,
-      SYSTEM_COLLECTIONS.GROUPS,
       SYSTEM_COLLECTIONS.BRAND_DNA_DOC
     ],
     systemPrompt: `אתה סוכן הטפסים והשאלונים החכמים (KSF) של קושאן.

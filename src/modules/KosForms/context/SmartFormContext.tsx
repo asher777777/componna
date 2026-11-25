@@ -316,6 +316,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
           hasWhatsAppTrigger: Boolean(f.whatsappAutomationEnabled),
         }));
       },
+      getActiveForm: () => activeForm,
       checkDefaultFormsStatus: async () => {
         const hasLeadForm = forms.some(
           (f) =>
@@ -389,7 +390,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
       unregisterCapability('form-builder');
       unregisterCapability('form-renderer');
     };
-  }, [forms, saveForm, loadFormById, customFirestore, effectiveCollectionName, registerCapability, unregisterCapability, setActiveForm, createDefaultForm]);
+  }, [forms, activeForm, saveForm, loadFormById, customFirestore, effectiveCollectionName, registerCapability, unregisterCapability, setActiveForm, createDefaultForm]);
 
   // Listen to AI Agent Actions from Kosai Engine (EventBus Bridge)
   useEffect(() => {

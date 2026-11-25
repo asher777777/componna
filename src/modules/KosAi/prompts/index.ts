@@ -7,6 +7,7 @@ export interface KosaiPromptContext {
   activeModuleId?: string;
   tenantPages?: Array<{ title: string; slug: string; isHomePage?: boolean }>;
   activeSections?: Array<{ id: string; type: string; title?: string }>;
+  activeForm?: any;
   groundingData?: string;
 }
 
@@ -53,27 +54,59 @@ export const buildKosaiSystemPrompt = (
 
   // MODE KSF: Smart Forms & Surveys Architect Agent (when in KSF module)
   if (isKsfModule) {
+    const shortVision = brandVision.length > 200 ? brandVision.slice(0, 200) + '...' : brandVision;
     const pagesSummary = pagesList.length > 0
-      ? pagesList.map(p => `- ${p.title} (נתיב: ${p.isHomePage ? '/' : `/p/${p.slug}`})`).join('\n')
-      : '- עמוד הבית הראשי';
+      ? pagesList.slice(0, 8).map(p => `- ${p.title} (${p.isHomePage ? '/' : `/p/${p.slug}`})`).join('\n')
+      : '- עמוד הבית הראשי (/)';
+
+    const activeFormObj = context?.activeForm;
+    const activeFormSection = activeFormObj
+      ? `[הטופס הפעיל כרגע בעורך (activeForm) - עליו מתבצעת העריכה ב-UPDATE_SMART_FORM]\n` +
+        JSON.stringify(
+          {
+            id: activeFormObj.id,
+            title: activeFormObj.title,
+            description: activeFormObj.description,
+            category: activeFormObj.category,
+            tone: activeFormObj.tone,
+            status: activeFormObj.status,
+            isCrmSyncEnabled: activeFormObj.isCrmSyncEnabled,
+            crmDefaultTags: activeFormObj.crmDefaultTags,
+            whatsappAutomationEnabled: activeFormObj.whatsappAutomationEnabled,
+            steps: (activeFormObj.steps || []).map((s: any) => ({
+              id: s.id,
+              order: s.order,
+              title: s.title,
+              subtitle: s.subtitle,
+              fieldType: s.fieldType,
+              iconName: s.iconName,
+              required: s.required,
+              mappingKey: s.mappingKey,
+              ...(s.options ? { options: s.options } : {}),
+              ...(s.ticketTiers ? { ticketTiers: s.ticketTiers } : {}),
+              ...(s.coupons ? { coupons: s.coupons } : {}),
+            })),
+            completion: activeFormObj.completion,
+          },
+          null,
+          2
+        )
+      : `[אין טופס פתוח כרגע בעורך - אם המשתמש מבקש לערוך טופס ספציפי, השתמש ב-LOAD_SMART_FORM עם הכותרת מהרשימה]`;
 
     let prompt = `
 אתה סוכן הטפסים והשאלונים החכמים (KSF - KosAi Smart Forms) של קושאן.
-תפקידך הבלעדי: לאפיין, להקים, לעדכן ולשמור טפסים ושאלונים רב-שלביים חכמים (Step-by-Step Luxury Forms) ברמת גימור עילאית, המחוברים ישירות לקולקציית ה-CRM (contacts) ולסטודיו KSF.
-שפת התקשורת שלך: עברית צחה, חמה, מכבדת ומקצועית, ללא אימוג'ים טקסטואליים כלל.
-גופן המערכת הוא Heebo בלבד.
+תפקידך: לאפיין, להקים, לעדכן ולשמור טפסים רב-שלביים חכמים (Step-by-Step Luxury Forms) המחוברים ל-CRM (contacts) ולסטודיו KSF.
+שפת התקשורת: עברית רהוטה, ללא אימוג'ים כלל. גופן המערכת: Heebo.
 
 ${groundingData}
 
-[מידע על המותג והעסק (Brand DNA)]
-- שם המותג: ${brandName}
-- סלוגן: ${brandSlogan}
-- חזון ותכלית: ${brandVision}
-- טון דיבור מותגי: ${brandTone}
-- טלפון לפניות: ${contactPhone}
-- וואטסאפ מהיר: ${whatsappNumber}
+${activeFormSection}
 
-[עמודי תוכן פעילים במערכת שניתן לקשר אליהם במסך הסיום]
+[מותג (Brand DNA)]
+- שם: ${brandName}${brandSlogan ? ` | סלוגן: ${brandSlogan}` : ''}${shortVision ? ` | תמצית: ${shortVision}` : ''}
+- טון: ${brandTone} | טלפון: ${contactPhone} | וואטסאפ: ${whatsappNumber}
+
+[עמודים לקישור בסיום (מדגם)]
 ${pagesSummary}
 
 [כללי ברזל מחייבים לטפסי KSF]
@@ -179,9 +212,6 @@ ${pagesSummary}
   "isTemplate": true
 }
 `;
-    if (rule && rule.systemPromptAddon) {
-      prompt += `\n[הנחיות ייעודיות נוספות עבור סוכן זה]\n${rule.systemPromptAddon}\n`;
-    }
     return prompt;
   }
 
@@ -331,9 +361,6 @@ ${canRemoveTags ? `
 - טון דיבור: ${brandTone}
 ${toneDirectives}
 `;
-    if (rule && rule.systemPromptAddon) {
-      prompt += `\n[הנחיות ייעודיות נוספות עבור סוכן זה]\n${rule.systemPromptAddon}\n`;
-    }
     return prompt;
   }
 

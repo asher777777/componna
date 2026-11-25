@@ -34,6 +34,7 @@ export type SectionType =
   | 'tiktokHero'
   | 'dynamicListing'
   | 'dynamicCategories'
+  | 'flipCardsListing'
   | 'eventsListing'
   | 'articlesListing'
   | 'futureContent2027'

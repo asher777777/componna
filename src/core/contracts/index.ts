@@ -203,6 +203,7 @@ export interface FormSubmissionResult {
 export interface FormBuilderContract {
   getForms?: () => Promise<FormItemSummary[]>;
   getActiveFormsList?: () => FormItemSummary[];
+  getActiveForm?: () => any | null;
   getFormById?: (formId: string) => Promise<any>;
   saveForm?: (form: any) => Promise<{ id: string; success: boolean }>;
   submitForm?: (payload: FormSubmissionPayload) => Promise<FormSubmissionResult>;
