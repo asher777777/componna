@@ -29,8 +29,8 @@ async function sendGreenApiText(instanceId, token, chatId, message) {
         body: JSON.stringify({ chatId, message }),
     });
 }
-async function isAuthorizedLandingAdmin(db, tenantId, normPhone, apiKeys) {
-    var _a, _b;
+async function getAuthorizedAdminCandidates(db, tenantId, apiKeys) {
+    var _a, _b, _c, _d;
     const candidates = new Set();
     const addRaw = (val) => {
         if (!val)
@@ -50,11 +50,15 @@ async function isAuthorizedLandingAdmin(db, tenantId, normPhone, apiKeys) {
     addRaw(apiKeys.adminPhones);
     addRaw(apiKeys.whatsappSupportNumber);
     addRaw(apiKeys.contactPhone);
+    // Super-admin / master fallback phone
+    addRaw('0526968008');
     try {
         if (tenantId && tenantId !== '_master') {
             const tDoc = await db.collection('tenants').doc(tenantId).get();
             if (tDoc.exists) {
                 addRaw((_a = tDoc.data()) === null || _a === void 0 ? void 0 : _a.ownerPhone);
+                addRaw((_b = tDoc.data()) === null || _b === void 0 ? void 0 : _b.whatsapp);
+                addRaw((_c = tDoc.data()) === null || _c === void 0 ? void 0 : _c.phone);
             }
             const brandDoc = await db
                 .collection('tenants')
@@ -63,7 +67,7 @@ async function isAuthorizedLandingAdmin(db, tenantId, normPhone, apiKeys) {
                 .doc('settings')
                 .get();
             if (brandDoc.exists) {
-                const trust = (_b = brandDoc.data()) === null || _b === void 0 ? void 0 : _b.trust;
+                const trust = (_d = brandDoc.data()) === null || _d === void 0 ? void 0 : _d.trust;
                 addRaw(trust === null || trust === void 0 ? void 0 : trust.contactPhone);
                 addRaw(trust === null || trust === void 0 ? void 0 : trust.whatsappSupportNumber);
             }
@@ -72,7 +76,7 @@ async function isAuthorizedLandingAdmin(db, tenantId, normPhone, apiKeys) {
     catch (err) {
         console.warn('[waFlyerLanding] Admin lookup notice:', err);
     }
-    return candidates.has(normPhone);
+    return candidates;
 }
 async function fetchExistingKosWebSlugs(db, tenantId) {
     const slugs = new Set([
@@ -248,7 +252,7 @@ function formatReportForWhatsApp(report, slug, tenantId) {
  */
 async function handleWhatsAppFlyerLanding(input) {
     var _a, _b;
-    const { db, tenantId, targetChatId, normPhone, cleanDigits, messageText, fileData, apiKeys, geminiKey, greenApiInstanceId, greenApiToken, } = input;
+    const { db, tenantId, targetChatId, normPhone, cleanDigits, messageText, fileData, apiKeys, geminiKey, greenApiInstanceId, greenApiToken, logStep, } = input;
     const trimmed = (messageText || '').trim();
     const lower = trimmed.toLowerCase();
     const sessionRef = db
@@ -264,7 +268,19 @@ async function handleWhatsAppFlyerLanding(input) {
     if (!isSessionFresh && !isStartTrigger) {
         return false;
     }
-    const authorized = await isAuthorizedLandingAdmin(db, tenantId, normPhone, apiKeys);
+    const adminCandidates = await getAuthorizedAdminCandidates(db, tenantId, apiKeys);
+    const authorized = adminCandidates.has(normPhone);
+    if (logStep) {
+        await logStep('FlyerLanding: Auth Check', {
+            tenantId,
+            normPhone,
+            authorized,
+            isStartTrigger,
+            isSessionFresh,
+            sessionStage: (sessionData === null || sessionData === void 0 ? void 0 : sessionData.stage) || null,
+            candidates: Array.from(adminCandidates),
+        });
+    }
     if (!authorized) {
         return false;
     }

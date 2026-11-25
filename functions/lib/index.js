@@ -491,9 +491,13 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                     for (const tDoc of tenantsSnap.docs) {
                         const tKeysDoc = await db.collection('tenants').doc(tDoc.id).collection('settings').doc('api_keys').get();
                         if (tKeysDoc.exists && String(((_z = tKeysDoc.data()) === null || _z === void 0 ? void 0 : _z.greenApiInstanceId) || '').trim() === incomingInstanceId) {
-                            resolvedTenantId = tDoc.id;
-                            apiKeys = tKeysDoc.data() || {};
-                            break;
+                            // Prefer specific tenant (e.g. mlea) over _master if both share the same instance ID
+                            if (resolvedTenantId === '_master' || tDoc.id !== '_master') {
+                                resolvedTenantId = tDoc.id;
+                                apiKeys = tKeysDoc.data() || {};
+                                if (tDoc.id !== '_master')
+                                    break;
+                            }
                         }
                     }
                 }
@@ -554,6 +558,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 geminiKey,
                 greenApiInstanceId,
                 greenApiToken,
+                logStep: (status, detail) => logWebhookEvent(resolvedTenantId, status, detail),
             });
             if (handledByFlyerFlow) {
                 await logWebhookEvent(resolvedTenantId, 'Handled: Flyer-to-HTML Landing Flow', { normPhone });

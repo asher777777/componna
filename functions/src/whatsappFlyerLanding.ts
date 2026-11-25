@@ -19,6 +19,7 @@ export interface WaFlyerLandingInput {
   geminiKey: string;
   greenApiInstanceId: string;
   greenApiToken: string;
+  logStep?: (status: string, detail?: any) => Promise<void>;
 }
 
 function sanitizeSlug(raw: string): string {
@@ -56,12 +57,11 @@ async function sendGreenApiText(
   });
 }
 
-async function isAuthorizedLandingAdmin(
+async function getAuthorizedAdminCandidates(
   db: admin.firestore.Firestore,
   tenantId: string,
-  normPhone: string,
   apiKeys: Record<string, any>
-): Promise<boolean> {
+): Promise<Set<string>> {
   const candidates = new Set<string>();
 
   const addRaw = (val: any) => {
@@ -81,11 +81,16 @@ async function isAuthorizedLandingAdmin(
   addRaw(apiKeys.whatsappSupportNumber);
   addRaw(apiKeys.contactPhone);
 
+  // Super-admin / master fallback phone
+  addRaw('0526968008');
+
   try {
     if (tenantId && tenantId !== '_master') {
       const tDoc = await db.collection('tenants').doc(tenantId).get();
       if (tDoc.exists) {
         addRaw(tDoc.data()?.ownerPhone);
+        addRaw(tDoc.data()?.whatsapp);
+        addRaw(tDoc.data()?.phone);
       }
       const brandDoc = await db
         .collection('tenants')
@@ -103,7 +108,7 @@ async function isAuthorizedLandingAdmin(
     console.warn('[waFlyerLanding] Admin lookup notice:', err);
   }
 
-  return candidates.has(normPhone);
+  return candidates;
 }
 
 async function fetchExistingKosWebSlugs(
@@ -320,6 +325,7 @@ export async function handleWhatsAppFlyerLanding(input: WaFlyerLandingInput): Pr
     geminiKey,
     greenApiInstanceId,
     greenApiToken,
+    logStep,
   } = input;
 
   const trimmed = (messageText || '').trim();
@@ -345,7 +351,19 @@ export async function handleWhatsAppFlyerLanding(input: WaFlyerLandingInput): Pr
     return false;
   }
 
-  const authorized = await isAuthorizedLandingAdmin(db, tenantId, normPhone, apiKeys);
+  const adminCandidates = await getAuthorizedAdminCandidates(db, tenantId, apiKeys);
+  const authorized = adminCandidates.has(normPhone);
+  if (logStep) {
+    await logStep('FlyerLanding: Auth Check', {
+      tenantId,
+      normPhone,
+      authorized,
+      isStartTrigger,
+      isSessionFresh,
+      sessionStage: sessionData?.stage || null,
+      candidates: Array.from(adminCandidates),
+    });
+  }
   if (!authorized) {
     return false;
   }
