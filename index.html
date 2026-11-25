@@ -181,6 +181,24 @@
     </script>
 
     <div id="root"></div>
+    <script>
+      (function() {
+        window.addEventListener('error', function(e) {
+          var t = e && e.target;
+          if (!t || t.tagName !== 'SCRIPT') return;
+          var src = t.getAttribute('src') || '';
+          if (src.indexOf('/assets/') === -1) return;
+          try {
+            var key = 'kosun_preload_reload_at';
+            var last = Number(sessionStorage.getItem(key) || '0');
+            if (Date.now() - last > 15000) {
+              sessionStorage.setItem(key, String(Date.now()));
+              window.location.reload();
+            }
+          } catch (err) {}
+        }, true);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

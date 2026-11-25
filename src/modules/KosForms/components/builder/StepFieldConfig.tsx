@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FormStep, FieldType, FieldOption, TicketTier, CouponDefinition } from '../../types';
+import { TenantStylePreset } from '../../../../core/contracts';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import { IconPickerModal } from '../shared/IconPickerModal';
 import {
@@ -25,6 +26,7 @@ import {
 
 export interface StepFieldConfigProps {
   step: FormStep;
+  stylePreset?: TenantStylePreset;
   onChange: (updatedStep: FormStep) => void;
   onDelete?: () => void;
 }
@@ -49,6 +51,7 @@ const FIELD_TYPES: { type: FieldType; label: string; icon: any }[] = [
 
 export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
   step,
+  stylePreset,
   onChange,
   onDelete,
 }) => {
@@ -605,6 +608,7 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
       {/* Icon Picker Modal */}
       <IconPickerModal
         isOpen={isIconPickerOpen}
+        stylePreset={stylePreset}
         selectedIcon={
           activeOptionIndexForIcon !== null
             ? step.options?.[activeOptionIndexForIcon]?.iconName

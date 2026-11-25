@@ -23,6 +23,19 @@ export class ModuleErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error(`[ModuleErrorBoundary] Error caught in module ${this.props.moduleName || 'Unknown'}:`, error, errorInfo);
+    const msg = error?.message || '';
+    if (/Failed to fetch dynamically imported module|Importing a module script failed|Expected a JavaScript-or-Wasm module script|ChunkLoadError|Loading chunk \d+ failed/i.test(msg)) {
+      try {
+        const key = 'kosun_preload_reload_at';
+        const lastReload = Number(sessionStorage.getItem(key) || '0');
+        if (Date.now() - lastReload > 15000) {
+          sessionStorage.setItem(key, String(Date.now()));
+          window.location.reload();
+        }
+      } catch {
+        // ignore storage errors
+      }
+    }
   }
 
   private handleReset = () => {

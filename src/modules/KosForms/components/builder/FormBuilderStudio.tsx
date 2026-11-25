@@ -459,6 +459,7 @@ export const FormBuilderStudio: React.FC = () => {
         {activeTab === 'editor' && (
           <FormStepsEditor
             steps={activeForm.steps || []}
+            stylePreset={activeForm.theme?.stylePreset}
             onChange={(newSteps) => setActiveForm({ ...activeForm, steps: newSteps })}
           />
         )}

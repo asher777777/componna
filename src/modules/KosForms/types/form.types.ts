@@ -106,7 +106,10 @@ export interface FormStep {
   coupons?: CouponDefinition[];
 }
 
+import type { TenantStylePreset } from '../../../core/contracts';
+
 export interface FormThemeSettings {
+  stylePreset?: TenantStylePreset;
   primaryColor: string;
   accentColor: string;
   backgroundColor: string;

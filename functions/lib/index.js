@@ -2960,21 +2960,15 @@ exports.imageProxy = functions.https.onRequest((req, res) => {
 // ============================================================================
 // SERVER-SIDE OPEN GRAPH / LINK PREVIEW META INJECTOR (WhatsApp, FB, Telegram)
 // ============================================================================
-let cachedIndexHtml = null;
 async function getBaseIndexHtml() {
     const now = Date.now();
-    if (cachedIndexHtml && now - cachedIndexHtml.fetchedAt < 10 * 1000) {
-        return cachedIndexHtml.html;
-    }
     const resp = await fetch(`https://compona.web.app/index.html?_=${now}`, {
-        headers: { 'Cache-Control': 'no-cache' },
+        headers: { 'Cache-Control': 'no-cache, no-store' },
     });
     if (!resp.ok) {
         throw new Error(`Failed to fetch base index.html (${resp.status})`);
     }
-    const html = await resp.text();
-    cachedIndexHtml = { html, fetchedAt: now };
-    return html;
+    return await resp.text();
 }
 function escapeHtmlAttr(val) {
     return String(val || '')
@@ -3006,8 +3000,13 @@ exports.ogMetaProxy = functions.runWith({ timeoutSeconds: 15, memory: '256MB' })
     try {
         const reqPath = (req.path || '').toLowerCase();
         if (reqPath.startsWith('/assets/') ||
-            /\.(js|mjs|css|map|wasm|json|png|jpg|jpeg|gif|svg|webp|ico|woff|woff2|ttf|eot)$/.test(reqPath)) {
-            res.status(404).set('Content-Type', 'text/plain; charset=utf-8').send('Not Found');
+            reqPath.startsWith('/src/') ||
+            /\.(js|mjs|cjs|ts|tsx|jsx|css|map|wasm|json|png|jpg|jpeg|gif|svg|webp|ico|woff|woff2|ttf|eot)$/.test(reqPath)) {
+            res
+                .status(404)
+                .set('Content-Type', 'text/plain; charset=utf-8')
+                .set('Cache-Control', 'no-store')
+                .send('Not Found');
             return;
         }
         const baseHtml = await getBaseIndexHtml();
@@ -3072,6 +3071,7 @@ exports.ogMetaProxy = functions.runWith({ timeoutSeconds: 15, memory: '256MB' })
         }
         if (!pageData) {
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
             res.status(200).send(baseHtml);
             return;
         }
@@ -3106,7 +3106,7 @@ exports.ogMetaProxy = functions.runWith({ timeoutSeconds: 15, memory: '256MB' })
         finalHtml = finalHtml.replace(/<meta[^>]+(?:name="description"|property="og:[^"]+"|name="twitter:[^"]+")[^>]*>/gi, '');
         finalHtml = finalHtml.replace('</head>', `    ${metaBlock}\n  </head>`);
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.setHeader('Cache-Control', 'public, max-age=120');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.status(200).send(finalHtml);
     }
     catch (err) {

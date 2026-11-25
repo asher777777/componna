@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FormStep, FieldType } from '../../types';
+import { TenantStylePreset } from '../../../../core/contracts';
 import { StepFieldConfig } from './StepFieldConfig';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import {
@@ -15,11 +16,13 @@ import {
 
 export interface FormStepsEditorProps {
   steps: FormStep[];
+  stylePreset?: TenantStylePreset;
   onChange: (updatedSteps: FormStep[]) => void;
 }
 
 export const FormStepsEditor: React.FC<FormStepsEditorProps> = ({
   steps,
+  stylePreset,
   onChange,
 }) => {
   const [expandedStepId, setExpandedStepId] = useState<string | null>(
@@ -178,6 +181,7 @@ export const FormStepsEditor: React.FC<FormStepsEditorProps> = ({
                 <div className="p-4 bg-slate-50/50 dark:bg-slate-900/50">
                   <StepFieldConfig
                     step={step}
+                    stylePreset={stylePreset}
                     onChange={(updated) => handleUpdateStep(index, updated)}
                     onDelete={steps.length > 1 ? () => handleDeleteStep(index) : undefined}
                   />
