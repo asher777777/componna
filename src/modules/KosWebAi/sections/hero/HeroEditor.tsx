@@ -1170,9 +1170,20 @@ export const HeroEditor: React.FC<{
 
                     {/* Announcement Badge with AI */}
                     <div className="space-y-0.5 pt-1">
-                      <label className="text-[10px] font-bold text-amber-500 block">
-                        תגית הכרזה עליונה (Announcement Pill)
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-amber-500 block">
+                          תגית הכרזה עליונה (Announcement Pill)
+                        </label>
+                        {formData.announcementBadge?.text && (
+                          <button
+                            type="button"
+                            onClick={() => updateField('announcementBadge', undefined)}
+                            className="text-[10px] font-bold text-rose-400 hover:text-rose-300 cursor-pointer"
+                          >
+                            הסר תגית
+                          </button>
+                        )}
+                      </div>
                       <div className="flex items-center gap-1.5">
                         <input
                           type="text"

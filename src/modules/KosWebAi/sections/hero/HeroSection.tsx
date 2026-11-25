@@ -221,7 +221,9 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
         isStack ? 'items-center text-center' : 'items-start text-right'
       )}
     >
-      {announcementBadge?.text && (
+      {announcementBadge?.text &&
+        announcementBadge.text.trim() !== 'חדשנות ומצוינות 2026' &&
+        (announcementBadge as any).visible !== false && (
         <a href={announcementBadge.url || '#'} className={tokens.badge.className}>
           {tokens.badge.iconType !== 'arrow' && renderBadgeIcon()}
           <span>{announcementBadge.text}</span>

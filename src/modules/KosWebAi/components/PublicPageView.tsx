@@ -9,6 +9,7 @@ import { Loader2, Globe, AlertTriangle, ArrowRight, Eye, Home, Lock, X, KeyRound
 import { KosWebAiFrontDock } from './KosWebAiFrontDock';
 import { useKosai } from '../../KosAi';
 import { pageAnalyticsService } from '../services/pageAnalyticsService';
+import { persistPublicLeadToCrmContacts } from '../services/publicLeadPersistenceService';
 import { PageSettingsDrawer } from './PageSettingsDrawer';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
@@ -858,6 +859,21 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     return () => window.removeEventListener('click', handleGlobalClick);
   }, [page?.pageId, db, tenantId]);
 
+  // Persist public page leads (SmartForm, ContactSection, LandingSection, Checkout) directly to tenants/{tenantId}/contacts
+  useEffect(() => {
+    if (!db || !tenantId) return;
+    const unsubLead = eventBus.subscribe('crm:lead:created', (payload: any) => {
+      persistPublicLeadToCrmContacts(db, tenantId, payload, {
+        pageId: page?.pageId,
+        pageTitle: page?.pageTitle,
+        slug: page?.slug,
+      }).catch((err) => {
+        console.warn('[PublicPageView] Failed to persist public lead to CRM contacts:', err);
+      });
+    });
+    return () => unsubLead();
+  }, [db, tenantId, page?.pageId, page?.pageTitle, page?.slug]);
+
   if (loading) {
     return (
       <div className="w-screen h-screen bg-[#09090b] flex flex-col items-center justify-center text-white" dir="rtl">
@@ -1039,6 +1055,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         onLeadSubmit={(formData) => {
           console.log('[PublicPageView] Received lead submission:', formData);
           handleInteraction('lead', 'Form submission');
+          persistPublicLeadToCrmContacts(db, tenantId, formData, {
+            pageId: page?.pageId,
+            pageTitle: page?.pageTitle,
+            slug: page?.slug,
+          }).catch((err) => {
+            console.warn('[PublicPageView] Failed to persist onLeadSubmit to CRM contacts:', err);
+          });
         }}
       />
 

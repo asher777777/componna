@@ -30,7 +30,10 @@ export interface SmartFormSectionConfig extends BaseSectionConfig {
   submitButtonText?: string;
 }
 
-export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({ config }) => {
+export const SmartFormSection: React.FC<{
+  config: SmartFormSectionConfig;
+  onLeadSubmit?: (formData: any) => void;
+}> = ({ config, onLeadSubmit }) => {
   const { getCapability } = useHostCapabilities();
   const formBuilder = getCapability<any>('form-builder');
   const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
@@ -75,15 +78,18 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
         submittedAt: new Date().toISOString(),
       });
 
-      eventBus.publish('crm:lead:created', {
+      const leadPayload = {
         conta_name: crmPayload.kosun_crm_name || '',
         conta_phone: crmPayload.kosun_crm_phone || '',
         email: crmPayload.kosun_crm_email || '',
         ...crmPayload,
         source: 'עמוד נחיתה / Smart Form',
         tags: ['ליד מטופס חכם', config.sectionTitle || 'טופס אתר'],
-        metadata: { formId: config.formId, crmFieldKeys: config.crmFields.map((f) => f.crmFieldKey) },
-      });
+        metadata: { submissionId, formId: config.formId, formTitle: config.sectionTitle || 'טופס יצירת קשר', crmFieldKeys: config.crmFields.map((f) => f.crmFieldKey) },
+      };
+
+      eventBus.publish('crm:lead:created', leadPayload);
+      onLeadSubmit?.(leadPayload);
 
       setIsSubmitted(true);
       if (isPaymentMode) {
@@ -107,7 +113,7 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
       submittedAt: new Date().toISOString(),
     });
 
-    eventBus.publish('crm:lead:created', {
+    const fallbackLeadPayload = {
       conta_name: fullName,
       conta_phone: phone,
       email,
@@ -117,8 +123,11 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
       kosun_crm_notes: notes,
       source: 'עמוד נחיתה / Smart Form',
       tags: ['ליד מטופס חכם', config.sectionTitle || 'טופס אתר'],
-      metadata: { notes, formId: config.formId },
-    });
+      metadata: { submissionId, notes, formId: config.formId, formTitle: config.sectionTitle || 'טופס יצירת קשר' },
+    };
+
+    eventBus.publish('crm:lead:created', fallbackLeadPayload);
+    onLeadSubmit?.(fallbackLeadPayload);
 
     setIsSubmitted(true);
     if (isPaymentMode) {
