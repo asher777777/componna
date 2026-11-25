@@ -449,6 +449,21 @@ export const EventPosterEditor: React.FC<EventPosterEditorProps> = ({
           </button>
         </div>
 
+        <label className="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">
+          <div>
+            <div className="text-xs font-bold text-white">הצג טופס KFS מוטמע בתחתית הפלייר</div>
+            <div className="text-[11px] text-slate-400">
+              ניתן גם לכבות ולהוסיף אזור &quot;טופס חכם (KFS)&quot; נפרד מתחת לפלייר
+            </div>
+          </div>
+          <input
+            type="checkbox"
+            checked={config.showEmbeddedForm !== false}
+            onChange={(e) => updateField('showEmbeddedForm', e.target.checked)}
+            className="w-4 h-4 rounded text-amber-500"
+          />
+        </label>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
             <label className={labelClass}>בחר טופס KFS להטמעה</label>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Firestore } from 'firebase/firestore';
-import { SmartFormDefinition } from '../../types';
+import { SmartFormDefinition, FormThemeSettings } from '../../types';
 import { getSmartFormById } from '../../services/formStorageService';
 import { useFormRunnerState } from '../../hooks/useFormRunnerState';
 import { StepRenderer } from './StepRenderer';
@@ -26,6 +26,7 @@ export interface SmartFormRunnerProps {
   submitButtonSize?: 'compact' | 'normal' | 'spacious' | 'fullWidth';
   submitButtonFontSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   submitButtonShape?: 'rounded' | 'capsule' | 'square';
+  themeOverride?: Partial<FormThemeSettings>;
 }
 
 export const SmartFormRunner: React.FC<SmartFormRunnerProps> = ({
@@ -42,6 +43,7 @@ export const SmartFormRunner: React.FC<SmartFormRunnerProps> = ({
   submitButtonSize,
   submitButtonFontSize,
   submitButtonShape,
+  themeOverride,
 }) => {
   const { tenantId, getScopedCollectionPath } = useTenantScope();
   const effectiveCollectionName =
@@ -116,6 +118,7 @@ export const SmartFormRunner: React.FC<SmartFormRunnerProps> = ({
       submitButtonSize={submitButtonSize}
       submitButtonFontSize={submitButtonFontSize}
       submitButtonShape={submitButtonShape}
+      themeOverride={themeOverride}
     />
   );
 };
@@ -133,6 +136,7 @@ interface InnerProps {
   submitButtonSize?: 'compact' | 'normal' | 'spacious' | 'fullWidth';
   submitButtonFontSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   submitButtonShape?: 'rounded' | 'capsule' | 'square';
+  themeOverride?: Partial<FormThemeSettings>;
 }
 
 const SmartFormRunnerInner: React.FC<InnerProps> = ({
@@ -148,6 +152,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
   submitButtonSize,
   submitButtonFontSize,
   submitButtonShape,
+  themeOverride,
 }) => {
   const {
     currentStepIndex,
@@ -177,7 +182,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
     previewMode,
   });
 
-  const theme = form.theme || ({} as any);
+  const theme = { ...(form.theme || {}), ...(themeOverride || {}) } as any;
   const styleTokens = resolveKoswebFormStyle(theme?.stylePreset);
   const accentColor = theme?.accentColor || styleTokens.themeDefaults.accentColor || '#D97706';
   const hasBgImage = theme?.backgroundType === 'image' && !!theme?.backgroundImageUrl;

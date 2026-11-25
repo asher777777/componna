@@ -1056,6 +1056,7 @@ export interface EventPosterSectionConfig extends BaseSectionConfig {
   closingQuote: string;
   addressText: string;
   formId?: string;
+  showEmbeddedForm?: boolean;
   formTitle?: string;
   formSubtitle?: string;
   submitButtonText?: string;
