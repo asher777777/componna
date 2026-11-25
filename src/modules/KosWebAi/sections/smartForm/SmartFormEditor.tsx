@@ -93,7 +93,7 @@ export const SmartFormEditor: React.FC<{
               onChange={(e) => onChange({ ...config, formId: e.target.value })}
               className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
             >
-              <option value="">טופס לידים מובנה של העמוד (מומלץ)</option>
+              <option value="">טופס ברירת מחדל מבונה הטפסים החכמים</option>
               {forms.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.title} ({f.submissionsCount || 0} הגשות)
@@ -102,7 +102,7 @@ export const SmartFormEditor: React.FC<{
             </select>
           ) : (
             <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl text-xs text-slate-400">
-              <p>טופס לידים מובנה מוגדר כברירת מחדל ויקלוט הגשות ישירות ל-CRM.</p>
+              <p>לא נמצאו טפסים שמורים — יוצג טופס ברירת המחדל מבונה הטפסים החכמים.</p>
               {formBuilder && (
                 <p className="mt-1 text-[11px] text-indigo-400">
                   מודול הטפסים החכמים מחובר וזמין.

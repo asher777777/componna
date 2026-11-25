@@ -212,6 +212,13 @@ export interface FormBuilderContract {
   openBrainstormModal?: () => void;
   openBuilderForForm?: (formId: string) => void;
   renderSubmissionsTable?: (formId: string, formTitle?: string) => React.ReactNode;
+  renderFormRunner?: (props: {
+    formId?: string;
+    form?: any;
+    onComplete?: (answers: Record<string, any>, submissionId: string) => void;
+    submitButtonText?: string;
+    className?: string;
+  }) => React.ReactNode;
 }
 
 

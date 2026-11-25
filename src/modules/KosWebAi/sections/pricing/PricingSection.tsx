@@ -3,7 +3,7 @@ import { PricingSectionConfig, PricingPackageItem } from '../../types/sectionCon
 import { Check, Sparkles, ArrowLeft, ShieldCheck, CreditCard, FileText, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { KesherCheckoutModal } from '../../components/KesherCheckoutModal';
-import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
+import { CapabilitySlot } from '../../../../core/bridge/CapabilitySlot';
 import { eventBus } from '../../../../core/bridge/EventBus';
 import { resolveStylePresetTokens } from '../../utils/stylePresetTheme';
 
@@ -19,9 +19,6 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
     backgroundColor = 'transparent',
     packages = [],
   } = config;
-
-  const { getCapability } = useHostCapabilities();
-  const formBuilder = getCapability<any>('form-builder');
 
   const [isYearly, setIsYearly] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PricingPackageItem | null>(null);
@@ -221,9 +218,10 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
               <X className="w-4 h-4" />
             </button>
 
-            {formBuilder?.renderFormRunner ? (
-              formBuilder.renderFormRunner({
-                formId: selectedPackage.formId,
+            <CapabilitySlot
+              name="form-renderer"
+              props={{
+                formId: selectedPackage.formId || undefined,
                 onComplete: (answers: Record<string, any>, submissionId: string) => {
                   eventBus.publish('smart_form:submitted', {
                     formId: selectedPackage.formId || 'pricing-lead',
@@ -234,8 +232,9 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
                   });
                   setSelectedPackage(null);
                 },
-              })
-            ) : isFormSubmitted ? (
+              }}
+              fallback={
+                isFormSubmitted ? (
               <div className="py-8 text-center space-y-4">
                 <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center">
                   <Check className="w-8 h-8" />
@@ -335,7 +334,9 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
                   שליחת פרטים והמשך
                 </button>
               </form>
-            )}
+                )
+              }
+            />
           </div>
         </div>
       )}

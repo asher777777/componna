@@ -382,6 +382,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
         } as unknown as SmartFormDefinition);
         return <FormSubmissionsTable form={targetForm} collectionName={effectiveCollectionName} />;
       },
+      renderFormRunner: (runnerProps) => <SmartFormRunner {...runnerProps} />,
     };
 
     registerCapability('form-builder', contract);

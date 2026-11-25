@@ -613,6 +613,32 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
 
   // Render form content inside card or modal
   const renderFormContent = () => {
+    if (formId) {
+      return (
+        <CapabilitySlot
+          name="form-renderer"
+          props={{
+            formId,
+            submitButtonText: buttonText,
+            onComplete: (answers: Record<string, any>, submissionId: string) => {
+              eventBus.publish('smart_form:submitted', {
+                formId: formId || 'landing-form',
+                formTitle: title,
+                submissionId,
+                data: answers,
+                submittedAt: new Date().toISOString(),
+              });
+            },
+          }}
+          fallback={
+            <div className="p-8 text-center text-slate-400 border border-dashed border-slate-700 rounded-2xl">
+              טוען טופס KSF...
+            </div>
+          }
+        />
+      );
+    }
+
     if (isSubmitted) {
       return (
         <div className="flex flex-col items-center justify-center text-center py-8 gap-3 animate-in zoom-in-95">

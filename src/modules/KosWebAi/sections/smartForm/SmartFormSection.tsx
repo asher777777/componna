@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BaseSectionConfig } from '../../types/pageBuilder.types';
-import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
+import { CapabilitySlot } from '../../../../core/bridge/CapabilitySlot';
 import { eventBus } from '../../../../core/bridge/EventBus';
 import { Check, CreditCard, Send } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -34,8 +34,6 @@ export const SmartFormSection: React.FC<{
   config: SmartFormSectionConfig;
   onLeadSubmit?: (formData: any) => void;
 }> = ({ config, onLeadSubmit }) => {
-  const { getCapability } = useHostCapabilities();
-  const formBuilder = getCapability<any>('form-builder');
   const styleTokens = resolveStylePresetTokens((config as any).stylePreset || (config as any).layout);
 
   const [fullName, setFullName] = useState('');
@@ -158,17 +156,32 @@ export const SmartFormSection: React.FC<{
           </div>
         )}
 
-        {config.formId && formBuilder?.renderFormRunner ? (
-          formBuilder.renderFormRunner({ formId: config.formId })
-        ) : isSubmitted ? (
-          <div className="p-8 text-center bg-emerald-500/10 border border-emerald-500/30 rounded-3xl text-emerald-400 space-y-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/20 mx-auto flex items-center justify-center">
-              <Check className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-bold">הטופס נשלח בהצלחה!</h3>
-            <p className="text-xs text-slate-300">תודה שפנית אלינו. פרטיך נקלטו ונחזור אליך בהקדם.</p>
-          </div>
-        ) : (
+        <CapabilitySlot
+          name="form-renderer"
+          props={{
+            formId: config.formId || undefined,
+            submitButtonText: config.submitButtonText,
+            onComplete: (answers: Record<string, any>, submissionId: string) => {
+              eventBus.publish('smart_form:submitted', {
+                formId: config.formId || `form_${config.id}`,
+                formTitle: config.sectionTitle || 'טופס יצירת קשר',
+                submissionId,
+                data: answers,
+                submittedAt: new Date().toISOString(),
+              });
+              onLeadSubmit?.(answers);
+            },
+          }}
+          fallback={
+            isSubmitted ? (
+              <div className="p-8 text-center bg-emerald-500/10 border border-emerald-500/30 rounded-3xl text-emerald-400 space-y-3">
+                <div className="w-12 h-12 rounded-full bg-emerald-500/20 mx-auto flex items-center justify-center">
+                  <Check className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold">הטופס נשלח בהצלחה!</h3>
+                <p className="text-xs text-slate-300">תודה שפנית אלינו. פרטיך נקלטו ונחזור אליך בהקדם.</p>
+              </div>
+            ) : (
           <form
             onSubmit={handleSubmit}
             className={clsx('p-6 sm:p-8 space-y-4 backdrop-blur-sm', styleTokens.cardClass)}
@@ -309,7 +322,9 @@ export const SmartFormSection: React.FC<{
               </span>
             </button>
           </form>
-        )}
+            )
+          }
+        />
 
         {isPaymentMode && isCheckoutOpen && (
           <KesherCheckoutModal
