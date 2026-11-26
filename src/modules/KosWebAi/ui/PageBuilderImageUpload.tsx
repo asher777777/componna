@@ -124,39 +124,46 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
       return;
     }
 
-    // Immediate 0ms local preview
+    // Keep local preview only while uploading; NEVER emit a transient blob: URL as the saved value
     const localUrl = URL.createObjectURL(targetFile);
-    onChange(localUrl);
     setUrlInput(localUrl);
 
-    // Asynchronously upload to Firebase Cloud Storage for permanent public URL (SEO / OpenGraph compatible)
-    if (systemConn?.firebaseApp) {
-      setIsUploading(true);
-      setUploadProgress(10);
-      try {
-        const permanentUrl = await FirebaseStorageMediaService.uploadFileToStorage(
-          systemConn.firebaseApp,
-          targetFile,
-          targetFileName,
-          (pct) => setUploadProgress(pct),
-          {
-            sourceModule: 'KosWebAi',
-            sourceModuleLabel: 'בונה דפים ו-SEO',
-            type: targetFile.type?.startsWith('video/') ? 'video' : 'image',
-            mimeType: targetFile.type || (isJpgRestricted ? 'image/jpeg' : undefined),
-          },
-          tenantId
-        );
-        if (permanentUrl) {
-          onChange(permanentUrl);
-          setUrlInput(permanentUrl);
-        }
-      } catch (uploadErr) {
-        console.warn('[PageBuilderImageUpload] Firebase Storage upload error:', uploadErr);
-      } finally {
-        setIsUploading(false);
-        setUploadProgress(0);
+    if (!systemConn?.firebaseApp) {
+      setValidationError('שגיאה: חיבור הענן (Firebase Storage) אינו זמין כרגע. לא ניתן לשמור קובץ זמני.');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(10);
+    try {
+      const permanentUrl = await FirebaseStorageMediaService.uploadFileToStorage(
+        systemConn.firebaseApp,
+        targetFile,
+        targetFileName,
+        (pct) => setUploadProgress(pct),
+        {
+          sourceModule: 'KosWebAi',
+          sourceModuleLabel: 'בונה דפים ו-SEO',
+          type: targetFile.type?.startsWith('video/') ? 'video' : 'image',
+          mimeType: targetFile.type || (isJpgRestricted ? 'image/jpeg' : undefined),
+        },
+        tenantId
+      );
+      if (permanentUrl && !permanentUrl.startsWith('blob:')) {
+        onChange(permanentUrl);
+        setUrlInput(permanentUrl);
+      } else {
+        setValidationError('שגיאה: לא התקבלה כתובת קבועה מהשרת. נסה להעלות שוב.');
       }
+    } catch (uploadErr: any) {
+      console.warn('[PageBuilderImageUpload] Firebase Storage upload error:', uploadErr);
+      setValidationError(uploadErr?.message || 'שגיאה בהעלאת הקובץ לענן — הקובץ לא נשמר.');
+    } finally {
+      try {
+        URL.revokeObjectURL(localUrl);
+      } catch {}
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
