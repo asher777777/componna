@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useKesherPaymentsContext } from '../context/KesherPaymentsContext';
+import { kesherService } from '../services/kesherService';
 import { CreditCard, CheckCircle2, Loader2, ShieldCheck, Smartphone, Lock, Calendar } from 'lucide-react';
 
 export interface KesherPaymentSlotProps {
@@ -80,10 +81,11 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
           setErrorMsg(res.errorMessage || res.Description || res.Message || 'התשלום ב-Bit לא אושר');
         }
       } else {
-        // Validate credit card inputs
+        // Validate credit card inputs (length + Luhn check)
         const cleanCard = cardNumber.replace(/\s+/g, '');
-        if (cleanCard.length < 12 || !/^\d+$/.test(cleanCard)) {
-          setErrorMsg('נא להזין מספר כרטיס אשראי תקין');
+        const luhnCheck = kesherService.validateCreditCard(cleanCard);
+        if (cleanCard.length < 12 || !/^\d+$/.test(cleanCard) || !luhnCheck.isValid) {
+          setErrorMsg('מספר כרטיס האשראי אינו תקין. נא לבדוק את הספרות ולנסות שנית.');
           setIsProcessing(false);
           return;
         }

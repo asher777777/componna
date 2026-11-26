@@ -941,8 +941,8 @@ export const MediaGalleryProvider: React.FC<{
         }
       }
 
-      // Save complete JSON document to Firestore on the server
-      if (db) {
+      // Save complete JSON document to Firestore on the server (NEVER persist transient blob: URLs)
+      if (db && finalItem.url && !finalItem.url.startsWith('blob:')) {
         try {
           finalItem = {
             ...finalItem,

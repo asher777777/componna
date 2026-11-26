@@ -617,10 +617,17 @@ service cloud.firestore {
         allow delete: if canManageTenant(tenantId);
       }
 
-      match /mod_forms/{docId=**} {
+      match /mod_forms/{formId} {
         allow read: if true;
         allow create, update: if canManageTenant(tenantId) && isValidContentDoc(request.resource.data);
         allow delete: if canManageTenant(tenantId);
+
+        match /submissions/{subId} {
+          allow read: if canManageTenantOrReseller(tenantId);
+          allow create: if isValidPublicSubmission(request.resource.data);
+          allow update: if canManageTenant(tenantId) && isValidPublicSubmission(request.resource.data);
+          allow delete: if canManageTenant(tenantId);
+        }
       }
 
       match /mod_pagebuilder_pages/{docId=**} {
@@ -886,6 +893,13 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isMasterAdmin() && isValidContentDoc(request.resource.data);
       allow delete: if isMasterAdmin();
+
+      match /submissions/{subId} {
+        allow read: if isMasterAdmin();
+        allow create: if isValidPublicSubmission(request.resource.data);
+        allow update: if isMasterAdmin() && isValidPublicSubmission(request.resource.data);
+        allow delete: if isMasterAdmin();
+      }
     }
 
     match /archetype_presets/{docId} {

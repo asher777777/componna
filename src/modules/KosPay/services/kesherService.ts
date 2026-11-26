@@ -316,29 +316,50 @@ export class KesherService {
     };
 
     const result = await this.postToConnect(payload);
-    const resData = result?.data || result;
+    const rawRes = result?.data || result;
+    const resData = rawRes?.SendTransactionResult || rawRes;
 
     const numericCode = resData?.Code !== undefined && resData?.Code !== null && resData?.Code !== ''
       ? Number(resData.Code)
       : 0;
+    const errorCode = resData?.ErrorCode !== undefined && resData?.ErrorCode !== null && resData?.ErrorCode !== ''
+      ? Number(resData.ErrorCode)
+      : 0;
+    const creditStatus = resData?.CreditStatus !== undefined && resData?.CreditStatus !== null && resData?.CreditStatus !== ''
+      ? Number(resData.CreditStatus)
+      : 0;
+    const statusStr = typeof resData?.Status === 'string' ? resData.Status.toLowerCase() : '';
+
     const isExplicitFailure =
       !resData ||
       resData.Status === false ||
+      resData.Status === 0 ||
+      resData.Status === '0' ||
       resData.Succeeded === false ||
       resData.Success === false ||
       resData.success === false ||
       resData.Result === false ||
       resData.status === 'error' ||
-      resData.Status === 'Error' ||
+      statusStr.includes('error') ||
+      statusStr.includes('fail') ||
+      statusStr.includes('declin') ||
+      statusStr.includes('סירוב') ||
+      statusStr.includes('נדחה') ||
+      statusStr.includes('שגיאה') ||
       Boolean(resData.Error) ||
       Boolean(resData.error) ||
+      Boolean(resData.ErrorMessage) ||
       Boolean(resData.faultcode) ||
-      (Number.isFinite(numericCode) && numericCode !== 0);
+      Boolean(resData.faultstring) ||
+      (Number.isFinite(numericCode) && numericCode !== 0) ||
+      (Number.isFinite(errorCode) && errorCode !== 0) ||
+      (Number.isFinite(creditStatus) && creditStatus !== 0);
 
     if (isExplicitFailure) {
       throw new Error(
         resData?.Description ||
           resData?.faultstring ||
+          resData?.ErrorMessage ||
           resData?.Error ||
           resData?.error ||
           resData?.Message ||
@@ -346,10 +367,20 @@ export class KesherService {
       );
     }
 
-    const txId = String(resData.TransactionId || resData.NumTransaction || resData.Data || resData.Id || '');
-    if (!txId && resData.Status !== true && resData.Succeeded !== true && resData.Success !== true) {
+    const hasPositiveApproval =
+      resData.Status === true ||
+      resData.Succeeded === true ||
+      resData.Success === true ||
+      Boolean(resData.TransactionId) ||
+      Boolean(resData.NumTransaction) ||
+      Boolean(resData.AuthNumber) ||
+      Boolean(resData.ApprovalNumber);
+
+    if (!hasPositiveApproval) {
       throw new Error(resData?.Description || resData?.Message || 'לא התקבל אישור עסקה ממסוף קשר');
     }
+
+    const txId = String(resData.TransactionId || resData.NumTransaction || resData.AuthNumber || resData.ApprovalNumber || resData.Data || resData.Id || '');
     const finalTxId = txId || `trx_${Date.now()}`;
     const receiptDocUrl = resData.DocUrl || resData.Url || (resData.Data && typeof resData.Data === 'string' && resData.Data.startsWith('http') ? resData.Data : '') || '';
 
