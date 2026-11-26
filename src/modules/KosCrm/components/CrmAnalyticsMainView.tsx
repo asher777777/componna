@@ -10,6 +10,7 @@ import { DynamicAnalyticsTable } from './DynamicAnalyticsTable';
 import { AdvancedFilterDrawer } from './AdvancedFilterDrawer';
 import { SavedViewsBar } from './SavedViewsBar';
 import { Contact360Modal } from './Contact360Modal';
+import { LegacyContact360Modal } from './LegacyContact360Modal';
 import { DatabaseConnectorModal } from './DatabaseConnectorModal';
 import { ExcelImportModal } from './ExcelImportModal';
 import { GoogleSheetsSyncModal } from './GoogleSheetsSyncModal';
@@ -984,14 +985,25 @@ export const CrmAnalyticsMainView: React.FC = () => {
 
 
       {/* Contact 360 & AI Copilot Modal */}
-      <Contact360Modal
-        isOpen={isContactModalOpen}
-        onClose={() => setIsContactModalOpen(false)}
-        contact={selectedContact}
-        onSave={handleSaveContact}
-        customFields={data?.customFields || []}
-        firebaseApp={firebaseApp}
-      />
+      {activeMainTab === 'dynamic_groups' ? (
+        <Contact360Modal
+          isOpen={isContactModalOpen}
+          onClose={() => setIsContactModalOpen(false)}
+          contact={selectedContact}
+          onSave={handleSaveContact}
+          customFields={data?.customFields || []}
+          firebaseApp={firebaseApp}
+        />
+      ) : (
+        <LegacyContact360Modal
+          isOpen={isContactModalOpen}
+          onClose={() => setIsContactModalOpen(false)}
+          contact={selectedContact}
+          onSave={handleSaveContact}
+          customFields={data?.customFields || []}
+          firebaseApp={firebaseApp}
+        />
+      )}
 
       {/* Database Connector Hub Modal */}
       <DatabaseConnectorModal

@@ -18,6 +18,8 @@ import { FloatingWidgetSettingsModal } from './components/FloatingWidgetSettings
 import { Check } from 'lucide-react';
 import { SectionResolutionVisibilityMenu } from './components/SectionResolutionVisibilityMenu';
 import { SectionDimensionsMenu, getSectionWidthWrapperClasses, getSectionWidthMode } from './components/SectionDimensionsMenu';
+import { SectionStickyMenu, getSectionStickyPosition, getSectionStickyClasses } from './components/SectionStickyMenu';
+import { SectionSpacingMenu, getSectionMarginStyle, getSectionPaddingStyle } from './components/SectionSpacingMenu';
 import { getResolutionVisibilityClasses, getResolutionBadgeInfo } from './utils/resolutionVisibility';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { sanitizeSectionConfig } from './utils/sanitizeConfig';
@@ -186,6 +188,9 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
           const isFirst = index === 0;
           const isLast = index === sectionOrder.length - 1;
           const isHidden = sectionData.visible === false;
+          const stickyPosition = getSectionStickyPosition(sectionData);
+          const sectionMarginStyle = getSectionMarginStyle(sectionData);
+          const sectionPaddingStyle = getSectionPaddingStyle(sectionData);
 
           return (
             <div
@@ -193,10 +198,12 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
               id={sectionData.anchorId || sectionId}
               className={clsx(
                 'w-full relative group/section transition-all',
+                getSectionStickyClasses(stickyPosition, isEditing),
                 getResolutionVisibilityClasses(sectionData, isEditing),
                 isEditing && 'border-y border-dashed border-slate-700/60 hover:border-indigo-500/80 my-1 py-1',
                 isHidden && 'opacity-60 bg-slate-950/40'
               )}
+              style={sectionMarginStyle}
             >
               {/* On-Page Live Edit Floating Toolbar */}
               {isEditing && (
@@ -278,6 +285,24 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                       {/* Section Dimensions (מימדי האזור: ממורכז / רחב / רוחב מלא) */}
                       {onUpdateSection && (
                         <SectionDimensionsMenu
+                          sectionId={sectionId}
+                          sectionData={sectionData}
+                          onUpdateSection={onUpdateSection}
+                        />
+                      )}
+
+                      {/* Section Sticky Position (הדבקת אזור למעלה / למטה) */}
+                      {onUpdateSection && (
+                        <SectionStickyMenu
+                          sectionId={sectionId}
+                          sectionData={sectionData}
+                          onUpdateSection={onUpdateSection}
+                        />
+                      )}
+
+                      {/* Section Spacing (שוליים פנימיים וחיצוניים) */}
+                      {onUpdateSection && (
+                        <SectionSpacingMenu
                           sectionId={sectionId}
                           sectionData={sectionData}
                           onUpdateSection={onUpdateSection}
@@ -525,8 +550,11 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                 </div>
               )}
 
-              {/* Render Section View Component with Dynamic Dimensions */}
-              <div className={clsx('transition-all duration-300', getSectionWidthWrapperClasses(getSectionWidthMode(sectionData)))}>
+              {/* Render Section View Component with Dynamic Dimensions & Inner Padding */}
+              <div
+                className={clsx('transition-all duration-300', getSectionWidthWrapperClasses(getSectionWidthMode(sectionData)))}
+                style={sectionPaddingStyle}
+              >
                 <ViewComponent
                   config={sanitizeSectionConfig(sectionData)}
                   globalSettings={globalSettings}

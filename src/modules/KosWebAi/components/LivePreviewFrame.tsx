@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { PageBuilderConfig, ViewportMode } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import { isSectionVisibleInViewport } from '../utils/resolutionVisibility';
+import { getSectionStickyPosition, getSectionStickyClasses } from './SectionStickyMenu';
+import { getSectionSpacingStyle } from './SectionSpacingMenu';
 import { Sparkles, MessageCircle, Phone, LogIn } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useBrandDna } from '../../KosBranding/hooks/useBrandDna';
@@ -76,7 +78,15 @@ export const LivePreviewFrame: React.FC<LivePreviewFrameProps> = ({
             const ViewComponent = regDef.viewComponent;
 
             return (
-              <div key={sectionId} id={sectionData.anchorId || sectionId} className="w-full relative">
+              <div
+                key={sectionId}
+                id={sectionData.anchorId || sectionId}
+                className={clsx(
+                  'w-full relative',
+                  getSectionStickyClasses(getSectionStickyPosition(sectionData), false)
+                )}
+                style={getSectionSpacingStyle(sectionData)}
+              >
                 <ViewComponent config={sanitizeSectionConfig(sectionData)} />
               </div>
             );

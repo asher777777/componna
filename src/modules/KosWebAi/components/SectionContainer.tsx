@@ -22,6 +22,8 @@ import {
 import { clsx } from 'clsx';
 import { SectionResolutionVisibilityMenu } from './SectionResolutionVisibilityMenu';
 import { SectionDimensionsMenu } from './SectionDimensionsMenu';
+import { SectionStickyMenu } from './SectionStickyMenu';
+import { SectionSpacingMenu } from './SectionSpacingMenu';
 import { getResolutionBadgeInfo } from '../utils/resolutionVisibility';
 import { SectionDesignLibraryModal } from './SectionDesignLibraryModal';
 
@@ -191,6 +193,18 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
                 compact
               />
               <SectionDimensionsMenu
+                sectionId={sectionId}
+                sectionData={sectionData || { id: sectionId, type: effectiveType, visible, mobileHidden }}
+                onUpdateSection={onUpdateSection}
+                compact
+              />
+              <SectionStickyMenu
+                sectionId={sectionId}
+                sectionData={sectionData || { id: sectionId, type: effectiveType, visible, mobileHidden }}
+                onUpdateSection={onUpdateSection}
+                compact
+              />
+              <SectionSpacingMenu
                 sectionId={sectionId}
                 sectionData={sectionData || { id: sectionId, type: effectiveType, visible, mobileHidden }}
                 onUpdateSection={onUpdateSection}

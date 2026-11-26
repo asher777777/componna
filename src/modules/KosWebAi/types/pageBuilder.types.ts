@@ -173,6 +173,15 @@ export interface ScreenVisibilityConfig {
 
 export type SectionWidthMode = 'centered' | 'wide' | 'full';
 
+export type SectionStickyPosition = 'none' | 'top' | 'bottom';
+
+export interface SectionSpacingValues {
+  top?: number;
+  bottom?: number;
+  left?: number;
+  right?: number;
+}
+
 export interface BaseSectionConfig {
   id: string;
   type: SectionType;
@@ -182,6 +191,9 @@ export interface BaseSectionConfig {
   screenVisibility?: ScreenVisibilityConfig;
   sectionWidth?: SectionWidthMode;
   containerWidth?: string;
+  stickyPosition?: SectionStickyPosition;
+  sectionPadding?: SectionSpacingValues;
+  sectionMargin?: SectionSpacingValues;
   anchorId?: string;
   backgroundColor?: string;
   useBrandColors?: boolean;
