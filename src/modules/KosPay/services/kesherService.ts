@@ -258,7 +258,7 @@ export class KesherService {
    * סליקת כרטיס אשראי רגילה / תשלומים / הוראת קבע אשראי + הפקת קבלה/חשבונית (SendTransaction)
    */
   public async sendTransaction(req: CreditCardTransactionRequest): Promise<KesherApiResponse> {
-    let numPayments = 1;
+    let numPayments = 0;
     let creditType = req.creditType || 1;
 
     if (creditType === 10 || req.installments === 9999) {
@@ -269,6 +269,10 @@ export class KesherService {
       // עסקת תשלומים
       numPayments = req.installments - 1;
       creditType = 8;
+    } else {
+      // חיוב רגיל חד-פעמי (חובה NumPayment = 0 בקשר)
+      numPayments = 0;
+      creditType = 1;
     }
 
     let finalExpiry = req.expiry.replace(/\D/g, '');
@@ -306,7 +310,7 @@ export class KesherService {
           LastName: req.clientName && req.clientName.trim().includes(' ')
             ? req.clientName.trim().split(' ').slice(1).join(' ')
             : 'ללא שם',
-          ProjectNumber: req.projectNumber || this.settings.paymentPageId || '',
+          ProjectNumber: req.projectNumber || this.settings.paymentPageId || '000',
           Mail: req.email || '',
           DocumentType: Number(req.documentType || this.settings.defaultReceiptType || 320),
           Id: req.tz || ''
@@ -318,71 +322,51 @@ export class KesherService {
     const result = await this.postToConnect(payload);
     const rawRes = result?.data || result;
     const resData = rawRes?.SendTransactionResult || rawRes;
+    const reqResult = resData?.RequestResult || resData;
 
-    const numericCode = resData?.Code !== undefined && resData?.Code !== null && resData?.Code !== ''
-      ? Number(resData.Code)
-      : 0;
-    const errorCode = resData?.ErrorCode !== undefined && resData?.ErrorCode !== null && resData?.ErrorCode !== ''
-      ? Number(resData.ErrorCode)
-      : 0;
-    const creditStatus = resData?.CreditStatus !== undefined && resData?.CreditStatus !== null && resData?.CreditStatus !== ''
-      ? Number(resData.CreditStatus)
-      : 0;
-    const statusStr = typeof resData?.Status === 'string' ? resData.Status.toLowerCase() : '';
+    const isKesherSuccess =
+      reqResult?.Status === true ||
+      reqResult?.Code === 0 ||
+      reqResult?.Code === 499 ||
+      (typeof reqResult?.Description === 'string' && reqResult.Description.includes('הצלחה'));
 
-    const isExplicitFailure =
+    const hasExplicitError =
       !resData ||
-      resData.Status === false ||
-      resData.Status === 0 ||
-      resData.Status === '0' ||
-      resData.Succeeded === false ||
-      resData.Success === false ||
-      resData.success === false ||
-      resData.Result === false ||
-      resData.status === 'error' ||
-      statusStr.includes('error') ||
-      statusStr.includes('fail') ||
-      statusStr.includes('declin') ||
-      statusStr.includes('סירוב') ||
-      statusStr.includes('נדחה') ||
-      statusStr.includes('שגיאה') ||
-      Boolean(resData.Error) ||
-      Boolean(resData.error) ||
-      Boolean(resData.ErrorMessage) ||
-      Boolean(resData.faultcode) ||
-      Boolean(resData.faultstring) ||
-      (Number.isFinite(numericCode) && numericCode !== 0) ||
-      (Number.isFinite(errorCode) && errorCode !== 0) ||
-      (Number.isFinite(creditStatus) && creditStatus !== 0);
+      reqResult?.Status === false ||
+      resData?.Status === false ||
+      resData?.status === 'error' ||
+      Boolean(reqResult?.Error) ||
+      Boolean(resData?.error) ||
+      Boolean(resData?.faultcode);
 
-    if (isExplicitFailure) {
+    if (!isKesherSuccess || hasExplicitError) {
       throw new Error(
-        resData?.Description ||
+        reqResult?.Description ||
+          resData?.Description ||
           resData?.faultstring ||
-          resData?.ErrorMessage ||
-          resData?.Error ||
+          reqResult?.Error ||
           resData?.error ||
-          resData?.Message ||
-          (numericCode ? `העסקה נדחתה (קוד ${numericCode})` : 'העסקה לא אושרה במסוף קשר')
+          reqResult?.Message ||
+          'העסקה לא אושרה במסוף קשר'
       );
     }
 
-    const hasPositiveApproval =
-      resData.Status === true ||
-      resData.Succeeded === true ||
-      resData.Success === true ||
-      Boolean(resData.TransactionId) ||
-      Boolean(resData.NumTransaction) ||
-      Boolean(resData.AuthNumber) ||
-      Boolean(resData.ApprovalNumber);
-
-    if (!hasPositiveApproval) {
-      throw new Error(resData?.Description || resData?.Message || 'לא התקבל אישור עסקה ממסוף קשר');
-    }
-
-    const txId = String(resData.TransactionId || resData.NumTransaction || resData.AuthNumber || resData.ApprovalNumber || resData.Data || resData.Id || '');
+    const txId = String(
+      resData.CompanyTranId ||
+        resData.NumTransaction ||
+        resData.TransactionId ||
+        resData.AuthNumber ||
+        resData.ApprovalNumber ||
+        ''
+    );
     const finalTxId = txId || `trx_${Date.now()}`;
-    const receiptDocUrl = resData.DocUrl || resData.Url || (resData.Data && typeof resData.Data === 'string' && resData.Data.startsWith('http') ? resData.Data : '') || '';
+    const receiptDocUrl =
+      resData?.DocumentsDetails?.DocumentDetails?.[0]?.PdfLink ||
+      resData?.DocumentsDetails?.DocumentDetails?.[0]?.PdfLinkCopy ||
+      resData.DocUrl ||
+      resData.Url ||
+      (resData.Data && typeof resData.Data === 'string' && resData.Data.startsWith('http') ? resData.Data : '') ||
+      '';
 
     // שמירה ביומן תקבולים מקומי
     this.recordLocalTransaction({
@@ -494,6 +478,12 @@ export class KesherService {
       ? '0' + digitsPhone.slice(3)
       : digitsPhone;
 
+    const cleanClient = (req.clientName || '').trim();
+    const firstName = cleanClient ? cleanClient.split(' ')[0] : 'לקוח';
+    const lastName = cleanClient && cleanClient.includes(' ')
+      ? cleanClient.split(' ').slice(1).join(' ')
+      : (cleanClient || 'KSF');
+
     const payload = {
       Json: {
         userName: this.settings.userName,
@@ -501,12 +491,14 @@ export class KesherService {
         func: 'SendBitTransaction',
         format: 'json',
         transaction: {
-          Phone: normalizedBitPhone,
+          FirstName: firstName,
+          LastName: lastName,
           Total: Math.round(Number(req.amount) * 100),
+          Phone: normalizedBitPhone,
           Currency: 1,
-          Description: req.description || 'תשלום עבור שירות',
-          ClientName: req.clientName || '',
-          DocumentType: Number(req.documentType || this.settings.defaultReceiptType || 320)
+          CreditType: 1,
+          NumPayment: 1,
+          ProjectNumber: this.settings.paymentPageId || '000'
         }
       },
       format: 'json'
@@ -514,34 +506,37 @@ export class KesherService {
 
     const result = await this.postToConnect(payload);
     const resData = result?.data || result;
-    const numericCode = resData?.Code !== undefined && resData?.Code !== null && resData?.Code !== ''
-      ? Number(resData.Code)
-      : 0;
+    const reqResult = resData?.RequestResult || resData;
+    const bitUrl =
+      resData?.BitOutput?.linkAndroid ||
+      resData?.BitOutput?.linkIos ||
+      resData?.BitOutput?.link ||
+      resData?.BitUrl ||
+      resData?.Url ||
+      '';
 
-    if (
-      !resData ||
-      resData.Status === false ||
-      resData.Succeeded === false ||
-      resData.Success === false ||
-      resData.success === false ||
-      resData.status === 'error' ||
-      Boolean(resData.Error) ||
-      Boolean(resData.error) ||
-      Boolean(resData.faultcode) ||
-      (Number.isFinite(numericCode) && numericCode !== 0)
-    ) {
+    const isSuccess =
+      reqResult?.Status === true ||
+      reqResult?.Code === 30001087 ||
+      reqResult?.Code === 0 ||
+      Boolean(bitUrl);
+
+    if (!isSuccess || reqResult?.Status === false || resData?.status === 'error' || resData?.faultcode) {
       throw new Error(
-        resData?.Description ||
+        reqResult?.Description ||
+          resData?.Description ||
           resData?.faultstring ||
-          resData?.Error ||
           resData?.error ||
-          resData?.Message ||
+          reqResult?.Message ||
           'שגיאה בשליחת תשלום ב-Bit'
       );
     }
 
     return {
       ...resData,
+      BitTransactionId: resData?.NumTransaction || resData?.CompanyTranId || resData?.TransactionId,
+      TransactionId: resData?.NumTransaction || resData?.CompanyTranId || resData?.TransactionId,
+      Url: bitUrl,
       Status: true,
     };
   }
