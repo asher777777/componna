@@ -102,8 +102,28 @@ export const NedarimCheckout: React.FC<NedarimCheckoutProps> = ({
         tenantId
       );
 
-      if (data.Status === 'Error' || data.success === false) {
+      if (data.Status === 'Error' || data.Result === 'Error' || data.success === false) {
         setError(data.Message || data.error || 'שגיאה ביצירת עסקה בנדרים פלוס');
+        setLoading(false);
+        return;
+      }
+
+      const resolvedIframe =
+        data?.IframeUrl ||
+        data?.iframeUrl ||
+        data?.Url ||
+        (data?.PreTransactionId
+          ? `https://www.matara.pro/nedarimplus/v6/Files/WebServices/DebitIframe.aspx?Action=ShowIframe&PreTransactionId=${data.PreTransactionId}`
+          : '');
+
+      if (type === 'credit' && !resolvedIframe) {
+        setError(data?.Message || data?.error || 'לא התקבל קישור למסוף נדרים פלוס. בדוק את הגדרות המוסד ונסה שוב.');
+        setLoading(false);
+        return;
+      }
+
+      if (type === 'bit' && !data?.BitUrl && !data?.PreTransactionId) {
+        setError(data?.Message || data?.error || 'לא התקבל קישור לתשלום ב-Bit מנדרים פלוס.');
         setLoading(false);
         return;
       }
@@ -118,6 +138,8 @@ export const NedarimCheckout: React.FC<NedarimCheckoutProps> = ({
 
   const iframeUrl =
     transactionData?.IframeUrl ||
+    transactionData?.iframeUrl ||
+    transactionData?.Url ||
     (transactionData?.PreTransactionId && paymentMethod === 'credit'
       ? `https://www.matara.pro/nedarimplus/v6/Files/WebServices/DebitIframe.aspx?Action=ShowIframe&PreTransactionId=${transactionData.PreTransactionId}`
       : '');
@@ -155,9 +177,22 @@ export const NedarimCheckout: React.FC<NedarimCheckoutProps> = ({
       )}
 
       {error && (
-        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
+        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setPaymentMethod(null);
+              setError('');
+              setTransactionData(null);
+            }}
+            className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 font-bold shrink-0 cursor-pointer"
+          >
+            נסה שוב
+          </button>
         </div>
       )}
 

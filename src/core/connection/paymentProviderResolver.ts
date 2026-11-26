@@ -14,9 +14,10 @@ export function resolveActivePaymentProvider(
   if (apiKeys?.paymentProvider === 'nedarim') return 'nedarim';
   if (apiKeys?.paymentProvider === 'kesher') return 'kesher';
 
-  const hasNedarimModule = purchasedModules.includes('KosNedarim');
+  const normalizedModules = purchasedModules.map((m) => String(m || '').trim().toLowerCase());
+  const hasNedarimModule = normalizedModules.includes('kosnedarim');
   const hasKesherModule =
-    purchasedModules.includes('KosPay') || purchasedModules.includes('kesher-payments-hub');
+    normalizedModules.includes('kospay') || normalizedModules.includes('kesher-payments-hub');
 
   if (hasNedarimModule && !hasKesherModule) return 'nedarim';
   if (Boolean(apiKeys?.nedarimMosadId) && !apiKeys?.kesherUserName) return 'nedarim';
