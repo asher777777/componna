@@ -8,8 +8,17 @@ import {
   ConditionOperator,
   StepConditionRule,
 } from '../../types';
-import { TenantStylePreset, CrmMetadataContract, CrmFieldOption } from '../../../../core/contracts';
+import {
+  TenantStylePreset,
+  CrmMetadataContract,
+  CrmFieldOption,
+  CrmCustomTabOption,
+  CANONICAL_CRM_CONTACT_FIELDS,
+} from '../../../../core/contracts';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
+import { useOptionalSystemConnection } from '../../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../../core/tenant';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import { IconPickerModal } from '../shared/IconPickerModal';
 import {
@@ -66,18 +75,7 @@ const FIELD_TYPES: { type: FieldType; label: string; icon: any }[] = [
   { type: 'payment', label: 'סליקה ותשלום', icon: CreditCard },
 ];
 
-const FALLBACK_CRM_FIELDS: CrmFieldOption[] = [
-  { value: 'kosun_crm_name', label: 'שם מלא', group: 'פרטי קשר' },
-  { value: 'kosun_crm_phone', label: 'טלפון נייד', group: 'פרטי קשר' },
-  { value: 'kosun_crm_email', label: 'דואר אלקטרוני', group: 'פרטי קשר' },
-  { value: 'kosun_crm_gov_id', label: 'תעודת זהות / ח.פ', group: 'פרטי קשר' },
-  { value: 'kosun_crm_company', label: 'שם חברה / ארגון', group: 'עסק וכתובת' },
-  { value: 'kosun_crm_city', label: 'עיר', group: 'עסק וכתובת' },
-  { value: 'kosun_crm_street', label: 'כתובת / רחוב', group: 'עסק וכתובת' },
-  { value: 'kosun_crm_notes', label: 'הערות', group: 'נוסף' },
-  { value: 'kosun_crm_tags', label: 'תגיות', group: 'נוסף' },
-  { value: 'kosun_crm_source', label: 'מקור הגעה', group: 'נוסף' },
-];
+const FALLBACK_CRM_FIELDS: CrmFieldOption[] = CANONICAL_CRM_CONTACT_FIELDS;
 
 export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
   step,
@@ -89,14 +87,29 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [activeOptionIndexForIcon, setActiveOptionIndexForIcon] = useState<number | null>(null);
   const [crmFields, setCrmFields] = useState<CrmFieldOption[]>(FALLBACK_CRM_FIELDS);
+  const [crmTabs, setCrmTabs] = useState<CrmCustomTabOption[]>([]);
   const [isCustomMappingMode, setIsCustomMappingMode] = useState(false);
 
+  // Inline creator states for new CRM custom field & new Contact tab
+  const [showNewCrmFieldBox, setShowNewCrmFieldBox] = useState(false);
+  const [newCrmFieldLabel, setNewCrmFieldLabel] = useState('');
+  const [newCrmFieldType, setNewCrmFieldType] = useState<'text' | 'number' | 'date'>('text');
+  const [newCrmFieldTabId, setNewCrmFieldTabId] = useState('');
+  const [isSavingCrmField, setIsSavingCrmField] = useState(false);
+
+  const [showNewTabBox, setShowNewTabBox] = useState(false);
+  const [newTabLabel, setNewTabLabel] = useState('');
+  const [newTabDescription, setNewTabDescription] = useState('');
+  const [isSavingTab, setIsSavingTab] = useState(false);
+
   const { getCapability } = useHostCapabilities();
-  const crmMetadata = getCapability<CrmMetadataContract>('crm-metadata');
+  const sysConn = useOptionalSystemConnection();
+  const { getScopedCollectionPath } = useTenantScope();
+  const crmMetadata = getCapability<CrmMetadataContract>('crm-service');
 
   useEffect(() => {
     let active = true;
-    const loadFields = async () => {
+    const loadFieldsAndTabs = async () => {
       if (crmMetadata?.getMappingFields) {
         try {
           const loaded = await crmMetadata.getMappingFields();
@@ -106,13 +119,133 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
         } catch (err) {
           console.warn('[StepFieldConfig] Failed to load CRM mapping fields:', err);
         }
+      } else if (sysConn?.db) {
+        try {
+          const snap = await getDocs(collection(sysConn.db, getScopedCollectionPath('crm_custom_fields')));
+          if (active) {
+            const customOpts: CrmFieldOption[] = snap.docs.map((d) => {
+              const data = d.data() || {};
+              return {
+                value: data.key || d.id,
+                label: data.label || data.name || d.id,
+                group: data.tabLabel ? `לשונית: ${data.tabLabel}` : 'שדות מותאמים אישית',
+                tabId: data.tabId,
+                tabLabel: data.tabLabel,
+              };
+            });
+            setCrmFields([...FALLBACK_CRM_FIELDS, ...customOpts]);
+          }
+        } catch {
+          // ignore fallback error
+        }
+      }
+
+      if (crmMetadata?.getCustomTabs) {
+        try {
+          const tabs = await crmMetadata.getCustomTabs();
+          if (active && tabs) setCrmTabs(tabs);
+        } catch {
+          // ignore
+        }
+      } else if (sysConn?.db) {
+        try {
+          const snap = await getDocs(collection(sysConn.db, getScopedCollectionPath('crm_contact_tabs')));
+          if (active) {
+            setCrmTabs(
+              snap.docs.map((d) => ({
+                id: d.id,
+                label: d.data()?.label || d.id,
+                icon: d.data()?.icon,
+                description: d.data()?.description,
+              }))
+            );
+          }
+        } catch {
+          // ignore
+        }
       }
     };
-    loadFields();
+    loadFieldsAndTabs();
     return () => {
       active = false;
     };
-  }, [crmMetadata]);
+  }, [crmMetadata, sysConn?.db, getScopedCollectionPath]);
+
+  const handleCreateCustomTab = async () => {
+    const label = newTabLabel.trim();
+    if (!label) return;
+    setIsSavingTab(true);
+    try {
+      let createdTab: CrmCustomTabOption | undefined;
+      if (crmMetadata?.createCustomTab) {
+        const res = await crmMetadata.createCustomTab({ label, description: newTabDescription.trim() });
+        if (res.success && res.tab) createdTab = res.tab;
+      } else if (sysConn?.db) {
+        const tabsPath = getScopedCollectionPath('crm_contact_tabs');
+        const docRef = await addDoc(collection(sysConn.db, tabsPath), {
+          label,
+          description: newTabDescription.trim(),
+          icon: 'FolderPlus',
+          createdAt: new Date().toISOString(),
+        });
+        createdTab = { id: docRef.id, label, description: newTabDescription.trim(), icon: 'FolderPlus' };
+      }
+      if (createdTab) {
+        setCrmTabs((prev) => [...prev, createdTab!]);
+        setNewCrmFieldTabId(createdTab.id);
+        setShowNewCrmFieldBox(true);
+        setNewTabLabel('');
+        setNewTabDescription('');
+        setShowNewTabBox(false);
+      }
+    } finally {
+      setIsSavingTab(false);
+    }
+  };
+
+  const handleCreateCustomCrmField = async () => {
+    const label = newCrmFieldLabel.trim();
+    if (!label) return;
+    setIsSavingCrmField(true);
+    try {
+      const selectedTab = crmTabs.find((t) => t.id === newCrmFieldTabId);
+      let createdField: CrmFieldOption | undefined;
+      if (crmMetadata?.createCustomField) {
+        const res = await crmMetadata.createCustomField({
+          label,
+          type: newCrmFieldType,
+          tabId: selectedTab?.id,
+          tabLabel: selectedTab?.label,
+        });
+        if (res.success && res.field) createdField = res.field;
+      } else if (sysConn?.db) {
+        const safeKey = `custom_${Date.now()}`;
+        await addDoc(collection(sysConn.db, getScopedCollectionPath('crm_custom_fields')), {
+          key: safeKey,
+          label,
+          type: newCrmFieldType,
+          ...(selectedTab ? { tabId: selectedTab.id, tabLabel: selectedTab.label } : {}),
+          createdAt: new Date().toISOString(),
+        });
+        createdField = {
+          value: safeKey,
+          label,
+          group: selectedTab ? `לשונית: ${selectedTab.label}` : 'שדות מותאמים אישית',
+          tabId: selectedTab?.id,
+          tabLabel: selectedTab?.label,
+        };
+      }
+      if (createdField) {
+        setCrmFields((prev) => [...prev, createdField!]);
+        updateField('mappingKey', createdField.value);
+        setIsCustomMappingMode(false);
+        setNewCrmFieldLabel('');
+        setShowNewCrmFieldBox(false);
+      }
+    } finally {
+      setIsSavingCrmField(false);
+    }
+  };
 
   const updateField = (key: keyof FormStep, value: any) => {
     onChange({ ...step, [key]: value });
@@ -311,6 +444,126 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
                     placeholder="הקלד מפתח מותאם אישית"
                     className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-mono text-left text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
                   />
+                )}
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNewCrmFieldBox((v) => !v);
+                      setShowNewTabBox(false);
+                    }}
+                    className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>הוסף שדה מיוחד באנשי הקשר</span>
+                  </button>
+                  <span className="text-slate-300 dark:text-slate-700">|</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNewTabBox((v) => !v);
+                      setShowNewCrmFieldBox(false);
+                    }}
+                    className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>פתח לשונית חדשה באנשי הקשר</span>
+                  </button>
+                </div>
+
+                {showNewCrmFieldBox && (
+                  <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 rounded-xl space-y-2 text-xs">
+                    <div className="font-bold text-indigo-800 dark:text-indigo-300">
+                      יצירת שדה מיוחד חדש בקולקציית אנשי הקשר
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={newCrmFieldLabel}
+                        onChange={(e) => setNewCrmFieldLabel(e.target.value)}
+                        placeholder="שם השדה (למשל: מספר מנוי)"
+                        className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg"
+                      />
+                      <select
+                        value={newCrmFieldType}
+                        onChange={(e) => setNewCrmFieldType(e.target.value as 'text' | 'number' | 'date')}
+                        className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg"
+                      >
+                        <option value="text">טקסט</option>
+                        <option value="number">מספר</option>
+                        <option value="date">תאריך</option>
+                      </select>
+                    </div>
+                    <select
+                      value={newCrmFieldTabId}
+                      onChange={(e) => setNewCrmFieldTabId(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg"
+                    >
+                      <option value="">הצג בכרטיס פרופיל אישי (ללא לשונית מיוחדת)</option>
+                      {crmTabs.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          הצג בלשונית: {t.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowNewCrmFieldBox(false)}
+                        className="px-3 py-1 text-slate-500 hover:text-slate-700"
+                      >
+                        ביטול
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSavingCrmField || !newCrmFieldLabel.trim()}
+                        onClick={handleCreateCustomCrmField}
+                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-lg"
+                      >
+                        {isSavingCrmField ? 'שומר...' : 'צור ושייך שדה'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {showNewTabBox && (
+                  <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl space-y-2 text-xs">
+                    <div className="font-bold text-amber-800 dark:text-amber-300">
+                      פתיחת לשונית חדשה בכרטיס איש הקשר (לדוגמה: מועדון מנויים)
+                    </div>
+                    <input
+                      type="text"
+                      value={newTabLabel}
+                      onChange={(e) => setNewTabLabel(e.target.value)}
+                      placeholder="שם הלשונית (למשל: מועדון מנויים)"
+                      className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg"
+                    />
+                    <input
+                      type="text"
+                      value={newTabDescription}
+                      onChange={(e) => setNewTabDescription(e.target.value)}
+                      placeholder="תיאור קצר (אופציונלי)"
+                      className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowNewTabBox(false)}
+                        className="px-3 py-1 text-slate-500 hover:text-slate-700"
+                      >
+                        ביטול
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSavingTab || !newTabLabel.trim()}
+                        onClick={handleCreateCustomTab}
+                        className="px-3 py-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold rounded-lg"
+                      >
+                        {isSavingTab ? 'יוצר...' : 'פתח לשונית'}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             );

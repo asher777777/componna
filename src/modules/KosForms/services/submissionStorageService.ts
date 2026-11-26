@@ -390,15 +390,28 @@ export async function submitFormResponse(
       const mergedTags = Array.from(new Set([
         ...currentTags,
         ...(leadPayload?.tags || []),
+        ...(form.crmDefaultCommunity ? [form.crmDefaultCommunity] : []),
         'ליד מטופס',
         `טופס: ${form.title}`,
       ]));
+
+      const customFieldValues: Record<string, any> = {
+        ...(existingContactData?.customFields || {}),
+      };
+      for (const s of form.steps || []) {
+        const mKey = s.mappingKey;
+        if (mKey && rawAnswers[mKey] !== undefined && rawAnswers[mKey] !== '') {
+          customFieldValues[mKey] = rawAnswers[mKey];
+        }
+      }
 
       const contactName = kosun_crm_name || leadPayload?.conta_name || existingContactData?.kosun_crm_name || existingContactData?.conta_name || `ליד ${cleanNormPhone.slice(-4)}`;
 
       const contactRef = doc(targetDb, contactsPath, contactDocId);
       const contactPayload: Record<string, any> = {
         id: contactDocId,
+        ...customFieldValues,
+        customFields: customFieldValues,
         // Canonical KOSUN CRM Schema
         kosun_crm_name: contactName,
         kosun_crm_phone: cleanNormPhone || existingContactData?.kosun_crm_phone || '',
@@ -409,6 +422,17 @@ export async function submitFormResponse(
         kosun_crm_gov_id: kosun_crm_gov_id || existingContactData?.kosun_crm_gov_id || '',
         kosun_crm_notes: kosun_crm_notes || existingContactData?.kosun_crm_notes || '',
         kosun_crm_tags: mergedTags,
+        ...(form.crmDefaultCommunity
+          ? {
+              kosun_crm_community: form.crmDefaultCommunity,
+              community: form.crmDefaultCommunity,
+            }
+          : existingContactData?.kosun_crm_community
+            ? {
+                kosun_crm_community: existingContactData.kosun_crm_community,
+                community: existingContactData.community || existingContactData.kosun_crm_community,
+              }
+            : {}),
         kosun_crm_source: leadPayload?.source || 'טופס חכם KSF',
         kosun_crm_status: 'active',
         kosun_crm_type: 'lead',

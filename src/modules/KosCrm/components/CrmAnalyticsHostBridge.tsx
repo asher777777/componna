@@ -9,33 +9,13 @@ import {
   LeadCaptureContract,
   LeadPayload,
   SYSTEM_COLLECTIONS,
+  CANONICAL_CRM_CONTACT_FIELDS,
 } from '../../../core/contracts';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { createContact } from '../services/crmAnalyticsService';
 import { createCrmSubscriptionsContract } from '../services/crmSubscriptionsContractService';
 
-const CORE_CRM_MAPPING_FIELDS: CrmFieldOption[] = [
-  { value: 'conta_name', label: 'שם / שם מלא', group: 'שדות מערכת' },
-  { value: 'f_m', label: 'שם משפחה', group: 'שדות מערכת' },
-  { value: 'conta_phone', label: 'טלפון נייד (וואטסאפ)', group: 'שדות מערכת' },
-  { value: 'email', label: 'דוא״ל ראשי', group: 'שדות מערכת' },
-  { value: 'company_name', label: 'שם החברה / עסק', group: 'שדות מערכת' },
-  { value: 'mh_crm_city', label: 'עיר', group: 'שדות מערכת' },
-  { value: 'mh_crm_street', label: 'כתובת / רחוב', group: 'שדות מערכת' },
-  { value: 'notes', label: 'הערות / תוכן פנייה', group: 'שדות מערכת' },
-  { value: 'gender', label: 'מגדר', group: 'שדות מערכת' },
-  { value: 'birth_date', label: 'תאריך לידה', group: 'שדות מערכת' },
-  { value: 'work_phone', label: 'טלפון (עבודה)', group: 'שדות מערכת' },
-  { value: 'website', label: 'אתר אינטרנט', group: 'שדות מערכת' },
-  { value: 'job_title', label: 'תפקיד', group: 'שדות מערכת' },
-  { value: 'lead_source', label: 'מקור הליד (אוטומטי)', group: 'שדות מערכת' },
-  { value: 'tg1', label: 'תג 1 (סטטוס פנייה)', group: 'שדות מערכת' },
-  { value: 'tg2', label: 'תג 2', group: 'שדות מערכת' },
-  { value: 'tg3', label: 'תג 3', group: 'שדות מערכת' },
-  { value: 'payment_amount', label: 'סכום לתשלום (עבור טופס תשלום)', group: 'שדות מערכת' },
-  { value: 'total_spent', label: 'סך הכל תרומות/רכישות', group: 'שדות מערכת' },
-  { value: 'order_count', label: 'מספר תרומות/רכישות', group: 'שדות מערכת' },
-];
+const CORE_CRM_MAPPING_FIELDS: CrmFieldOption[] = CANONICAL_CRM_CONTACT_FIELDS;
 
 export const CrmAnalyticsHostBridge: React.FC = () => {
   const { registerCapability, unregisterCapability } = useHostCapabilities();
@@ -55,7 +35,9 @@ export const CrmAnalyticsHostBridge: React.FC = () => {
               fields.push({
                 value: d.key || d.id || docSnap.id,
                 label: d.label || d.name || docSnap.id,
-                group: 'שדות מותאמים אישית',
+                group: d.tabLabel ? `לשונית: ${d.tabLabel}` : 'שדות מותאמים אישית',
+                tabId: d.tabId || undefined,
+                tabLabel: d.tabLabel || undefined,
               });
             });
           } catch (err) {
@@ -98,7 +80,7 @@ export const CrmAnalyticsHostBridge: React.FC = () => {
         }
       },
 
-      createCustomField: async (fieldData: { label: string; key?: string; type?: string }) => {
+      createCustomField: async (fieldData: { label: string; key?: string; type?: string; tabId?: string; tabLabel?: string }) => {
         if (!db) return { success: false, error: 'Database not connected' };
         try {
           const customFieldsPath = getScopedCollectionPath('crm_custom_fields');
@@ -107,17 +89,66 @@ export const CrmAnalyticsHostBridge: React.FC = () => {
             key: safeKey,
             label: fieldData.label,
             type: fieldData.type || 'text',
+            ...(fieldData.tabId ? { tabId: fieldData.tabId } : {}),
+            ...(fieldData.tabLabel ? { tabLabel: fieldData.tabLabel } : {}),
             createdAt: new Date().toISOString(),
           };
           await addDoc(collection(db, customFieldsPath), newDoc);
           const option: CrmFieldOption = {
             value: safeKey,
             label: fieldData.label,
-            group: 'שדות מותאמים אישית',
+            group: fieldData.tabLabel ? `לשונית: ${fieldData.tabLabel}` : 'שדות מותאמים אישית',
+            tabId: fieldData.tabId,
+            tabLabel: fieldData.tabLabel,
           };
           return { success: true, field: option };
         } catch (err: any) {
           return { success: false, error: err?.message || 'Error creating custom field' };
+        }
+      },
+
+      getCustomTabs: async () => {
+        if (!db) return [];
+        try {
+          const tabsPath = getScopedCollectionPath('crm_contact_tabs');
+          const snap = await getDocs(collection(db, tabsPath));
+          return snap.docs.map((docSnap) => {
+            const d = docSnap.data() || {};
+            return {
+              id: docSnap.id,
+              label: d.label || docSnap.id,
+              icon: d.icon || 'FolderPlus',
+              description: d.description || '',
+            };
+          });
+        } catch (err) {
+          console.warn('[CrmHostBridge] Could not load custom tabs:', err);
+          return [];
+        }
+      },
+
+      createCustomTab: async (tabData: { label: string; icon?: string; description?: string }) => {
+        if (!db) return { success: false, error: 'Database not connected' };
+        try {
+          const tabsPath = getScopedCollectionPath('crm_contact_tabs');
+          const newTab = {
+            label: tabData.label,
+            icon: tabData.icon || 'FolderPlus',
+            description: tabData.description || '',
+            createdAt: new Date().toISOString(),
+          };
+          const docRef = await addDoc(collection(db, tabsPath), newTab);
+          return {
+            success: true,
+            tab: {
+              id: docRef.id,
+              label: newTab.label,
+              icon: newTab.icon,
+              description: newTab.description,
+            },
+          };
+        } catch (err: any) {
+          return { success: false, error: err?.message || 'Error creating custom tab' };
         }
       },
 

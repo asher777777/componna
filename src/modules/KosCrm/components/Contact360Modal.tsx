@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import * as Icons from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
 import { Contact, CustomField } from '../types';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { useOptionalSystemConnection } from '../../../core/connection/SystemConnectionContext';
@@ -35,7 +36,7 @@ interface Props {
 
 const HEBREW_LETTERS = ['א', 'ב', 'ג', 'ד'];
 
-type BabushkaLevel = 'root' | 'personal' | 'business' | 'communication' | 'subscriptions';
+type BabushkaLevel = 'root' | 'personal' | 'business' | 'communication' | 'subscriptions' | `custom_tab:${string}`;
 
 export const Contact360Modal: React.FC<Props> = ({
   isOpen,
@@ -47,7 +48,7 @@ export const Contact360Modal: React.FC<Props> = ({
 }) => {
   if (!isOpen || !contact) return null;
 
-  const { tenantId: activeTenantId, isRootTenant } = useTenantScope();
+  const { tenantId: activeTenantId, isRootTenant, getScopedCollectionPath } = useTenantScope();
   const currentTenant = activeTenantId || '_master';
 
   const [formData, setFormData] = useState<Contact>({ ...contact });
@@ -145,6 +146,48 @@ export const Contact360Modal: React.FC<Props> = ({
   const sysConn = useOptionalSystemConnection();
   const whatsappContract = getCapability<WhatsAppContract>('whatsapp');
   const kesherContract = getCapability<KesherPaymentContract>('kesher-payment');
+
+  const [dynamicCustomTabs, setDynamicCustomTabs] = useState<Array<{ id: string; label: string; icon?: string; description?: string }>>([]);
+  const [dynamicCustomFields, setDynamicCustomFields] = useState<Array<{ key: string; label: string; type?: string; tabId?: string; tabLabel?: string }>>([]);
+
+  useEffect(() => {
+    if (!isOpen || !sysConn?.db) return;
+    let active = true;
+    const loadDynamicSchema = async () => {
+      try {
+        const tabsPath = getScopedCollectionPath('crm_contact_tabs');
+        const fieldsPath = getScopedCollectionPath('crm_custom_fields');
+        const [tabsSnap, fieldsSnap] = await Promise.all([
+          getDocs(collection(sysConn.db!, tabsPath)),
+          getDocs(collection(sysConn.db!, fieldsPath)),
+        ]);
+        if (!active) return;
+        setDynamicCustomTabs(
+          tabsSnap.docs.map((d) => ({
+            id: d.id,
+            label: d.data()?.label || d.id,
+            icon: d.data()?.icon || 'FolderPlus',
+            description: d.data()?.description || '',
+          }))
+        );
+        setDynamicCustomFields(
+          fieldsSnap.docs.map((d) => ({
+            key: d.data()?.key || d.id,
+            label: d.data()?.label || d.data()?.name || d.id,
+            type: d.data()?.type || 'text',
+            tabId: d.data()?.tabId,
+            tabLabel: d.data()?.tabLabel,
+          }))
+        );
+      } catch (err) {
+        console.warn('[Contact360Modal] Failed loading dynamic tabs/fields:', err);
+      }
+    };
+    loadDynamicSchema();
+    return () => {
+      active = false;
+    };
+  }, [isOpen, sysConn?.db, getScopedCollectionPath]);
 
   const isKosSubscribedActive = useMemo(() => {
     const purchased = sysConn?.purchasedModules || [];
@@ -310,10 +353,16 @@ export const Contact360Modal: React.FC<Props> = ({
         return `${collectionConfig.root_3_title} (WhatsApp, אימייל וטפסים)`;
       case 'subscriptions':
         return `${collectionConfig.root_4_title} (מנויים וסאב-דומיינים)`;
-      default:
+      default: {
+        if (babushkaLevel.startsWith('custom_tab:')) {
+          const tabId = babushkaLevel.replace('custom_tab:', '');
+          const tab = dynamicCustomTabs.find((t) => t.id === tabId);
+          return tab ? `${tab.label} (לשונית מותאמת)` : 'לשונית מותאמת אישית';
+        }
         return '4 רצועות בבושקה ממוקדות • בחר כרטיס לפירוט מעמיק';
+      }
     }
-  }, [babushkaLevel, collectionConfig]);
+  }, [babushkaLevel, collectionConfig, dynamicCustomTabs]);
 
   return (
     <div
@@ -589,6 +638,72 @@ export const Contact360Modal: React.FC<Props> = ({
                   </div>
                 );
               })}
+
+              {/* לשוניות מותאמות אישית מקולקציית crm_contact_tabs */}
+              {dynamicCustomTabs.map((tab, tIdx) => {
+                const TabIcon = (Icons as any)[tab.icon || 'FolderPlus'] || Icons.FolderPlus;
+                const tabFieldsCount = dynamicCustomFields.filter((f) => f.tabId === tab.id).length;
+                return (
+                  <div
+                    key={tab.id}
+                    onClick={() => {
+                      setBabushkaLevel(`custom_tab:${tab.id}`);
+                    }}
+                    className="relative w-full overflow-hidden border transition-all duration-300 cursor-pointer group shadow-lg flex flex-col justify-between p-3 rounded-2xl"
+                    style={{
+                      minHeight: '72px',
+                      borderRadius: cardRadius,
+                      borderColor: modeColors.borderColor,
+                      background: modeColors.cardBg,
+                    }}
+                  >
+                    <div className="relative z-10 flex items-center justify-between gap-2 my-auto">
+                      <div className="flex items-center gap-2.5 flex-1 overflow-hidden">
+                        <div
+                          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border shadow-md"
+                          style={{
+                            backgroundColor: `${brandPrimary}20`,
+                            borderColor: brandPrimary,
+                            color: brandPrimary,
+                          }}
+                        >
+                          <span className="font-black text-xs">{String.fromCharCode(1492 + tIdx)}</span>
+                        </div>
+                        <div className="flex flex-col text-right overflow-hidden">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="font-black text-xs sm:text-[13px] truncate" style={{ color: modeColors.textColor }}>
+                              {tab.label}
+                            </span>
+                            <span
+                              className="px-1.5 py-0.5 rounded text-[8px] font-bold border shrink-0"
+                              style={{
+                                backgroundColor: `${brandPrimary}20`,
+                                borderColor: `${brandPrimary}40`,
+                                color: brandPrimary,
+                              }}
+                            >
+                              לשונית מיוחדת
+                            </span>
+                          </div>
+                          <p className="text-[10px] line-clamp-1 font-medium leading-tight" style={{ color: modeColors.secondaryText }}>
+                            {tab.description || `${tabFieldsCount} שדות מותאמים אישית`}
+                          </p>
+                        </div>
+                      </div>
+                      <div
+                        className="flex items-center gap-1 shrink-0 px-2.5 py-1.5 rounded-xl font-black text-[9.5px]"
+                        style={{
+                          backgroundColor: `${brandPrimary}18`,
+                          color: brandPrimary,
+                        }}
+                      >
+                        <TabIcon size={12} className="hidden sm:inline" />
+                        <span>פתח ◀</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -806,6 +921,44 @@ export const Contact360Modal: React.FC<Props> = ({
                   </div>
                 )}
               </div>
+
+              {/* שדות מיוחדים מותאמים אישית (ללא שיוך ללשונית) */}
+              {dynamicCustomFields.filter((f) => !f.tabId).length > 0 && (
+                <div
+                  className="p-3 rounded-2xl border space-y-2.5 text-xs"
+                  style={{
+                    backgroundColor: modeColors.cardBg,
+                    borderColor: modeColors.borderColor,
+                  }}
+                >
+                  <div className="font-bold flex items-center gap-1.5" style={{ color: modeColors.textColor }}>
+                    <Icons.Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>שדות מיוחדים מותאמים אישית</span>
+                  </div>
+                  {dynamicCustomFields
+                    .filter((f) => !f.tabId)
+                    .map((cf) => {
+                      const val = (formData as any)[cf.key] ?? (formData as any)?.customFields?.[cf.key] ?? '';
+                      return (
+                        <div key={cf.key}>
+                          <label className="block mb-1 font-medium" style={{ color: modeColors.secondaryText }}>
+                            {cf.label}
+                          </label>
+                          <input
+                            type={cf.type === 'number' ? 'number' : cf.type === 'date' ? 'date' : 'text'}
+                            value={val}
+                            onChange={(e) => handleFieldChange(cf.key as keyof Contact, e.target.value)}
+                            className="w-full border rounded-xl p-2 bg-transparent focus:outline-none"
+                            style={{
+                              borderColor: modeColors.borderColor,
+                              color: modeColors.textColor,
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
           )}
 
@@ -983,6 +1136,44 @@ export const Contact360Modal: React.FC<Props> = ({
                   </div>
                 )}
               </div>
+
+              {/* שדות מיוחדים מותאמים אישית (ללא שיוך ללשונית) */}
+              {dynamicCustomFields.filter((f) => !f.tabId).length > 0 && (
+                <div
+                  className="p-3 rounded-2xl border space-y-2.5 text-xs"
+                  style={{
+                    backgroundColor: modeColors.cardBg,
+                    borderColor: modeColors.borderColor,
+                  }}
+                >
+                  <div className="font-bold flex items-center gap-1.5" style={{ color: modeColors.textColor }}>
+                    <Icons.Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>שדות מיוחדים מותאמים אישית</span>
+                  </div>
+                  {dynamicCustomFields
+                    .filter((f) => !f.tabId)
+                    .map((cf) => {
+                      const val = (formData as any)[cf.key] ?? (formData as any)?.customFields?.[cf.key] ?? '';
+                      return (
+                        <div key={cf.key}>
+                          <label className="block mb-1 font-medium" style={{ color: modeColors.secondaryText }}>
+                            {cf.label}
+                          </label>
+                          <input
+                            type={cf.type === 'number' ? 'number' : cf.type === 'date' ? 'date' : 'text'}
+                            value={val}
+                            onChange={(e) => handleFieldChange(cf.key as keyof Contact, e.target.value)}
+                            className="w-full border rounded-xl p-2 bg-transparent focus:outline-none"
+                            style={{
+                              borderColor: modeColors.borderColor,
+                              color: modeColors.textColor,
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
           )}
 
@@ -1178,6 +1369,63 @@ export const Contact360Modal: React.FC<Props> = ({
               </div>
             </div>
           )}
+
+          {/* ================================================================= */}
+          {/* רמה 1: לשונית מותאמת אישית דינמית (crm_contact_tabs) */}
+          {/* ================================================================= */}
+          {babushkaLevel.startsWith('custom_tab:') && (() => {
+            const tabId = babushkaLevel.replace('custom_tab:', '');
+            const tab = dynamicCustomTabs.find((t) => t.id === tabId);
+            const tabFields = dynamicCustomFields.filter((f) => f.tabId === tabId);
+
+            return (
+              <div className="space-y-3 animate-fadeIn">
+                <div
+                  className="p-3.5 rounded-2xl border space-y-3 text-xs"
+                  style={{
+                    backgroundColor: modeColors.cardBg,
+                    borderColor: modeColors.borderColor,
+                  }}
+                >
+                  <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: modeColors.borderColor }}>
+                    <span className="font-black text-sm" style={{ color: modeColors.textColor }}>
+                      {tab?.label || 'לשונית מותאמת'}
+                    </span>
+                    <span className="text-[10px]" style={{ color: modeColors.secondaryText }}>
+                      {tabFields.length} שדות
+                    </span>
+                  </div>
+
+                  {tabFields.length === 0 ? (
+                    <p className="text-center py-4 opacity-70" style={{ color: modeColors.secondaryText }}>
+                      עדיין לא שויכו שדות מיוחדים ללשונית זו. ניתן ליצור שדות מתוך בונה הטפסים.
+                    </p>
+                  ) : (
+                    tabFields.map((cf) => {
+                      const val = (formData as any)[cf.key] ?? (formData as any)?.customFields?.[cf.key] ?? '';
+                      return (
+                        <div key={cf.key}>
+                          <label className="block mb-1 font-semibold" style={{ color: modeColors.secondaryText }}>
+                            {cf.label}
+                          </label>
+                          <input
+                            type={cf.type === 'number' ? 'number' : cf.type === 'date' ? 'date' : 'text'}
+                            value={val}
+                            onChange={(e) => handleFieldChange(cf.key as keyof Contact, e.target.value)}
+                            className="w-full border rounded-xl p-2 bg-transparent focus:outline-none"
+                            style={{
+                              borderColor: modeColors.borderColor,
+                              color: modeColors.textColor,
+                            }}
+                          />
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

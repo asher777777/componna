@@ -71,15 +71,26 @@ export interface LeadCaptureContract {
 }
 
 export interface CrmFieldOption {
+  tabId?: string;
+  tabLabel?: string;
   value: string;
   label: string;
   group?: string;
 }
 
+export interface CrmCustomTabOption {
+  id: string;
+  label: string;
+  icon?: string;
+  description?: string;
+}
+
 export interface CrmMetadataContract {
   getMappingFields: () => Promise<CrmFieldOption[]> | CrmFieldOption[];
   captureLead?: (lead: LeadPayload) => Promise<string | boolean>;
-  createCustomField?: (field: { label: string; key?: string; type?: string }) => Promise<{ success: boolean; field?: CrmFieldOption; error?: string }>;
+  createCustomField?: (field: { label: string; key?: string; type?: string; tabId?: string; tabLabel?: string }) => Promise<{ success: boolean; field?: CrmFieldOption; error?: string }>;
+  getCustomTabs?: () => Promise<CrmCustomTabOption[]>;
+  createCustomTab?: (tab: { label: string; icon?: string; description?: string }) => Promise<{ success: boolean; tab?: CrmCustomTabOption; error?: string }>;
   getContactsSummary?: (options?: { search?: string; tag?: string; limit?: number }) => Promise<CrmContactSummary[]>;
 }
 
@@ -424,6 +435,12 @@ export interface CrmGroupSummary {
 
 export interface CrmGroupsContract {
   getGroups: () => Promise<CrmGroupSummary[]>;
+  createGroup?: (group: {
+    name: string;
+    category?: 'community' | 'group';
+    description?: string;
+    color?: string;
+  }) => Promise<{ success: boolean; group?: CrmGroupSummary; error?: string }>;
   assignContactToGroup?: (contactId: string, groupId: string) => Promise<boolean>;
   removeContactFromGroup?: (contactId: string, groupId: string) => Promise<boolean>;
   renderGroupSelector?: (props: {

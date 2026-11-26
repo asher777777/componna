@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FormThemeSettings, FormCompletionSettings, SmartFormDefinition } from '../../types';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import { IconPickerModal } from '../shared/IconPickerModal';
@@ -21,9 +21,14 @@ import {
   Layers,
   FolderOpen,
   Check,
+  Users,
+  Plus,
 } from 'lucide-react';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
-import { MediaPickerContract } from '../../../../core/contracts';
+import { MediaPickerContract, CrmGroupsContract, CrmGroupSummary, SYSTEM_COLLECTIONS } from '../../../../core/contracts';
+import { useOptionalSystemConnection } from '../../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../../core/tenant';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
 
 export interface FormStyleSettingsProps {
   form: SmartFormDefinition;
@@ -55,9 +60,102 @@ export const FormStyleSettings: React.FC<FormStyleSettingsProps> = ({
 }) => {
   const { getCapability } = useHostCapabilities();
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
+  const kosTogether = getCapability<CrmGroupsContract>('KosTogether') || getCapability<CrmGroupsContract>('crm-groups');
+  const sysConn = useOptionalSystemConnection();
+  const { getScopedCollectionPath } = useTenantScope();
+
   const theme = form.theme || ({} as FormThemeSettings);
   const completion = form.completion || ({} as FormCompletionSettings);
   const [isCompletionIconOpen, setIsCompletionIconOpen] = useState(false);
+
+  const [communities, setCommunities] = useState<CrmGroupSummary[]>([]);
+  const [showNewCommunityBox, setShowNewCommunityBox] = useState(false);
+  const [newCommunityName, setNewCommunityName] = useState('');
+  const [newCommunityDesc, setNewCommunityDesc] = useState('');
+  const [isCreatingCommunity, setIsCreatingCommunity] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const loadCommunities = async () => {
+      if (kosTogether?.getGroups) {
+        try {
+          const list = await kosTogether.getGroups();
+          if (active && list) {
+            setCommunities(list);
+            return;
+          }
+        } catch {
+          // fallback below
+        }
+      }
+      if (sysConn?.db) {
+        try {
+          const snap = await getDocs(collection(sysConn.db, getScopedCollectionPath(SYSTEM_COLLECTIONS.GROUPS)));
+          if (active) {
+            setCommunities(
+              snap.docs.map((d) => ({
+                id: d.id,
+                name: d.data()?.name || d.id,
+                type: d.data()?.type || 'manual',
+                category: d.data()?.category || 'community',
+                color: d.data()?.color,
+                description: d.data()?.description,
+              }))
+            );
+          }
+        } catch {
+          // ignore
+        }
+      }
+    };
+    loadCommunities();
+    return () => {
+      active = false;
+    };
+  }, [kosTogether, sysConn?.db, getScopedCollectionPath]);
+
+  const handleCreateCommunity = async () => {
+    const name = newCommunityName.trim();
+    if (!name) return;
+    setIsCreatingCommunity(true);
+    try {
+      let created: CrmGroupSummary | undefined;
+      if (kosTogether?.createGroup) {
+        const res = await kosTogether.createGroup({
+          name,
+          category: 'community',
+          description: newCommunityDesc.trim(),
+        });
+        if (res.success && res.group) created = res.group;
+      } else if (sysConn?.db) {
+        const groupsPath = getScopedCollectionPath(SYSTEM_COLLECTIONS.GROUPS);
+        const docRef = await addDoc(collection(sysConn.db, groupsPath), {
+          name,
+          type: 'manual',
+          category: 'community',
+          description: newCommunityDesc.trim(),
+          color: '#6366f1',
+          createdAt: new Date().toISOString(),
+        });
+        created = {
+          id: docRef.id,
+          name,
+          type: 'manual',
+          category: 'community',
+          description: newCommunityDesc.trim(),
+        };
+      }
+      if (created) {
+        setCommunities((prev) => [...prev, created!]);
+        onChange({ ...form, crmDefaultCommunity: created.name });
+        setNewCommunityName('');
+        setNewCommunityDesc('');
+        setShowNewCommunityBox(false);
+      }
+    } finally {
+      setIsCreatingCommunity(false);
+    }
+  };
 
   const handleApplyKoswebPreset = (preset: KoswebFormStyleTokens) => {
     onChange({
@@ -610,6 +708,76 @@ export const FormStyleSettings: React.FC<FormStyleSettingsProps> = ({
             הזן לידים חדשים אוטומטית לקולקציית ה-CRM המרכזית בעת הגשה
           </span>
         </label>
+
+        {/* Community Assignment (KosTogether) */}
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3" dir="rtl">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+              <Users className="w-4 h-4 text-indigo-500" />
+              <span>צירוף אוטומטי לקהילה / קבוצה (KosTogether):</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowNewCommunityBox((v) => !v)}
+              className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>צור קהילה חדשה</span>
+            </button>
+          </div>
+
+          <select
+            value={form.crmDefaultCommunity || ''}
+            onChange={(e) => onChange({ ...form, crmDefaultCommunity: e.target.value || undefined })}
+            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white"
+          >
+            <option value="">-- ללא שיוך לקהילה --</option>
+            {communities.map((g) => (
+              <option key={g.id} value={g.name}>
+                {g.name} ({g.category === 'community' ? 'קהילה' : 'קבוצה'})
+              </option>
+            ))}
+          </select>
+
+          {showNewCommunityBox && (
+            <div className="p-3.5 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 rounded-2xl space-y-2.5 text-xs">
+              <div className="font-bold text-indigo-800 dark:text-indigo-300">
+                פתיחת קהילה חדשה ב-KosTogether
+              </div>
+              <input
+                type="text"
+                value={newCommunityName}
+                onChange={(e) => setNewCommunityName(e.target.value)}
+                placeholder="שם הקהילה (למשל: מועדון מנויים VIP)"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl"
+              />
+              <input
+                type="text"
+                value={newCommunityDesc}
+                onChange={(e) => setNewCommunityDesc(e.target.value)}
+                placeholder="תיאור הקהילה (אופציונלי)"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewCommunityBox(false)}
+                  className="px-3 py-1.5 text-slate-500 hover:text-slate-700"
+                >
+                  ביטול
+                </button>
+                <button
+                  type="button"
+                  disabled={isCreatingCommunity || !newCommunityName.trim()}
+                  onClick={handleCreateCommunity}
+                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl"
+                >
+                  {isCreatingCommunity ? 'יוצר קהילה...' : 'צור ושייך לקהילה'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <IconPickerModal

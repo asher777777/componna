@@ -646,6 +646,31 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
           description: g.description,
         }));
       },
+      createGroup: async (groupInput) => {
+        try {
+          const res = await saveGroup({
+            name: groupInput.name,
+            type: 'manual',
+            category: groupInput.category || 'community',
+            description: groupInput.description || '',
+            color: groupInput.color || '#6366f1',
+          });
+          return {
+            success: res.success,
+            group: {
+              id: res.id,
+              name: groupInput.name,
+              type: 'manual',
+              category: groupInput.category || 'community',
+              description: groupInput.description || '',
+              color: groupInput.color || '#6366f1',
+              count: 0,
+            },
+          };
+        } catch (err: any) {
+          return { success: false, error: err?.message || 'שגיאה ביצירת קהילה' };
+        }
+      },
       assignContactToGroup: async (contactId: string, groupNameOrId: string) => {
         if (!db) return false;
         try {

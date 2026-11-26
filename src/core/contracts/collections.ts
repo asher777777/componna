@@ -215,3 +215,67 @@ export const KOSUN_CRM_FIELD_KEYS = {
 
 export type KosunCrmFieldKey = typeof KOSUN_CRM_FIELD_KEYS[keyof typeof KOSUN_CRM_FIELD_KEYS];
 
+/**
+ * Complete canonical list of Contact collection fields for CRM mapping dropdowns (labels only, grouped).
+ */
+export const CANONICAL_CRM_CONTACT_FIELDS: Array<{ value: string; label: string; group: string }> = [
+  // 1. פרטי זיהוי ואישיים
+  { value: KOSUN_CRM_FIELD_KEYS.NAME, label: 'שם מלא', group: 'פרטי קשר וזיהוי' },
+  { value: KOSUN_CRM_FIELD_KEYS.FAMILY, label: 'שם משפחה', group: 'פרטי קשר וזיהוי' },
+  { value: KOSUN_CRM_FIELD_KEYS.PHONE, label: 'טלפון נייד (וואטסאפ)', group: 'פרטי קשר וזיהוי' },
+  { value: KOSUN_CRM_FIELD_KEYS.WORK_PHONE, label: 'טלפון עבודה', group: 'פרטי קשר וזיהוי' },
+  { value: KOSUN_CRM_FIELD_KEYS.EMAIL, label: 'דואר אלקטרוני', group: 'פרטי קשר וזיהוי' },
+  { value: KOSUN_CRM_FIELD_KEYS.GOV_ID, label: 'תעודת זהות / ח.פ', group: 'פרטי קשר וזיהוי' },
+  { value: KOSUN_CRM_FIELD_KEYS.GENDER, label: 'מגדר', group: 'פרטי קשר וזיהוי' },
+  { value: KOSUN_CRM_FIELD_KEYS.BIRTH_DATE, label: 'תאריך לידה', group: 'פרטי קשר וזיהוי' },
+  { value: KOSUN_CRM_FIELD_KEYS.WEBSITE, label: 'אתר אינטרנט', group: 'פרטי קשר וזיהוי' },
+
+  // 2. עסק וכתובת
+  { value: KOSUN_CRM_FIELD_KEYS.COMPANY, label: 'שם חברה / ארגון', group: 'עסק וכתובת' },
+  { value: KOSUN_CRM_FIELD_KEYS.ROLE, label: 'תפקיד', group: 'עסק וכתובת' },
+  { value: KOSUN_CRM_FIELD_KEYS.CITY, label: 'עיר', group: 'עסק וכתובת' },
+  { value: KOSUN_CRM_FIELD_KEYS.STREET, label: 'כתובת / רחוב', group: 'עסק וכתובת' },
+
+  // 3. קהילות, פילוח ומקור (KosTogether)
+  { value: KOSUN_CRM_FIELD_KEYS.COMMUNITY, label: 'קהילה משויכת', group: 'קהילות ופילוח' },
+  { value: KOSUN_CRM_FIELD_KEYS.SEGMENT, label: 'פלח / סגמנט', group: 'קהילות ופילוח' },
+  { value: KOSUN_CRM_FIELD_KEYS.TAGS, label: 'תגיות שיוך', group: 'קהילות ופילוח' },
+  { value: KOSUN_CRM_FIELD_KEYS.SOURCE, label: 'מקור הגעה', group: 'קהילות ופילוח' },
+  { value: KOSUN_CRM_FIELD_KEYS.TYPE, label: 'סוג רשומה (ליד / איש קשר)', group: 'קהילות ופילוח' },
+  { value: KOSUN_CRM_FIELD_KEYS.STATUS, label: 'סטטוס איש קשר', group: 'קהילות ופילוח' },
+
+  // 4. תשלומים, בנק וצ'קים (Kesher / Nedarim)
+  { value: 'payment_amount', label: 'סכום לתשלום (שדה סליקה)', group: 'תשלומים, בנק וצ׳קים' },
+  { value: 'donation_amount', label: 'סכום תרומה', group: 'תשלומים, בנק וצ׳קים' },
+  { value: 'donation_type', label: 'אופן תשלום (חד פעמי / הוראת קבע)', group: 'תשלומים, בנק וצ׳קים' },
+  { value: 'dedication_note', label: 'הקדשה לתרומה / תשלום', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.TOTAL_SPENT, label: 'סך הכל תשלומים / תרומות', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.ORDER_COUNT, label: 'מספר עסקאות / הזמנות', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.LAST_ORDER_DATE, label: 'תאריך עסקה אחרונה', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.BILLING_CUSTOMER_ID, label: 'מזהה לקוח לחיוב', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.BANK_NAME, label: 'שם בנק', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.BANK_BRANCH, label: 'מספר סניף בנק', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.BANK_ACCOUNT, label: 'מספר חשבון בנק', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.BANK_OWNER, label: 'שם בעל החשבון', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.BANK_AUTH, label: 'אסמכתא / הרשאה בנקאית', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.CHECK_NUMBER, label: 'מספר צ׳ק', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.CHECK_BANK, label: 'בנק הצ׳ק', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.CHECK_BRANCH, label: 'סניף הצ׳ק', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.CHECK_ACCOUNT, label: 'חשבון הצ׳ק', group: 'תשלומים, בנק וצ׳קים' },
+  { value: KOSUN_CRM_FIELD_KEYS.CHECK_PAYEE, label: 'לפקודת (צ׳ק)', group: 'תשלומים, בנק וצ׳קים' },
+
+  // 5. קמפיינים ושגרירים
+  { value: KOSUN_CRM_FIELD_KEYS.CAMPAIGN_ID, label: 'מזהה קמפיין', group: 'קמפיינים ושגרירים' },
+  { value: KOSUN_CRM_FIELD_KEYS.CAMPAIGN_TITLE, label: 'שם קמפיין', group: 'קמפיינים ושגרירים' },
+  { value: KOSUN_CRM_FIELD_KEYS.CAMPAIGN_AMOUNT, label: 'סכום בקמפיין', group: 'קמפיינים ושגרירים' },
+  { value: KOSUN_CRM_FIELD_KEYS.CAMPAIGN_ROLE, label: 'תפקיד בקמפיין', group: 'קמפיינים ושגרירים' },
+  { value: KOSUN_CRM_FIELD_KEYS.CAMPAIGN_GOAL, label: 'יעד גיוס', group: 'קמפיינים ושגרירים' },
+  { value: KOSUN_CRM_FIELD_KEYS.CAMPAIGN_RAISED, label: 'סכום שגויס', group: 'קמפיינים ושגרירים' },
+  { value: KOSUN_CRM_FIELD_KEYS.AMBASSADOR_URL, label: 'קישור שגריר', group: 'קמפיינים ושגרירים' },
+
+  // 6. מנויים והערות
+  { value: KOSUN_CRM_FIELD_KEYS.SUBSCRIPTIONS, label: 'מנויי מערכת', group: 'מנויים והערות' },
+  { value: KOSUN_CRM_FIELD_KEYS.CONTENT_SUBSCRIPTIONS, label: 'מנויי תוכן', group: 'מנויים והערות' },
+  { value: KOSUN_CRM_FIELD_KEYS.NOTES, label: 'הערות / תוכן פנייה', group: 'מנויים והערות' },
+];
+
