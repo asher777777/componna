@@ -288,7 +288,11 @@ export const WhatsAppBroadcastModal: React.FC<WhatsAppBroadcastModalProps> = ({
       setShowManualFileUrl(true);
       return;
     }
+    const dialog = dialogRef.current;
+    const wasOpen = Boolean(dialog?.open);
     try {
+      // Temporarily exit Top Layer so KosCloudStore's z-index modal is never occluded
+      if (wasOpen) dialog?.close();
       const selected = await mediaPicker.openPicker({
         accept: '*/*',
         multiple: false,
@@ -310,6 +314,10 @@ export const WhatsAppBroadcastModal: React.FC<WhatsAppBroadcastModalProps> = ({
     } catch (err) {
       console.warn('[WhatsAppBroadcastModal] Branding media picker error:', err);
       setShowManualFileUrl(true);
+    } finally {
+      if (wasOpen && isOpen && dialog && !dialog.open) {
+        dialog.showModal();
+      }
     }
   };
 
