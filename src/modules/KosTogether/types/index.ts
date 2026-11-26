@@ -18,6 +18,8 @@ export type GroupRuleField =
   | 'tags'
   | 'community'
   | 'conta_name'
+  | 'first_name'
+  | 'last_name'
   | 'conta_phone'
   | 'email'
   | 'mh_crm_city'
@@ -148,6 +150,8 @@ export interface CommunityVideoCallRoom {
 export interface ContactRecord {
   id: string;
   conta_name?: string;
+  first_name?: string;
+  last_name?: string;
   conta_phone?: string;
   email?: string;
   mh_crm_city?: string;

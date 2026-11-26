@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users,
   Search,
@@ -16,6 +16,8 @@ import {
   ExternalLink,
   MessageSquare,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   UserPlus,
   PhoneCall,
   Send,
@@ -28,12 +30,17 @@ import {
   Sparkles,
   Download,
   Zap,
+  Edit2,
+  X,
+  FolderPlus,
+  Scissors,
 } from 'lucide-react';
 import { useCrmGroups } from '../context/CrmGroupsContext';
 import { ContactRecord, SmartGroup, CommunitiesLayoutMode } from '../types';
 import { ALL_GROUP_COLUMNS } from '../config';
 import { ColumnPickerDropdown } from './ColumnPickerDropdown';
 import { Contact360Modal } from '../../KosCrm/components/Contact360Modal';
+import { LegacyContact360Modal } from '../../KosCrm/components/LegacyContact360Modal';
 import { exportContactsToExcel } from '../services/groupsUtils';
 
 interface GroupContactsTableProps {
@@ -82,8 +89,12 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
     toggleContactTag,
     bulkDeleteContacts,
     bulkAssignToGroup,
+    saveGroup,
+    updateContactRecord,
+    splitAllContactNames,
     recordInteraction,
   } = useCrmGroups();
+  const [isSplittingNames, setIsSplittingNames] = useState(false);
 
   const [openTagDropdownId, setOpenTagDropdownId] = useState<string | null>(null);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
@@ -92,6 +103,51 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
   const [layoutMode, setLayoutMode] = useState<CommunitiesLayoutMode>('table');
   const [active360Contact, setActive360Contact] = useState<ContactRecord | null>(null);
   const [is360ModalOpen, setIs360ModalOpen] = useState(false);
+  const [contactModalView, setContactModalView] = useState<'legacy' | 'modern'>('legacy');
+
+  // Pagination for fast rendering on large contact lists
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+
+  // Inline cell editing (like KosCrm pencil edit)
+  const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
+
+  // Create Group / Community from selection modal
+  const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupCategory, setNewGroupCategory] = useState<'group' | 'community'>('group');
+  const [newGroupColor, setNewGroupColor] = useState('#4f46e5');
+  const [applyNewGroupToAll, setApplyNewGroupToAll] = useState(false);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeGroupId, searchTerm, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredContacts.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedContacts = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredContacts.slice(start, start + pageSize);
+  }, [filteredContacts, safePage, pageSize]);
+
+  const selectedIdSet = useMemo(() => new Set(selectedContactIds), [selectedContactIds]);
+
+  const startEditCell = (id: string, field: string, currentVal: any) => {
+    setEditingCell({ id, field });
+    setEditValue(currentVal !== undefined && currentVal !== null ? String(currentVal) : '');
+  };
+
+  const saveEditCell = async () => {
+    if (!editingCell) return;
+    const { id, field } = editingCell;
+    const isNumeric = field === 'total_spent' || field === 'campaign_amount';
+    const nextValue = isNumeric ? Number(editValue) || 0 : editValue.trim();
+    setEditingCell(null);
+    await updateContactRecord(id, { [field]: nextValue });
+  };
 
   const handleOpen360 = (contact: ContactRecord) => {
     setActive360Contact(contact);
@@ -174,6 +230,29 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
               <span>{activeGroup.engagementScore || 41}</span>
             </button>
           )}
+
+          {/* Split Full Names to First/Last Name */}
+          <button
+            type="button"
+            disabled={isSplittingNames}
+            onClick={async () => {
+              if (!window.confirm('לפצל את כל השמות המלאים (בעלי 2 מילים ומעלה) לשם פרטי ושם משפחה?')) {
+                return;
+              }
+              try {
+                setIsSplittingNames(true);
+                const res = await splitAllContactNames();
+                alert(`הפיצול הושלם: ${res.updatedCount} אנשי קשר עודכנו (${res.skippedCount} דולגו).`);
+              } finally {
+                setIsSplittingNames(false);
+              }
+            }}
+            className="h-9 px-2.5 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 flex items-center gap-1.5 text-[11px] font-bold transition-all cursor-pointer disabled:opacity-50"
+            title="פצל שם מלא לשם פרטי ושם משפחה לכל אנשי הקשר"
+          >
+            <Scissors className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline">{isSplittingNames ? 'מפצל...' : 'פצל שמות'}</span>
+          </button>
 
           {/* WhatsApp Broadcast: Icon only (hover reveals 'וואטסאפ לקהילה') */}
           <button
@@ -359,6 +438,15 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
 
             <button
               type="button"
+              onClick={() => setIsCreateGroupModalOpen(true)}
+              className="h-8 px-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+            >
+              <FolderPlus className="w-3.5 h-3.5" />
+              <span>צור קבוצה / קהילה</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsTagModalOpen(true)}
               className="h-8 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
@@ -433,8 +521,8 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
                 </td>
               </tr>
             ) : (
-              filteredContacts.map((c) => {
-                const isSelected = selectedContactIds.includes(c.id);
+              paginatedContacts.map((c) => {
+                const isSelected = selectedIdSet.has(c.id);
                 const tags: string[] = Array.isArray(c.tags) ? c.tags : [];
 
                 return (
@@ -466,21 +554,76 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
 
                     {/* Dynamic Columns */}
                     {visibleColumnDefs.map((col) => {
+                      const isEditing = editingCell?.id === c.id && editingCell?.field === col.id;
+                      const renderInlineEditor = (inputDir: 'rtl' | 'ltr' = 'rtl') => (
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="text"
+                            dir={inputDir}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEditCell();
+                              if (e.key === 'Escape') setEditingCell(null);
+                            }}
+                            className="w-full min-w-[90px] px-2 py-1 text-xs border border-indigo-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={saveEditCell}
+                            className="p-1 text-emerald-600 hover:bg-emerald-50 rounded cursor-pointer"
+                            title="שמור"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingCell(null)}
+                            className="p-1 text-rose-600 hover:bg-rose-50 rounded cursor-pointer"
+                            title="ביטול"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+
+                      const renderPencilBtn = (val: any) => (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditCell(c.id, col.id, val);
+                          }}
+                          className="opacity-0 group-hover/cell:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition cursor-pointer shrink-0"
+                          title={`ערוך ${col.label}`}
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                      );
+
                       if (col.id === 'conta_name') {
                         return (
                           <td
                             key={col.id}
-                            className="p-3 font-bold text-slate-900"
-                            onClick={() => handleOpen360(c)}
+                            className="p-3 font-bold text-slate-900 group/cell"
+                            onClick={() => !isEditing && handleOpen360(c)}
                           >
-                            <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-[11px] shrink-0">
-                                {(c.conta_name || 'א')[0]}
+                            {isEditing ? (
+                              renderInlineEditor()
+                            ) : (
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-[11px] shrink-0">
+                                    {(c.conta_name || 'א')[0]}
+                                  </div>
+                                  <span className="hover:text-indigo-600 transition-colors truncate">
+                                    {c.conta_name || 'ללא שם'}
+                                  </span>
+                                </div>
+                                {renderPencilBtn(c.conta_name)}
                               </div>
-                              <span className="hover:text-indigo-600 transition-colors">
-                                {c.conta_name || 'ללא שם'}
-                              </span>
-                            </div>
+                            )}
                           </td>
                         );
                       }
@@ -571,18 +714,25 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
 
                       if (col.id === 'conta_phone') {
                         return (
-                          <td key={col.id} className="p-3 text-slate-600 font-mono" dir="ltr">
-                            {c.conta_phone ? (
-                              <a
-                                href={`tel:${c.conta_phone}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="hover:text-indigo-600 flex items-center gap-1"
-                              >
-                                <Phone className="w-3 h-3 opacity-60" />
-                                <span>{c.conta_phone}</span>
-                              </a>
+                          <td key={col.id} className="p-3 text-slate-600 font-mono group/cell" dir="ltr">
+                            {isEditing ? (
+                              renderInlineEditor('ltr')
                             ) : (
-                              <span className="text-slate-300">-</span>
+                              <div className="flex items-center justify-between gap-1.5">
+                                {c.conta_phone ? (
+                                  <a
+                                    href={`tel:${c.conta_phone}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="hover:text-indigo-600 flex items-center gap-1"
+                                  >
+                                    <Phone className="w-3 h-3 opacity-60" />
+                                    <span>{c.conta_phone}</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-slate-300">-</span>
+                                )}
+                                {renderPencilBtn(c.conta_phone)}
+                              </div>
                             )}
                           </td>
                         );
@@ -590,18 +740,25 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
 
                       if (col.id === 'email') {
                         return (
-                          <td key={col.id} className="p-3 text-slate-600 truncate max-w-[180px]">
-                            {c.email ? (
-                              <a
-                                href={`mailto:${c.email}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="hover:text-indigo-600 flex items-center gap-1"
-                              >
-                                <Mail className="w-3 h-3 opacity-60 shrink-0" />
-                                <span className="truncate">{c.email}</span>
-                              </a>
+                          <td key={col.id} className="p-3 text-slate-600 max-w-[200px] group/cell">
+                            {isEditing ? (
+                              renderInlineEditor('ltr')
                             ) : (
-                              <span className="text-slate-300">-</span>
+                              <div className="flex items-center justify-between gap-1.5">
+                                {c.email ? (
+                                  <a
+                                    href={`mailto:${c.email}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="hover:text-indigo-600 flex items-center gap-1 truncate"
+                                  >
+                                    <Mail className="w-3 h-3 opacity-60 shrink-0" />
+                                    <span className="truncate">{c.email}</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-slate-300">-</span>
+                                )}
+                                {renderPencilBtn(c.email)}
+                              </div>
                             )}
                           </td>
                         );
@@ -609,8 +766,15 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
 
                       if (col.id === 'mh_crm_city') {
                         return (
-                          <td key={col.id} className="p-3 text-slate-600">
-                            {c.mh_crm_city || <span className="text-slate-300">-</span>}
+                          <td key={col.id} className="p-3 text-slate-600 group/cell">
+                            {isEditing ? (
+                              renderInlineEditor()
+                            ) : (
+                              <div className="flex items-center justify-between gap-1.5">
+                                <span>{c.mh_crm_city || <span className="text-slate-300">-</span>}</span>
+                                {renderPencilBtn(c.mh_crm_city)}
+                              </div>
+                            )}
                           </td>
                         );
                       }
@@ -618,50 +782,47 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
                       if (col.id === 'total_spent' || col.id === 'campaign_amount') {
                         const val = Number(c[col.id] || 0);
                         return (
-                          <td key={col.id} className="p-3 text-center font-bold text-slate-800 font-mono">
-                            {val > 0 ? `₪${val.toLocaleString()}` : <span className="text-slate-300">₪0</span>}
+                          <td key={col.id} className="p-3 text-center font-bold text-slate-800 font-mono group/cell">
+                            {isEditing ? (
+                              renderInlineEditor('ltr')
+                            ) : (
+                              <div className="flex items-center justify-center gap-1">
+                                <span>{val > 0 ? `₪${val.toLocaleString()}` : <span className="text-slate-300">₪0</span>}</span>
+                                {renderPencilBtn(val)}
+                              </div>
+                            )}
                           </td>
                         );
                       }
 
-                      if (col.id === 'lead_source') {
+                      if (col.id === 'first_name' || col.id === 'last_name' || col.id === 'lead_source' || col.id === 'company_name' || col.id === 'job_title' || col.id === 'gender') {
                         return (
-                          <td key={col.id} className="p-3 text-slate-500">
-                            {c.lead_source || <span className="text-slate-300">-</span>}
-                          </td>
-                        );
-                      }
-
-                      if (col.id === 'company_name') {
-                        return (
-                          <td key={col.id} className="p-3 text-slate-600">
-                            {c.company_name || <span className="text-slate-300">-</span>}
-                          </td>
-                        );
-                      }
-
-                      if (col.id === 'job_title') {
-                        return (
-                          <td key={col.id} className="p-3 text-slate-500">
-                            {c.job_title || <span className="text-slate-300">-</span>}
-                          </td>
-                        );
-                      }
-
-                      if (col.id === 'gender') {
-                        return (
-                          <td key={col.id} className="p-3 text-slate-500">
-                            {c.gender || <span className="text-slate-300">-</span>}
+                          <td key={col.id} className="p-3 text-slate-600 group/cell">
+                            {isEditing ? (
+                              renderInlineEditor()
+                            ) : (
+                              <div className="flex items-center justify-between gap-1.5">
+                                <span>{c[col.id] || <span className="text-slate-300">-</span>}</span>
+                                {renderPencilBtn(c[col.id])}
+                              </div>
+                            )}
                           </td>
                         );
                       }
 
                       if (col.id === 'status') {
                         return (
-                          <td key={col.id} className="p-3">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                              {c.status || 'פעיל'}
-                            </span>
+                          <td key={col.id} className="p-3 group/cell">
+                            {isEditing ? (
+                              renderInlineEditor()
+                            ) : (
+                              <div className="flex items-center justify-between gap-1.5">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                                  {c.status || 'פעיל'}
+                                </span>
+                                {renderPencilBtn(c.status)}
+                              </div>
+                            )}
                           </td>
                         );
                       }
@@ -815,8 +976,8 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
               <p className="font-bold text-sm text-slate-600">לא נמצאו אנשי קשר ברשימה זו</p>
             </div>
           ) : (
-            filteredContacts.map((c) => {
-              const isSelected = selectedContactIds.includes(c.id);
+            paginatedContacts.map((c) => {
+              const isSelected = selectedIdSet.has(c.id);
               const tags: string[] = Array.isArray(c.tags) ? c.tags : [];
               const waPhone = (c.conta_phone || '').replace(/\D/g, '');
 
@@ -910,7 +1071,7 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
       {layoutMode === 'split' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 animate-fadeIn">
           <div className="lg:col-span-5 border border-slate-200/90 rounded-2xl overflow-y-auto max-h-[550px] divide-y divide-slate-100 bg-white">
-            {filteredContacts.map((c) => (
+            {paginatedContacts.map((c) => (
               <div
                 key={c.id}
                 onClick={() => setActive360Contact(c)}
@@ -1043,17 +1204,212 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
         </div>
       )}
 
-      {/* Contract-based Contact 360 Fullscreen Modal */}
+      {/* Fast Pagination Footer */}
+      {filteredContacts.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs text-slate-600">
+          <div className="flex items-center gap-2">
+            <span>
+              מציג{' '}
+              <strong className="font-mono">
+                {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filteredContacts.length)}
+              </strong>{' '}
+              מתוך <strong className="font-mono">{filteredContacts.length}</strong> אנשי קשר
+            </span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="h-7 px-2 rounded-lg border border-slate-200 bg-white text-xs font-bold cursor-pointer"
+              aria-label="כמות שורות בעמוד"
+            >
+              <option value={25}>25 בעמוד</option>
+              <option value={50}>50 בעמוד</option>
+              <option value={100}>100 בעמוד</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+              className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1 font-bold cursor-pointer"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+              <span>הקודם</span>
+            </button>
+            <span className="px-2.5 font-mono font-bold text-slate-700">
+              עמוד {safePage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+              className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1 font-bold cursor-pointer"
+            >
+              <span>הבא</span>
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Legacy (Old Version) + Modern Contact 360 Modal */}
       {is360ModalOpen && (
-        <Contact360Modal
-          isOpen={is360ModalOpen}
-          onClose={() => setIs360ModalOpen(false)}
-          contact={active360Contact as any}
-          onSave={async (updated) => {
-            setIs360ModalOpen(false);
-            return true;
-          }}
-        />
+        contactModalView === 'legacy' ? (
+          <LegacyContact360Modal
+            isOpen={is360ModalOpen}
+            onClose={() => setIs360ModalOpen(false)}
+            contact={active360Contact as any}
+            onSave={async (updated) => {
+              const targetId = updated.id || active360Contact?.id;
+              if (!targetId) return false;
+              return updateContactRecord(targetId, updated as any);
+            }}
+          />
+        ) : (
+          <Contact360Modal
+            isOpen={is360ModalOpen}
+            onClose={() => setIs360ModalOpen(false)}
+            contact={active360Contact as any}
+            onSave={async (updated) => {
+              const targetId = updated.id || active360Contact?.id;
+              if (!targetId) return false;
+              return updateContactRecord(targetId, updated as any);
+            }}
+          />
+        )
+      )}
+
+      {/* Modal: Create New Group or Community from Selected Contacts */}
+      {isCreateGroupModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <FolderPlus className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900">
+                  יצירת קבוצה או קהילה חדשה מהנבחרים
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setIsCreateGroupModalOpen(false); setNewGroupName(''); }}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewGroupCategory('group')}
+                  className={`p-2.5 rounded-xl border font-bold text-center cursor-pointer transition ${
+                    newGroupCategory === 'group'
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  קבוצה חדשה
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewGroupCategory('community')}
+                  className={`p-2.5 rounded-xl border font-bold text-center cursor-pointer transition ${
+                    newGroupCategory === 'community'
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  קהילה חדשה
+                </button>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">
+                  {newGroupCategory === 'community' ? 'שם הקהילה החדשה:' : 'שם הקבוצה החדשה:'}
+                </label>
+                <input
+                  type="text"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder={newGroupCategory === 'community' ? 'לדוגמה: שגרירי הצפון...' : 'לדוגמה: תורמי VIP...'}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-xs"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-700">צבע זיהוי:</span>
+                {['#4f46e5', '#059669', '#d97706', '#e11d48', '#7c3aed', '#0284c7'].map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setNewGroupColor(color)}
+                    className={`w-6 h-6 rounded-full border-2 cursor-pointer transition ${
+                      newGroupColor === color ? 'border-slate-900 scale-110' : 'border-transparent'
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                <input
+                  type="checkbox"
+                  checked={applyNewGroupToAll}
+                  onChange={(e) => setApplyNewGroupToAll(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 rounded cursor-pointer accent-indigo-600"
+                />
+                <span className="font-bold text-xs text-slate-800">
+                  שייך את כל {filteredContacts.length} אנשי הקשר בתצוגה הנוכחית
+                </span>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => { setIsCreateGroupModalOpen(false); setNewGroupName(''); setApplyNewGroupToAll(false); }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                disabled={!newGroupName.trim() || isCreatingGroup}
+                onClick={async () => {
+                  const trimmed = newGroupName.trim();
+                  const targetIds = applyNewGroupToAll ? filteredContacts.map((c) => c.id) : selectedContactIds;
+                  if (!trimmed || targetIds.length === 0) return;
+                  try {
+                    setIsCreatingGroup(true);
+                    await saveGroup({
+                      name: trimmed,
+                      color: newGroupColor,
+                      type: 'manual',
+                      isCommunity: newGroupCategory === 'community',
+                      category: newGroupCategory,
+                    });
+                    await bulkAssignToGroup(targetIds, trimmed);
+                    setSelectedContactIds([]);
+                    setNewGroupName('');
+                    setApplyNewGroupToAll(false);
+                    setIsCreateGroupModalOpen(false);
+                  } finally {
+                    setIsCreatingGroup(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition disabled:opacity-50 cursor-pointer"
+              >
+                {isCreatingGroup
+                  ? 'יוצר ומשייך...'
+                  : `צור ושייך (${applyNewGroupToAll ? filteredContacts.length : selectedContactIds.length})`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal: Bulk Add Tag */}

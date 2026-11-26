@@ -36,6 +36,23 @@ export function cleanPushName(rawName: string | undefined | null): string {
 }
 
 /**
+ * Splits a full name into first_name and last_name.
+ * When the full name has 2+ words, the first word becomes firstName and the rest become lastName.
+ */
+export function splitFullName(fullName?: string | null): { firstName: string; lastName: string } {
+  const cleaned = (fullName || '').trim().replace(/\s+/g, ' ');
+  if (!cleaned) return { firstName: '', lastName: '' };
+  const parts = cleaned.split(' ');
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: '' };
+  }
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(' '),
+  };
+}
+
+/**
  * Evaluates a single condition rule on a contact record
  */
 export function evaluateRule(contact: ContactRecord, rule: GroupRule): boolean {

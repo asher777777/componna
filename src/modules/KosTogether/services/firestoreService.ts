@@ -23,7 +23,7 @@ import {
 } from '../types';
 import { DEFAULT_COLLECTIONS, PRESET_COLORS } from '../config';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
-import { isContactInGroup } from './groupsUtils';
+import { isContactInGroup, splitFullName } from './groupsUtils';
 
 function getCollNames(custom?: CrmGroupsCollectionsConfig) {
   return {
@@ -1566,3 +1566,66 @@ export const MOCK_CONTACTS: ContactRecord[] = [
     createdAt: '2026-03-03T14:00:00.000Z',
   },
 ];
+
+/**
+ * Splits full names (`conta_name`) that contain 2+ words into `first_name` and `last_name`
+ * across the contacts collection in Firestore using chunked writeBatches.
+ */
+export async function splitContactFullNamesInFirestore(
+  db: Firestore | null,
+  contacts: ContactRecord[],
+  customCollections?: CrmGroupsCollectionsConfig
+): Promise<{
+  updatedCount: number;
+  skippedCount: number;
+  updatesMap: Record<string, { first_name: string; last_name: string }>;
+}> {
+  const colls = getCollNames(customCollections);
+  const updatesMap: Record<string, { first_name: string; last_name: string }> = {};
+  let updatedCount = 0;
+  let skippedCount = 0;
+
+  let batch = db ? writeBatch(db) : null;
+  let opCount = 0;
+  const now = new Date().toISOString();
+
+  for (const contact of contacts) {
+    const fullName = (contact.conta_name || contact.kosun_crm_name || contact.name || '').trim();
+    const { firstName, lastName } = splitFullName(fullName);
+
+    // Target contacts with 2+ words in full name (or missing first_name/last_name)
+    if (!firstName || !lastName) {
+      skippedCount++;
+      continue;
+    }
+
+    if (contact.first_name === firstName && contact.last_name === lastName) {
+      skippedCount++;
+      continue;
+    }
+
+    updatesMap[contact.id] = { first_name: firstName, last_name: lastName };
+    updatedCount++;
+
+    if (db && batch) {
+      const ref = doc(db, colls.contacts, contact.id);
+      batch.update(ref, {
+        first_name: firstName,
+        last_name: lastName,
+        updatedAt: now,
+      });
+      opCount++;
+      if (opCount >= 400) {
+        await batch.commit();
+        batch = writeBatch(db);
+        opCount = 0;
+      }
+    }
+  }
+
+  if (db && batch && opCount > 0) {
+    await batch.commit();
+  }
+
+  return { updatedCount, skippedCount, updatesMap };
+}

@@ -134,13 +134,24 @@ export function getPermanentMediaUrl(item?: Partial<MediaItem>, bucket: string =
  */
 export function extractStoragePathFromProxyUrl(url?: string): string | null {
   if (!url || typeof url !== 'string') return null;
-  const match = url.match(/\/media\/(.+?)(\?.*)?$/i);
-  if (!match || !match[1]) return null;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return match[1];
+  const trimmed = url.trim();
+  const proxyMatch = trimmed.match(/(?:^|\/)media\/(.+?)(\?.*)?$/i);
+  if (proxyMatch && proxyMatch[1]) {
+    try {
+      return decodeURIComponent(proxyMatch[1]);
+    } catch {
+      return proxyMatch[1];
+    }
   }
+  if (trimmed.startsWith('sdo_media_vault/') || trimmed.startsWith('tenants/')) {
+    const clean = trimmed.split('?')[0];
+    try {
+      return decodeURIComponent(clean);
+    } catch {
+      return clean;
+    }
+  }
+  return null;
 }
 
 /**
@@ -155,11 +166,19 @@ export function getMediaUrlCandidates(url?: string, item?: Partial<MediaItem>): 
     }
   };
 
-  // If a custom proxy URL (/media/...) is provided as the URL, convert it to a direct Cloud Storage URL FIRST!
-  // This guarantees that if the domain/subdomain rewrite isn't active or on another tenant origin,
-  // the browser directly fetches the file from Google Cloud Storage without breaking.
-  if (url && url.includes('/media/')) {
-    const extractedPath = extractStoragePathFromProxyUrl(url);
+  const trimmedUrl = (url || '').trim();
+  const isProxyOrStoragePath = Boolean(
+    trimmedUrl &&
+      (trimmedUrl.includes('/media/') ||
+        trimmedUrl.startsWith('media/') ||
+        trimmedUrl.startsWith('sdo_media_vault/') ||
+        trimmedUrl.startsWith('tenants/'))
+  );
+
+  // If a custom proxy URL (/media/..., media/...) or bare storage path is provided, convert it to a direct Cloud Storage URL FIRST!
+  // This guarantees that relative paths never 404 on nested routes (e.g. /crm-groups) and work across all tenant origins.
+  if (isProxyOrStoragePath) {
+    const extractedPath = extractStoragePathFromProxyUrl(trimmedUrl);
     if (extractedPath) {
       const encoded = encodeURIComponent(extractedPath);
       add(`https://firebasestorage.googleapis.com/v0/b/${SYSTEM_MAIN_STORAGE_BUCKET}/o/${encoded}?alt=media`);
@@ -167,15 +186,20 @@ export function getMediaUrlCandidates(url?: string, item?: Partial<MediaItem>): 
     }
   }
 
-  // 1. If valid external or direct http(s) URL that's not an alien blob or proxy URL
-  if (url && !isAlienBlobUrl(url)) {
-    const isProxyUrl = url.includes('/media/');
-    if (!isProxyUrl) {
-      add(url);
-      if (url.includes(LEGACY_VAULT_BUCKET)) {
-        add(url.replace(LEGACY_VAULT_BUCKET, SYSTEM_MAIN_STORAGE_BUCKET));
-      } else if (url.includes(SYSTEM_MAIN_STORAGE_BUCKET)) {
-        add(url.replace(SYSTEM_MAIN_STORAGE_BUCKET, LEGACY_VAULT_BUCKET));
+  // 1. If valid external or direct http(s) URL that's not an alien blob, proxy URL, or bare relative storage path
+  if (trimmedUrl && !isAlienBlobUrl(trimmedUrl) && !isProxyOrStoragePath) {
+    const isAbsoluteOrSafe =
+      trimmedUrl.startsWith('http://') ||
+      trimmedUrl.startsWith('https://') ||
+      trimmedUrl.startsWith('/') ||
+      trimmedUrl.startsWith('data:') ||
+      trimmedUrl.startsWith('blob:');
+    if (isAbsoluteOrSafe) {
+      add(trimmedUrl);
+      if (trimmedUrl.includes(LEGACY_VAULT_BUCKET)) {
+        add(trimmedUrl.replace(LEGACY_VAULT_BUCKET, SYSTEM_MAIN_STORAGE_BUCKET));
+      } else if (trimmedUrl.includes(SYSTEM_MAIN_STORAGE_BUCKET)) {
+        add(trimmedUrl.replace(SYSTEM_MAIN_STORAGE_BUCKET, LEGACY_VAULT_BUCKET));
       }
     }
   }

@@ -93,6 +93,8 @@ export interface Contact {
 
   // Legacy Core Fields (being migrated to kosun_crm_*)
   conta_name?: string;
+  first_name?: string;
+  last_name?: string;
   f_m?: string;
   conta_phone?: string;
   email?: string;

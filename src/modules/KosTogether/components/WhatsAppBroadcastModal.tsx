@@ -31,7 +31,7 @@ import {
 } from '../services/whatsappService';
 import { addCommunityInteractionRecord } from '../services/firestoreService';
 import { draftCommunityBroadcastMessage } from '../services/togetherCopilotService';
-import { normalizePhoneNumber } from '../services/groupsUtils';
+import { normalizePhoneNumber, splitFullName } from '../services/groupsUtils';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract } from '../../../core/contracts';
 import { useTenantScope } from '../../../core/tenant';
@@ -98,8 +98,11 @@ export function personalizeBroadcastText(
   personalPageUrl: string
 ): string {
   if (!template) return '';
-  const contactName =
-    (contact.conta_name || contact.kosun_crm_name || contact.name || '').trim() || 'ידידי';
+  const fullName = (contact.conta_name || contact.kosun_crm_name || contact.name || '').trim();
+  const split = splitFullName(fullName);
+  const contactName = fullName || 'ידידי';
+  const firstName = (contact.first_name || '').trim() || split.firstName || 'ידידי';
+  const lastName = (contact.last_name || '').trim() || split.lastName || '';
   const communityName = (activeGroup?.name || contact.community || '').trim();
   const donationAmount = Number(contact.total_spent || contact.campaign_amount || 0);
   const formattedDonation = donationAmount > 0 ? `₪${donationAmount.toLocaleString()}` : '₪0';
@@ -107,6 +110,8 @@ export function personalizeBroadcastText(
   const contactCity = (contact.mh_crm_city || contact.city || '').trim();
 
   return template
+    .replace(/\{\{\s*(?:שם_פרטי|first_name)\s*\}\}|\{\s*(?:שם_פרטי|first_name)\s*\}/g, firstName)
+    .replace(/\{\{\s*(?:שם_משפחה|last_name)\s*\}\}|\{\s*(?:שם_משפחה|last_name)\s*\}/g, lastName)
     .replace(/\{\{\s*(?:שם|conta_name|name)\s*\}\}|\{\s*(?:שם|conta_name|name)\s*\}/g, contactName)
     .replace(/\{\{\s*(?:קהילה|community_name)\s*\}\}|\{\s*(?:קהילה|community_name)\s*\}/g, communityName)
     .replace(/\{\{\s*סכום_שנתרם\s*\}\}|\{\s*סכום_שנתרם\s*\}/g, formattedDonation)
@@ -274,7 +279,7 @@ export const WhatsAppBroadcastModal: React.FC<WhatsAppBroadcastModalProps> = ({
 
   const hasPersonalizationTag = useMemo(() => {
     const raw = mode === 'text' ? message : pollQuestion;
-    return /\{\{?\s*(?:שם|conta_name|name|קהילה|community_name|סכום_שנתרם|קישור_אישי|טלפון|עיר)\s*\}?\}/.test(
+    return /\{\{?\s*(?:שם|שם_פרטי|שם_משפחה|first_name|last_name|conta_name|name|קהילה|community_name|סכום_שנתרם|קישור_אישי|טלפון|עיר)\s*\}?\}/.test(
       raw
     );
   }, [mode, message, pollQuestion]);
@@ -750,7 +755,9 @@ export const WhatsAppBroadcastModal: React.FC<WhatsAppBroadcastModalProps> = ({
                   </span>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {[
-                      { tag: '{{שם}}', label: 'שם הנמען' },
+                      { tag: '{{שם_פרטי}}', label: 'שם פרטי' },
+                      { tag: '{{שם_משפחה}}', label: 'שם משפחה' },
+                      { tag: '{{שם}}', label: 'שם מלא' },
                       { tag: '{{קהילה}}', label: 'שם הקהילה' },
                       { tag: '{{סכום_שנתרם}}', label: 'סכום תרומה' },
                       { tag: '{{קישור_אישי}}', label: 'קישור לעמוד הקהילה' },

@@ -26,6 +26,8 @@ export const PRESET_COLORS = [
 
 export const ALL_GROUP_COLUMNS: GroupColumnDefinition[] = [
   { id: 'conta_name', label: 'שם איש קשר', minWidth: '180px' },
+  { id: 'first_name', label: 'שם פרטי', minWidth: '120px' },
+  { id: 'last_name', label: 'שם משפחה', minWidth: '120px' },
   { id: 'tags', label: 'קהילות וקבוצות משויכות', minWidth: '220px' },
   { id: 'conta_phone', label: 'טלפון', minWidth: '130px' },
   { id: 'email', label: 'אימייל', minWidth: '180px' },
@@ -47,6 +49,8 @@ export const RULE_FIELD_OPTIONS: { value: GroupRuleField; label: string; type: '
   { value: 'tags', label: 'תווית / תגית', type: 'text', placeholder: 'לדוגמה: VIP / שגריר / בוגרים' },
   { value: 'community', label: 'קהילה משויכת', type: 'text', placeholder: 'לדוגמה: קהילת ירושלים' },
   { value: 'conta_name', label: 'שם איש קשר', type: 'text', placeholder: 'לדוגמה: ישראל ישראלי' },
+  { value: 'first_name', label: 'שם פרטי', type: 'text', placeholder: 'לדוגמה: ישראל' },
+  { value: 'last_name', label: 'שם משפחה', type: 'text', placeholder: 'לדוגמה: ישראלי' },
   { value: 'conta_phone', label: 'מספר טלפון', type: 'text', placeholder: 'לדוגמה: 0501234567' },
   { value: 'email', label: 'כתובת אימייל', type: 'text', placeholder: 'לדוגמה: user@domain.com' },
   { value: 'mh_crm_city', label: 'עיר מגורים', type: 'text', placeholder: 'לדוגמה: ירושלים / תל אביב' },

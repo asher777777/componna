@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, doc, updateDoc } from 'firebase/firestore';
 import {
   ContactRecord,
   SelectableCampaignOrPage,
@@ -26,6 +26,7 @@ import {
   toggleContactTag,
   bulkRemoveTagsFromContacts,
   addCommunityInteractionRecord,
+  splitContactFullNamesInFirestore,
   MOCK_COMMUNITIES,
   MOCK_CONTACTS,
 } from '../services/firestoreService';
@@ -79,6 +80,8 @@ export interface CrmGroupsContextValue {
   bulkMoveBetweenGroups: (contactIds: string[], sourceGroupName: string, targetGroupName: string) => Promise<void>;
   toggleContactTag: (contactId: string, groupName: string) => Promise<void>;
   bulkRemoveTags: (tagNames: string[], contactIds?: string[]) => Promise<number>;
+  updateContactRecord: (contactId: string, updates: Partial<ContactRecord>) => Promise<boolean>;
+  splitAllContactNames: () => Promise<{ updatedCount: number; skippedCount: number }>;
   recordInteraction: (interaction: {
     contactId: string;
     contactName?: string;
@@ -739,6 +742,44 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
     return id;
   };
 
+  const updateContactRecord = async (contactId: string, updates: Partial<ContactRecord>): Promise<boolean> => {
+    if (!contactId) return false;
+    const cleanUpdates: Record<string, any> = {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    delete cleanUpdates.id;
+
+    // 1. Optimistic state update
+    setContacts((prev) =>
+      prev.map((c) => (c.id === contactId ? { ...c, ...cleanUpdates } : c))
+    );
+    eventBus.publish('crm:contact:updated', { id: contactId, ...cleanUpdates });
+
+    if (!db) return true;
+    try {
+      const collPath = resolvedCustomCollections.contacts || getScopedCollectionPath(SYSTEM_COLLECTIONS.CONTACTS);
+      await updateDoc(doc(db, collPath, contactId), cleanUpdates);
+      return true;
+    } catch (err) {
+      console.error('[CrmGroupsContext] Failed updating contact record:', err);
+      return false;
+    }
+  };
+
+  const splitAllContactNames = async (): Promise<{ updatedCount: number; skippedCount: number }> => {
+    const res = await splitContactFullNamesInFirestore(db, contacts, resolvedCustomCollections);
+    if (res.updatedCount > 0) {
+      setContacts((prev) =>
+        prev.map((c) => {
+          const upd = res.updatesMap[c.id];
+          return upd ? { ...c, ...upd } : c;
+        })
+      );
+    }
+    return { updatedCount: res.updatedCount, skippedCount: res.skippedCount };
+  };
+
   const value: CrmGroupsContextValue = {
     db,
     ownerId,
@@ -776,6 +817,8 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
     bulkMoveBetweenGroups,
     toggleContactTag: toggleSingleTag,
     bulkRemoveTags,
+    updateContactRecord,
+    splitAllContactNames,
     recordInteraction,
     onOpenContactDetail,
     onOpenCampaignPage,
