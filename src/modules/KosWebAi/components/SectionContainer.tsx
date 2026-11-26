@@ -24,6 +24,7 @@ import { SectionResolutionVisibilityMenu } from './SectionResolutionVisibilityMe
 import { SectionDimensionsMenu } from './SectionDimensionsMenu';
 import { SectionStickyMenu } from './SectionStickyMenu';
 import { SectionSpacingMenu } from './SectionSpacingMenu';
+import { SectionBackgroundMenu } from './SectionBackgroundMenu';
 import { getResolutionBadgeInfo } from '../utils/resolutionVisibility';
 import { SectionDesignLibraryModal } from './SectionDesignLibraryModal';
 
@@ -205,6 +206,12 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
                 compact
               />
               <SectionSpacingMenu
+                sectionId={sectionId}
+                sectionData={sectionData || { id: sectionId, type: effectiveType, visible, mobileHidden }}
+                onUpdateSection={onUpdateSection}
+                compact
+              />
+              <SectionBackgroundMenu
                 sectionId={sectionId}
                 sectionData={sectionData || { id: sectionId, type: effectiveType, visible, mobileHidden }}
                 onUpdateSection={onUpdateSection}

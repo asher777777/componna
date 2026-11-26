@@ -175,6 +175,8 @@ export type SectionWidthMode = 'centered' | 'wide' | 'full';
 
 export type SectionStickyPosition = 'none' | 'top' | 'bottom';
 
+export type SectionBackgroundMode = 'default' | 'transparent' | 'glass' | 'custom';
+
 export interface SectionSpacingValues {
   top?: number;
   bottom?: number;
@@ -194,6 +196,9 @@ export interface BaseSectionConfig {
   stickyPosition?: SectionStickyPosition;
   sectionPadding?: SectionSpacingValues;
   sectionMargin?: SectionSpacingValues;
+  sectionBackgroundMode?: SectionBackgroundMode;
+  sectionBackgroundColor?: string;
+  sectionBackgroundOpacity?: number;
   anchorId?: string;
   backgroundColor?: string;
   useBrandColors?: boolean;

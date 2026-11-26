@@ -20,6 +20,7 @@ import { SectionResolutionVisibilityMenu } from './components/SectionResolutionV
 import { SectionDimensionsMenu, getSectionWidthWrapperClasses, getSectionWidthMode } from './components/SectionDimensionsMenu';
 import { SectionStickyMenu, getSectionStickyPosition, getSectionStickyClasses } from './components/SectionStickyMenu';
 import { SectionSpacingMenu, getSectionMarginStyle, getSectionPaddingStyle } from './components/SectionSpacingMenu';
+import { SectionBackgroundMenu, getSectionBackgroundWrapperProps } from './components/SectionBackgroundMenu';
 import { getResolutionVisibilityClasses, getResolutionBadgeInfo } from './utils/resolutionVisibility';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { sanitizeSectionConfig } from './utils/sanitizeConfig';
@@ -191,6 +192,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
           const stickyPosition = getSectionStickyPosition(sectionData);
           const sectionMarginStyle = getSectionMarginStyle(sectionData);
           const sectionPaddingStyle = getSectionPaddingStyle(sectionData);
+          const sectionBgProps = getSectionBackgroundWrapperProps(sectionData);
 
           return (
             <div
@@ -200,10 +202,11 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                 'w-full relative group/section transition-all',
                 getSectionStickyClasses(stickyPosition, isEditing),
                 getResolutionVisibilityClasses(sectionData, isEditing),
+                sectionBgProps.className,
                 isEditing && 'border-y border-dashed border-slate-700/60 hover:border-indigo-500/80 my-1 py-1',
                 isHidden && 'opacity-60 bg-slate-950/40'
               )}
-              style={sectionMarginStyle}
+              style={{ ...sectionMarginStyle, ...sectionBgProps.style }}
             >
               {/* On-Page Live Edit Floating Toolbar */}
               {isEditing && (
@@ -303,6 +306,15 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                       {/* Section Spacing (שוליים פנימיים וחיצוניים) */}
                       {onUpdateSection && (
                         <SectionSpacingMenu
+                          sectionId={sectionId}
+                          sectionData={sectionData}
+                          onUpdateSection={onUpdateSection}
+                        />
+                      )}
+
+                      {/* Section Background (שליטה ברקע האזור: שקוף / זכוכית / צבע מותאם) */}
+                      {onUpdateSection && (
+                        <SectionBackgroundMenu
                           sectionId={sectionId}
                           sectionData={sectionData}
                           onUpdateSection={onUpdateSection}

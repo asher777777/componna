@@ -4,6 +4,7 @@ import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import { isSectionVisibleInViewport } from '../utils/resolutionVisibility';
 import { getSectionStickyPosition, getSectionStickyClasses } from './SectionStickyMenu';
 import { getSectionSpacingStyle } from './SectionSpacingMenu';
+import { getSectionBackgroundWrapperProps } from './SectionBackgroundMenu';
 import { Sparkles, MessageCircle, Phone, LogIn } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useBrandDna } from '../../KosBranding/hooks/useBrandDna';
@@ -77,15 +78,17 @@ export const LivePreviewFrame: React.FC<LivePreviewFrameProps> = ({
 
             const ViewComponent = regDef.viewComponent;
 
+            const bgProps = getSectionBackgroundWrapperProps(sectionData);
             return (
               <div
                 key={sectionId}
                 id={sectionData.anchorId || sectionId}
                 className={clsx(
                   'w-full relative',
-                  getSectionStickyClasses(getSectionStickyPosition(sectionData), false)
+                  getSectionStickyClasses(getSectionStickyPosition(sectionData), false),
+                  bgProps.className
                 )}
-                style={getSectionSpacingStyle(sectionData)}
+                style={{ ...getSectionSpacingStyle(sectionData), ...bgProps.style }}
               >
                 <ViewComponent config={sanitizeSectionConfig(sectionData)} />
               </div>
