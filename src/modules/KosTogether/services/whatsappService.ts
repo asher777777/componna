@@ -178,12 +178,52 @@ export async function importWhatsAppParticipantsToCrm(
   };
 }
 
-export async function sendWhatsAppMessage(
+export interface GreenApiSendResult {
+  ok: boolean;
+  idMessage?: string;
+  error?: string;
+  statusCode?: number;
+}
+
+export function extractFileNameFromUrl(url: string): string {
+  try {
+    const cleanUrl = url.split('?')[0];
+    const decoded = decodeURIComponent(cleanUrl);
+    const lastSegment = decoded.split('/').pop() || '';
+    return lastSegment.trim() || 'attachment';
+  } catch {
+    return 'attachment';
+  }
+}
+
+export async function setGreenApiBulkDelay(
+  delayMs: number,
+  config?: GreenApiConfig
+): Promise<boolean> {
+  if (!config?.idInstance || !config?.apiTokenInstance) return false;
+  try {
+    const safeDelay = Math.max(500, Math.min(60000, Math.round(delayMs)));
+    const url = `${getGreenApiBaseUrl(config)}/setSettings/${config.apiTokenInstance}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ delaySendMessagesMilliseconds: safeDelay }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Error setting Green-API bulk delay:', err);
+    return false;
+  }
+}
+
+export async function sendWhatsAppMessageDetailed(
   phone: string,
   message: string,
   config?: GreenApiConfig
-): Promise<boolean> {
-  if (!config?.idInstance || !config?.apiTokenInstance || !phone || !message) return false;
+): Promise<GreenApiSendResult> {
+  if (!config?.idInstance || !config?.apiTokenInstance || !phone || !message) {
+    return { ok: false, error: 'חסרים פרטי התחברות או תוכן הודעה' };
+  }
 
   try {
     const normPhone = normalizePhoneNumber(phone);
@@ -196,21 +236,77 @@ export async function sendWhatsAppMessage(
       body: JSON.stringify({ chatId, message }),
     });
 
-    return res.ok;
-  } catch (err) {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, statusCode: res.status, error: data?.message || `HTTP ${res.status}` };
+    }
+    return { ok: true, idMessage: data?.idMessage };
+  } catch (err: any) {
     console.warn('Error sending WhatsApp message:', err);
-    return false;
+    return { ok: false, error: err?.message || 'שגיאת רשת בשליחה' };
   }
 }
 
-export async function sendWhatsAppPoll(
+export async function sendWhatsAppMessage(
+  phone: string,
+  message: string,
+  config?: GreenApiConfig
+): Promise<boolean> {
+  const res = await sendWhatsAppMessageDetailed(phone, message, config);
+  return res.ok;
+}
+
+export async function sendWhatsAppFileByUrl(
+  params: {
+    phone: string;
+    urlFile: string;
+    fileName?: string;
+    caption?: string;
+  },
+  config?: GreenApiConfig
+): Promise<GreenApiSendResult> {
+  if (!config?.idInstance || !config?.apiTokenInstance || !params.phone || !params.urlFile) {
+    return { ok: false, error: 'חסרים פרטי התחברות, טלפון או קישור לקובץ' };
+  }
+
+  try {
+    const normPhone = normalizePhoneNumber(params.phone);
+    const chatId = `${normPhone}@c.us`;
+    const url = `${getGreenApiBaseUrl(config)}/sendFileByUrl/${config.apiTokenInstance}`;
+    const resolvedName = (params.fileName || '').trim() || extractFileNameFromUrl(params.urlFile);
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chatId,
+        urlFile: params.urlFile.trim(),
+        fileName: resolvedName,
+        caption: params.caption || undefined,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, statusCode: res.status, error: data?.message || `HTTP ${res.status}` };
+    }
+    return { ok: true, idMessage: data?.idMessage };
+  } catch (err: any) {
+    console.warn('Error sending WhatsApp file by URL:', err);
+    return { ok: false, error: err?.message || 'שגיאת רשת בשליחת קובץ' };
+  }
+}
+
+export async function sendWhatsAppPollDetailed(
   chatIdOrPhone: string,
   question: string,
   options: string[],
   multipleAnswers: boolean = false,
   config?: GreenApiConfig
-): Promise<boolean> {
-  if (!config?.idInstance || !config?.apiTokenInstance || !chatIdOrPhone || !question) return false;
+): Promise<GreenApiSendResult> {
+  if (!config?.idInstance || !config?.apiTokenInstance || !chatIdOrPhone || !question) {
+    return { ok: false, error: 'חסרים פרטי התחברות או שאלת סקר' };
+  }
 
   try {
     const isGroup = chatIdOrPhone.includes('@');
@@ -228,9 +324,24 @@ export async function sendWhatsAppPoll(
       }),
     });
 
-    return res.ok;
-  } catch (err) {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, statusCode: res.status, error: data?.message || `HTTP ${res.status}` };
+    }
+    return { ok: true, idMessage: data?.idMessage };
+  } catch (err: any) {
     console.warn('Error sending WhatsApp poll:', err);
-    return false;
+    return { ok: false, error: err?.message || 'שגיאת רשת בשליחת סקר' };
   }
+}
+
+export async function sendWhatsAppPoll(
+  chatIdOrPhone: string,
+  question: string,
+  options: string[],
+  multipleAnswers: boolean = false,
+  config?: GreenApiConfig
+): Promise<boolean> {
+  const res = await sendWhatsAppPollDetailed(chatIdOrPhone, question, options, multipleAnswers, config);
+  return res.ok;
 }

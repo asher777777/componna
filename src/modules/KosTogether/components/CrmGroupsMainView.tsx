@@ -459,7 +459,7 @@ export const CrmGroupsMainView: React.FC = () => {
             <GroupContactsTable
               onOpenTransferModal={handleOpenTransferModal}
               onOpenAddMembersModal={() => setIsAddMembersModalOpen(true)}
-              onOpenWhatsAppBroadcast={() => handleOpenWhatsAppBroadcast()}
+              onOpenWhatsAppBroadcast={(contactIds) => handleOpenWhatsAppBroadcast(contactIds)}
               onOpenContactDetail={onOpenContactDetail}
               onOpenCommunityPortal={() => setMainMode('micro_portal')}
               onOpenCommunityChat={() => setMainMode('community_chat')}
