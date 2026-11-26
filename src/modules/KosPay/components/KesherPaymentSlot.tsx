@@ -31,6 +31,7 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
   const { isConfigured, processCreditCardPayment, processBitPayment } = useKesherPaymentsContext();
 
   const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'bit'>('credit_card');
+  const [bitPhone, setBitPhone] = useState(phone || '');
   const [cardNumber, setCardNumber] = useState('');
   const [expiryMonth, setExpiryMonth] = useState('');
   const [expiryYear, setExpiryYear] = useState('');
@@ -52,9 +53,15 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
 
     try {
       if (!isRecurring && paymentMethod === 'bit') {
+        const cleanBitPhone = (bitPhone || phone || '').replace(/\D/g, '');
+        if (cleanBitPhone.length < 9) {
+          setErrorMsg('נא להזין מספר טלפון נייד תקין לתשלום ב-Bit');
+          setIsProcessing(false);
+          return;
+        }
         const res = await processBitPayment({
           clientName: clientName || 'לקוח KSF',
-          phoneNumber: phone || '',
+          phoneNumber: cleanBitPhone,
           amount,
           description,
           documentType: (Number(documentType) || 320) as any,
@@ -199,6 +206,23 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
             <Smartphone className="w-5 h-5" />
             <span className="text-xs">תשלום ב-Bit</span>
           </button>
+        </div>
+      )}
+
+      {!isRecurring && paymentMethod === 'bit' && (
+        <div className="space-y-2 pt-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+            מספר טלפון נייד לתשלום ב-Bit *
+          </label>
+          <input
+            type="tel"
+            dir="ltr"
+            value={bitPhone}
+            onChange={(e) => setBitPhone(e.target.value.replace(/[^\d-]/g, ''))}
+            placeholder="050-1234567"
+            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-4 py-2.5 text-sm font-mono text-left focus:outline-none focus:border-emerald-500"
+            required
+          />
         </div>
       )}
 

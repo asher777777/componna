@@ -472,7 +472,7 @@ export class KesherService {
         password: this.settings.apiKey,
         func: 'SendBitTransaction',
         format: 'json',
-        bitTran: {
+        transaction: {
           Phone: req.phoneNumber.replace(/\D/g, ''),
           Total: Math.round(Number(req.amount) * 100),
           Currency: 1,
@@ -485,12 +485,37 @@ export class KesherService {
     };
 
     const result = await this.postToConnect(payload);
+    const resData = result?.data || result;
+    const numericCode = resData?.Code !== undefined && resData?.Code !== null && resData?.Code !== ''
+      ? Number(resData.Code)
+      : 0;
 
-    if (result.Status === false) {
-      throw new Error(result.Description || 'שגיאה בשליחת תשלום ב-Bit');
+    if (
+      !resData ||
+      resData.Status === false ||
+      resData.Succeeded === false ||
+      resData.Success === false ||
+      resData.success === false ||
+      resData.status === 'error' ||
+      Boolean(resData.Error) ||
+      Boolean(resData.error) ||
+      Boolean(resData.faultcode) ||
+      (Number.isFinite(numericCode) && numericCode !== 0)
+    ) {
+      throw new Error(
+        resData?.Description ||
+          resData?.faultstring ||
+          resData?.Error ||
+          resData?.error ||
+          resData?.Message ||
+          'שגיאה בשליחת תשלום ב-Bit'
+      );
     }
 
-    return result;
+    return {
+      ...resData,
+      Status: true,
+    };
   }
 
   /**
