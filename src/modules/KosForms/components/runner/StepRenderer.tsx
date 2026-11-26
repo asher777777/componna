@@ -10,8 +10,9 @@ import { useTenantScope } from '../../../../core/tenant';
 import { NedarimCheckout } from '../../../KosNedarim/components/NedarimCheckout';
 import { TicketBookingStepView, CouponCodeStepView } from './TicketAndCouponStepViews';
 import { resolveFinalPaymentAmount, resolvePaymentIsRecurring } from '../../services/ticketCouponService';
+import { evaluateFormula } from '../../utils/formulaEvaluator';
 import { resolveKoswebFormStyle } from '../../config/koswebStylePresets';
-import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2, Globe, Lock, CreditCard, CheckCircle2 } from 'lucide-react';
+import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2, Globe, Lock, CreditCard, CheckCircle2, Coins, Calculator } from 'lucide-react';
 
 export interface StepRendererProps {
   step: FormStep;
@@ -253,6 +254,57 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
             )}
           </div>
         );
+
+      case 'price': {
+        const displayVal = value !== undefined && value !== '' ? value : (step.defaultValue ?? 0);
+        const isEditable = step.priceEditable !== false;
+        return (
+          <div className="w-full max-w-xl">
+            {isEditable ? (
+              <div className="relative flex items-center">
+                <input
+                  type="number"
+                  min={0}
+                  dir="ltr"
+                  autoFocus
+                  value={displayVal}
+                  onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder={step.placeholder || '0'}
+                  className={`w-full px-5 py-4 pl-12 font-mono text-left text-xl font-bold transition-all outline-none focus-visible:outline-2 focus-visible:outline-offset-2 shadow-sm ${styleTokens.inputClass}`}
+                />
+                <span className="absolute left-4 text-lg font-black text-amber-500 select-none">₪</span>
+              </div>
+            ) : (
+              <div className="p-5 bg-white/80 dark:bg-slate-900/80 border-2 border-amber-500/30 rounded-2xl flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-2.5 text-slate-700 dark:text-slate-200 font-bold text-sm">
+                  <Coins className="w-5 h-5 text-amber-500" />
+                  <span>מחיר לתשלום:</span>
+                </div>
+                <span className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
+                  ₪{displayVal}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case 'calculated': {
+        const computed = evaluateFormula(step.calcFormula, allAnswers || {}, form?.steps || []);
+        return (
+          <div className="w-full max-w-xl">
+            <div className="p-5 bg-white/80 dark:bg-slate-900/80 border-2 border-indigo-500/30 rounded-2xl flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2.5 text-slate-700 dark:text-slate-200 font-bold text-sm">
+                <Calculator className="w-5 h-5 text-indigo-500" />
+                <span>{step.isPriceField ? 'סכום מחושב לתשלום:' : 'תוצאת החישוב:'}</span>
+              </div>
+              <span className="text-2xl font-black font-mono text-indigo-600 dark:text-indigo-400">
+                {step.isPriceField ? `₪${computed}` : computed}
+              </span>
+            </div>
+          </div>
+        );
+      }
 
       case 'textarea':
         return (

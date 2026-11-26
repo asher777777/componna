@@ -4,6 +4,8 @@ export type FieldType =
   | 'email'
   | 'phone'
   | 'number'
+  | 'price'
+  | 'calculated'
   | 'single_choice'
   | 'multi_choice'
   | 'rating'
@@ -82,6 +84,30 @@ export interface FieldOption {
   iconName?: string;
 }
 
+export type ConditionOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'contains'
+  | 'greater_than'
+  | 'less_than'
+  | 'greater_or_equal'
+  | 'less_or_equal'
+  | 'is_empty'
+  | 'is_not_empty';
+
+export interface StepConditionRule {
+  id: string;
+  fieldKey: string;
+  operator: ConditionOperator;
+  value?: string;
+}
+
+export interface StepConditionalLogic {
+  enabled: boolean;
+  logicType: 'all' | 'any';
+  rules: StepConditionRule[];
+}
+
 export interface FormStep {
   id: string;
   order: number;
@@ -104,6 +130,13 @@ export interface FormStep {
   ticketTiers?: TicketTier[];
   collectAttendeeNames?: boolean;
   coupons?: CouponDefinition[];
+  // Price field configuration (fieldType === 'price')
+  priceEditable?: boolean;
+  // Calculated field configuration (fieldType === 'calculated')
+  calcFormula?: string;
+  isPriceField?: boolean;
+  // Universal conditional visibility logic
+  conditionalLogic?: StepConditionalLogic;
   // Payment step configuration (fieldType === 'payment')
   paymentAmountSource?: 'fixed' | 'field';
   paymentAmountFieldKey?: string;

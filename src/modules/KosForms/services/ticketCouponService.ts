@@ -8,6 +8,7 @@ import {
   TicketBookingAnswer,
 } from '../types';
 import { DEFAULT_FORMS_COLLECTION } from '../config/constants';
+import { evaluateFormula } from '../utils/formulaEvaluator';
 
 export interface CouponValidationOutcome {
   valid: boolean;
@@ -91,9 +92,16 @@ export function resolveOrderSubtotal(
       return rawFromField.subtotal;
     }
     const sourceStep = allSteps?.find((s) => (s.mappingKey || s.id) === fieldKey || s.id === fieldKey);
+    if (sourceStep?.fieldType === 'calculated') {
+      return Math.max(0, evaluateFormula(sourceStep.calcFormula, allAnswers, allSteps));
+    }
     const parsed = parseNumericAmount(rawFromField, sourceStep);
     if (parsed !== null) {
       return parsed;
+    }
+    if (sourceStep?.fieldType === 'price' && sourceStep.defaultValue !== undefined) {
+      const defNum = Number(sourceStep.defaultValue);
+      if (Number.isFinite(defNum) && defNum >= 0) return defNum;
     }
     return fallbackAmount;
   }
@@ -101,6 +109,19 @@ export function resolveOrderSubtotal(
   const ticketAnswer = findTicketBookingAnswer(allAnswers);
   if (ticketAnswer && typeof ticketAnswer.subtotal === 'number') {
     return ticketAnswer.subtotal;
+  }
+
+  // 2. Auto-detect a calculated step marked as isPriceField or a standalone price step
+  const autoPriceCalc = allSteps?.find((s) => s.fieldType === 'calculated' && s.isPriceField);
+  if (autoPriceCalc) {
+    return Math.max(0, evaluateFormula(autoPriceCalc.calcFormula, allAnswers, allSteps));
+  }
+  const autoPriceStep = allSteps?.find((s) => s.fieldType === 'price');
+  if (autoPriceStep) {
+    const pKey = autoPriceStep.mappingKey || autoPriceStep.id;
+    const pRaw = allAnswers[pKey] ?? autoPriceStep.defaultValue;
+    const pNum = parseNumericAmount(pRaw, autoPriceStep);
+    if (pNum !== null) return pNum;
   }
 
   const raw =

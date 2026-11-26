@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Firestore } from 'firebase/firestore';
 import { SmartFormDefinition, FormStep } from '../types';
 import { submitFormResponse } from '../services/submissionStorageService';
 import { trackFormView, trackFormStart } from '../services/formStorageService';
 import { resolveFinalPaymentAmount } from '../services/ticketCouponService';
+import { evaluateFormula, isStepVisible } from '../utils/formulaEvaluator';
 import { DEFAULT_FORMS_COLLECTION } from '../config/constants';
 
 export interface UseFormRunnerOptions {
@@ -41,11 +42,40 @@ export function useFormRunnerState({
     }
   }, [form?.id, previewMode, customFirestore, collectionName]);
 
-  const steps = form.steps || [];
-  const currentStep: FormStep | undefined = steps[currentStepIndex];
-  const isFirstStep = currentStepIndex === 0;
-  const isLastStep = currentStepIndex === steps.length - 1;
-  const progressPercent = steps.length > 0 ? Math.round(((currentStepIndex + 1) / steps.length) * 100) : 0;
+  const allSteps = form.steps || [];
+
+  // Auto-sync default values for price steps and live formulas for calculated steps
+  useEffect(() => {
+    setAnswers((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const s of allSteps) {
+        const key = s.mappingKey || s.id;
+        if (s.fieldType === 'price' && next[key] === undefined && s.defaultValue !== undefined) {
+          next[key] = Number(s.defaultValue) || 0;
+          changed = true;
+        } else if (s.fieldType === 'calculated') {
+          const val = evaluateFormula(s.calcFormula, next, allSteps);
+          if (next[key] !== val) {
+            next[key] = val;
+            changed = true;
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [allSteps, answers]);
+
+  const steps = useMemo(
+    () => allSteps.filter((s) => isStepVisible(s, answers, allSteps)),
+    [allSteps, answers]
+  );
+
+  const safeStepIndex = steps.length > 0 ? Math.min(currentStepIndex, steps.length - 1) : 0;
+  const currentStep: FormStep | undefined = steps[safeStepIndex];
+  const isFirstStep = safeStepIndex === 0;
+  const isLastStep = safeStepIndex === steps.length - 1;
+  const progressPercent = steps.length > 0 ? Math.round(((safeStepIndex + 1) / steps.length) * 100) : 0;
 
   const getStepKey = useCallback(
     (step: FormStep) => step.mappingKey || step.id,
@@ -216,7 +246,7 @@ export function useFormRunnerState({
   }, []);
 
   return {
-    currentStepIndex,
+    currentStepIndex: safeStepIndex,
     currentStep,
     stepsCount: steps.length,
     isFirstStep,

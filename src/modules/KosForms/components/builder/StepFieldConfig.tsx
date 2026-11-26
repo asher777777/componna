@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { FormStep, FieldType, FieldOption, TicketTier, CouponDefinition } from '../../types';
+import {
+  FormStep,
+  FieldType,
+  FieldOption,
+  TicketTier,
+  CouponDefinition,
+  ConditionOperator,
+  StepConditionRule,
+} from '../../types';
 import { TenantStylePreset } from '../../../../core/contracts';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import { IconPickerModal } from '../shared/IconPickerModal';
@@ -22,6 +30,9 @@ import {
   Ticket,
   Tag,
   CreditCard,
+  Coins,
+  Calculator,
+  GitBranch,
 } from 'lucide-react';
 
 export interface StepFieldConfigProps {
@@ -38,6 +49,8 @@ const FIELD_TYPES: { type: FieldType; label: string; icon: any }[] = [
   { type: 'email', label: 'דואר אלקטרוני', icon: Mail },
   { type: 'phone', label: 'מספר טלפון', icon: Phone },
   { type: 'number', label: 'מספר / כמות', icon: Hash },
+  { type: 'price', label: 'שדה מחיר (₪)', icon: Coins },
+  { type: 'calculated', label: 'שדה חישוב', icon: Calculator },
   { type: 'single_choice', label: 'בחירה יחידה (כרטיסיות יוקרה)', icon: Sparkles },
   { type: 'multi_choice', label: 'בחירה מרובה (צ\'קבוקס)', icon: CheckSquare },
   { type: 'rating', label: 'דירוג כוכבי יוקרה', icon: Star },
@@ -271,7 +284,17 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
                   value={opt.label}
                   onChange={(e) => handleUpdateOption(idx, { label: e.target.value })}
                   placeholder="כותרת האפשרות"
-                  className="flex-1 min-w-[140px] px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-white"
+                  className="flex-1 min-w-[120px] px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-white"
+                />
+
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={opt.value}
+                  onChange={(e) => handleUpdateOption(idx, { value: e.target.value })}
+                  placeholder="ערך הבחירה (למשל: 100 / vip)"
+                  title="ערך הבחירה (ישמש לחישובים, תנאים לוגיים וקביעת מחיר/אופן תשלום)"
+                  className="w-32 sm:w-36 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/60 rounded-lg text-xs font-mono text-left text-indigo-700 dark:text-indigo-300"
                 />
 
                 <input
@@ -279,7 +302,7 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
                   value={opt.description || ''}
                   onChange={(e) => handleUpdateOption(idx, { description: e.target.value })}
                   placeholder="הסבר קצר (אופציונלי)"
-                  className="flex-1 min-w-[140px] px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-700 dark:text-slate-300"
+                  className="flex-1 min-w-[120px] px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-700 dark:text-slate-300"
                 />
 
                 <button
@@ -294,6 +317,140 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
           </div>
         </div>
       )}
+
+      {/* Price Field Config */}
+      {step.fieldType === 'price' && (
+        <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 text-xs" dir="rtl">
+          <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200">
+            <Coins className="w-4 h-4 text-amber-500" />
+            <span>הגדרות שדה מחיר (₪)</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="font-semibold text-slate-600 dark:text-slate-400">
+                סכום ברירת מחדל / מחיר (₪):
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={step.defaultValue ?? 0}
+                onChange={(e) => updateField('defaultValue', e.target.value === '' ? 0 : Number(e.target.value))}
+                className="w-28 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold text-slate-900 dark:text-white"
+                dir="ltr"
+              />
+            </div>
+
+            <label className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={step.priceEditable !== false}
+                onChange={(e) => updateField('priceEditable', e.target.checked)}
+                className="w-3.5 h-3.5 rounded text-amber-600"
+              />
+              <span>אפשר למשתמש לשנות את הסכום (תרומה / מחיר חופשי)</span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Calculated Field Config */}
+      {step.fieldType === 'calculated' && (() => {
+        const otherSteps = allSteps.filter((s) => s.id !== step.id);
+        const formula = step.calcFormula || '';
+        const appendToFormula = (snippet: string) => {
+          const spacer = formula && !formula.endsWith(' ') && !formula.endsWith('(') ? ' ' : '';
+          updateField('calcFormula', `${formula}${spacer}${snippet}`);
+        };
+
+        return (
+          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 text-xs" dir="rtl">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200">
+                <Calculator className="w-4 h-4 text-indigo-500" />
+                <span>הגדרות שדה חישוב מתמטי</span>
+              </div>
+
+              <label className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400 cursor-pointer bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                <input
+                  type="checkbox"
+                  checked={Boolean(step.isPriceField)}
+                  onChange={(e) => updateField('isPriceField', e.target.checked)}
+                  className="w-3.5 h-3.5 rounded text-emerald-600"
+                />
+                <span>השתמש בתוצאה כשדה מחיר לתשלום (₪)</span>
+              </label>
+            </div>
+
+            {/* Selectors for Fields and Math Functions */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-600 dark:text-slate-400 block">
+                  הוסף שדה מהטופס לנוסחה:
+                </label>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) appendToFormula(`{${e.target.value}}`);
+                  }}
+                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                >
+                  <option value="">-- בחר שדה להוספה --</option>
+                  {otherSteps.map((s) => {
+                    const key = s.mappingKey || s.id;
+                    return (
+                      <option key={s.id} value={key}>
+                        שלב #{s.order}: {s.title} ({key})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-600 dark:text-slate-400 block">
+                  הוסף פעולה / פונקציה מתמטית:
+                </label>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) appendToFormula(e.target.value);
+                  }}
+                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                >
+                  <option value="">-- בחר פעולה או פונקציה --</option>
+                  <option value="+">+ חיבור</option>
+                  <option value="-">- חיסור</option>
+                  <option value="*">* כפל</option>
+                  <option value="/">/ חילוק</option>
+                  <option value="(">( פתיחת סוגריים</option>
+                  <option value=")">) סגירת סוגריים</option>
+                  <option value="ROUND()">ROUND() - עיגול</option>
+                  <option value="FLOOR()">FLOOR() - עיגול מטה</option>
+                  <option value="CEIL()">CEIL() - עיגול מעלה</option>
+                  <option value="ABS()">ABS() - ערך מוחלט</option>
+                  <option value="MIN( , )">MIN(a, b) - מינימום</option>
+                  <option value="MAX( , )">MAX(a, b) - מקסימום</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Formula Text Input for numbers and expressions */}
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-600 dark:text-slate-400 block">
+                נוסחת החישוב (ניתן להקליד מספרים, פעולות ומשתנים כמו {'{quantity} * 50'}):
+              </label>
+              <input
+                type="text"
+                dir="ltr"
+                value={formula}
+                onChange={(e) => updateField('calcFormula', e.target.value)}
+                placeholder="לדוגמה: {field_1} * 100 + 50"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 rounded-lg font-mono text-left text-sm text-slate-900 dark:text-white"
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Rating & Scale Settings */}
       {step.fieldType === 'rating' && (
@@ -833,6 +990,197 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
                 <span>חייב הזנת ת.ז בסליקת אשראי</span>
               </label>
             </div>
+          </div>
+        );
+      })()}
+
+      {/* Universal Conditional Logic (תנאים לוגיים להצגת השדה) */}
+      {(() => {
+        const otherSteps = allSteps.filter((s) => s.id !== step.id);
+        const logic = step.conditionalLogic || { enabled: false, logicType: 'all' as const, rules: [] };
+        const updateLogic = (patch: Partial<typeof logic>) => {
+          updateField('conditionalLogic', { ...logic, ...patch });
+        };
+
+        const addRule = () => {
+          const defaultTarget = otherSteps[0];
+          const newRule: StepConditionRule = {
+            id: `rule_${Date.now()}`,
+            fieldKey: defaultTarget ? (defaultTarget.mappingKey || defaultTarget.id) : '',
+            operator: 'equals',
+            value: '',
+          };
+          updateLogic({ enabled: true, rules: [...(logic.rules || []), newRule] });
+        };
+
+        const updateRule = (idx: number, patch: Partial<StepConditionRule>) => {
+          const next = [...(logic.rules || [])];
+          next[idx] = { ...next[idx], ...patch };
+          updateLogic({ rules: next });
+        };
+
+        const deleteRule = (idx: number) => {
+          const next = [...(logic.rules || [])];
+          next.splice(idx, 1);
+          updateLogic({ rules: next });
+        };
+
+        const OPERATORS: { value: ConditionOperator; label: string }[] = [
+          { value: 'equals', label: 'שווה ל- (=)' },
+          { value: 'not_equals', label: 'שונה מ- (≠)' },
+          { value: 'contains', label: 'מכיל' },
+          { value: 'greater_than', label: 'גדול מ- (>)' },
+          { value: 'less_than', label: 'קטן מ- (<)' },
+          { value: 'greater_or_equal', label: 'גדול או שווה ל- (≥)' },
+          { value: 'less_or_equal', label: 'קטן או שווה ל- (≤)' },
+          { value: 'is_empty', label: 'ריק' },
+          { value: 'is_not_empty', label: 'לא ריק' },
+        ];
+
+        return (
+          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3 text-xs" dir="rtl">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={Boolean(logic.enabled)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    if (checked && (!logic.rules || logic.rules.length === 0)) {
+                      const defaultTarget = otherSteps[0];
+                      updateField('conditionalLogic', {
+                        enabled: true,
+                        logicType: logic.logicType || 'all',
+                        rules: [
+                          {
+                            id: `rule_${Date.now()}`,
+                            fieldKey: defaultTarget ? (defaultTarget.mappingKey || defaultTarget.id) : '',
+                            operator: 'equals',
+                            value: '',
+                          },
+                        ],
+                      });
+                    } else {
+                      updateLogic({ enabled: checked });
+                    }
+                  }}
+                  className="w-3.5 h-3.5 rounded text-indigo-600"
+                />
+                <GitBranch className="w-4 h-4 text-indigo-500" />
+                <span>תנאים לוגיים להצגת השדה</span>
+              </label>
+
+              {logic.enabled && (
+                <div className="flex items-center gap-2">
+                  <select
+                    value={logic.logicType || 'all'}
+                    onChange={(e) => updateLogic({ logicType: e.target.value as 'all' | 'any' })}
+                    className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 font-semibold"
+                  >
+                    <option value="all">כל התנאים מתקיימים (וגם)</option>
+                    <option value="any">לפחות תנאי אחד מתקיים (או)</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={addRule}
+                    className="px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold rounded-lg flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>הוסף תנאי</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {logic.enabled && (
+              <div className="space-y-2">
+                {(logic.rules || []).map((rule, rIdx) => {
+                  const targetStep = otherSteps.find(
+                    (s) => (s.mappingKey || s.id) === rule.fieldKey || s.id === rule.fieldKey
+                  );
+                  const needsValue = rule.operator !== 'is_empty' && rule.operator !== 'is_not_empty';
+
+                  return (
+                    <div
+                      key={rule.id || rIdx}
+                      className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-wrap items-center gap-2"
+                    >
+                      <select
+                        value={rule.fieldKey}
+                        onChange={(e) => updateRule(rIdx, { fieldKey: e.target.value })}
+                        className="flex-1 min-w-[150px] px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                      >
+                        <option value="">-- בחר שדה --</option>
+                        {otherSteps.map((s) => {
+                          const key = s.mappingKey || s.id;
+                          return (
+                            <option key={s.id} value={key}>
+                              שלב #{s.order}: {s.title}
+                            </option>
+                          );
+                        })}
+                      </select>
+
+                      <select
+                        value={rule.operator}
+                        onChange={(e) => updateRule(rIdx, { operator: e.target.value as ConditionOperator })}
+                        className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                      >
+                        {OPERATORS.map((op) => (
+                          <option key={op.value} value={op.value}>
+                            {op.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      {needsValue && (
+                        <>
+                          {targetStep?.options && targetStep.options.length > 0 && (
+                            <select
+                              value={
+                                targetStep.options.some((o) => o.value === rule.value)
+                                  ? rule.value
+                                  : '__custom__'
+                              }
+                              onChange={(e) => {
+                                if (e.target.value !== '__custom__') {
+                                  updateRule(rIdx, { value: e.target.value });
+                                }
+                              }}
+                              className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                            >
+                              <option value="__custom__">ערך מותאם / מתמטי</option>
+                              {targetStep.options.map((o) => (
+                                <option key={o.id} value={o.value}>
+                                  {o.label} ({o.value})
+                                </option>
+                              ))}
+                            </select>
+                          )}
+
+                          <input
+                            type="text"
+                            value={rule.value || ''}
+                            onChange={(e) => updateRule(rIdx, { value: e.target.value })}
+                            placeholder="ערך להשוואה או ביטוי (למשל: {qty} * 10)"
+                            className="flex-1 min-w-[140px] px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                          />
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => deleteRule(rIdx)}
+                        className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg"
+                        title="מחק תנאי"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })()}
