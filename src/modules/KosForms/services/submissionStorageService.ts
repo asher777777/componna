@@ -59,7 +59,13 @@ export async function submitFormResponse(
   const now = new Date().toISOString();
 
   // Resolve ticket booking & coupon usage
-  const { finalAmount, appliedCoupon, ticketBooking } = resolveFinalPaymentAmount(rawAnswers, 0);
+  const paymentStep = form.steps?.find((s) => s.fieldType === 'payment');
+  const { finalAmount, appliedCoupon, ticketBooking } = resolveFinalPaymentAmount(
+    rawAnswers,
+    paymentStep ? Number(paymentStep.defaultValue) || 0 : 0,
+    paymentStep,
+    form.steps
+  );
   let ticketOrderCode: string | undefined;
   let ticketCodes: string[] | undefined;
 

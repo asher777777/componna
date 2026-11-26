@@ -125,23 +125,25 @@ export const NedarimCheckout: React.FC<NedarimCheckoutProps> = ({
   return (
     <div className="space-y-4 text-right" dir="rtl">
       {!paymentMethod && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid ${isRecurring ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
           <button
             type="button"
             onClick={() => initTransaction('credit')}
             className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm cursor-pointer transition-colors"
           >
             <CreditCard className="w-4 h-4" />
-            <span>כרטיס אשראי (נדרים)</span>
+            <span>{isRecurring ? 'כרטיס אשראי — הוראת קבע (נדרים)' : 'כרטיס אשראי (נדרים)'}</span>
           </button>
-          <button
-            type="button"
-            onClick={() => initTransaction('bit')}
-            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#0B132B] hover:bg-slate-900 text-[#00D2D2] font-bold text-sm cursor-pointer transition-colors"
-          >
-            <Smartphone className="w-4 h-4" />
-            <span>תשלום ב-Bit</span>
-          </button>
+          {!isRecurring && (
+            <button
+              type="button"
+              onClick={() => initTransaction('bit')}
+              className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#0B132B] hover:bg-slate-900 text-[#00D2D2] font-bold text-sm cursor-pointer transition-colors"
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>תשלום ב-Bit</span>
+            </button>
+          )}
         </div>
       )}
 

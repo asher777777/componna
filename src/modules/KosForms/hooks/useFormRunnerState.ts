@@ -95,7 +95,12 @@ export function useFormRunnerState({
     }
 
     if (currentStep.fieldType === 'payment') {
-      const { isFreeByCoupon, finalAmount } = resolveFinalPaymentAmount(answers, Number(currentStep.defaultValue) || 100);
+      const { isFreeByCoupon, finalAmount } = resolveFinalPaymentAmount(
+        answers,
+        Number(currentStep.defaultValue) || 100,
+        currentStep,
+        steps
+      );
       if (isFreeByCoupon || finalAmount === 0) {
         setValidationError(null);
         return true;

@@ -3,6 +3,7 @@ import { db } from '../../../services/firebase';
 import {
   AppliedCouponAnswer,
   CouponDefinition,
+  FormStep,
   SmartFormDefinition,
   TicketBookingAnswer,
 } from '../types';
@@ -34,13 +35,68 @@ export function getAvailableCoupons(form?: SmartFormDefinition | null): CouponDe
 }
 
 /**
+ * Parse a numeric amount from a raw form answer (number, numeric string, or choice label/value).
+ */
+function parseNumericAmount(raw: any, sourceStep?: FormStep): number | null {
+  if (raw === undefined || raw === null || raw === '') return null;
+  if (typeof raw === 'number') {
+    return Number.isFinite(raw) && raw >= 0 ? raw : null;
+  }
+  const str = String(raw).trim();
+  const direct = Number(str.replace(/[₪,\s]/g, ''));
+  if (Number.isFinite(direct) && direct >= 0 && str !== '') {
+    return direct;
+  }
+  // If it's a choice field, check if the matching option label/value contains a number
+  if (sourceStep?.options?.length) {
+    const opt = sourceStep.options.find(
+      (o) => o.value === str || o.label === str || o.id === str
+    );
+    if (opt) {
+      const optValNum = Number(String(opt.value).replace(/[₪,\s]/g, ''));
+      if (Number.isFinite(optValNum) && optValNum >= 0 && opt.value !== '') {
+        return optValNum;
+      }
+      const match = opt.label.match(/(\d+(?:\.\d+)?)/);
+      if (match) {
+        const parsed = Number(match[1]);
+        if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+      }
+    }
+  }
+  const fallbackMatch = str.match(/(\d+(?:\.\d+)?)/);
+  if (fallbackMatch) {
+    const parsed = Number(fallbackMatch[1]);
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  }
+  return null;
+}
+
+/**
  * Resolve the pre-discount order subtotal from form answers
  */
 export function resolveOrderSubtotal(
   allAnswers?: Record<string, any>,
-  fallbackAmount = 0
+  fallbackAmount = 0,
+  paymentStep?: FormStep,
+  allSteps?: FormStep[]
 ): number {
   if (!allAnswers) return fallbackAmount;
+
+  // 1. Explicit price field configured on the payment step
+  if (paymentStep?.paymentAmountSource === 'field' && paymentStep.paymentAmountFieldKey) {
+    const fieldKey = paymentStep.paymentAmountFieldKey;
+    const rawFromField = allAnswers[fieldKey];
+    if (isTicketBookingAnswer(rawFromField)) {
+      return rawFromField.subtotal;
+    }
+    const sourceStep = allSteps?.find((s) => (s.mappingKey || s.id) === fieldKey || s.id === fieldKey);
+    const parsed = parseNumericAmount(rawFromField, sourceStep);
+    if (parsed !== null) {
+      return parsed;
+    }
+    return fallbackAmount;
+  }
 
   const ticketAnswer = findTicketBookingAnswer(allAnswers);
   if (ticketAnswer && typeof ticketAnswer.subtotal === 'number') {
@@ -54,6 +110,63 @@ export function resolveOrderSubtotal(
     fallbackAmount;
   const num = Number(raw);
   return Number.isFinite(num) && num >= 0 ? num : fallbackAmount;
+}
+
+const RECURRING_KEYWORDS = [
+  'recurring',
+  'recurring_monthly',
+  'standing_order',
+  'keva',
+  'hk',
+  'הוראת קבע',
+  'הו"ק',
+  'חודשי',
+  'מנוי',
+];
+
+/**
+ * Resolve whether the payment step should execute as a recurring standing order (הוראת קבע)
+ * or a one-time payment (תשלום חד-פעמי).
+ */
+export function resolvePaymentIsRecurring(
+  allAnswers?: Record<string, any>,
+  paymentStep?: FormStep,
+  allSteps?: FormStep[]
+): boolean {
+  if (paymentStep?.paymentFrequencyMode === 'recurring') {
+    return true;
+  }
+  if (paymentStep?.paymentFrequencyMode === 'one_time') {
+    return false;
+  }
+  if (paymentStep?.paymentFrequencyMode === 'from_field' && paymentStep.paymentFrequencyFieldKey) {
+    const fieldKey = paymentStep.paymentFrequencyFieldKey;
+    const rawVal = allAnswers?.[fieldKey];
+    if (rawVal === undefined || rawVal === null || rawVal === '') {
+      return false;
+    }
+    if (rawVal === true) return true;
+
+    const strVal = String(rawVal).trim().toLowerCase();
+    const sourceStep = allSteps?.find((s) => (s.mappingKey || s.id) === fieldKey || s.id === fieldKey);
+    const matchedOpt = sourceStep?.options?.find(
+      (o) => o.value === rawVal || o.label === rawVal || o.id === rawVal
+    );
+    const optLabel = matchedOpt?.label?.trim().toLowerCase() || '';
+
+    if (paymentStep.paymentRecurringMatchValue) {
+      const target = paymentStep.paymentRecurringMatchValue.trim().toLowerCase();
+      return strVal === target || optLabel === target || matchedOpt?.value?.trim().toLowerCase() === target;
+    }
+
+    return RECURRING_KEYWORDS.some((kw) => strVal.includes(kw) || optLabel.includes(kw));
+  }
+
+  // Legacy fallback
+  return (
+    allAnswers?.donation_type === 'recurring_monthly' ||
+    allAnswers?.is_recurring === true
+  );
 }
 
 /**
@@ -196,7 +309,9 @@ export function validateAndApplyCoupon(
  */
 export function resolveFinalPaymentAmount(
   allAnswers?: Record<string, any>,
-  fallbackAmount = 100
+  fallbackAmount = 100,
+  paymentStep?: FormStep,
+  allSteps?: FormStep[]
 ): {
   subtotal: number;
   discountAmount: number;
@@ -207,7 +322,7 @@ export function resolveFinalPaymentAmount(
 } {
   const ticketBooking = findTicketBookingAnswer(allAnswers);
   const appliedCoupon = findAppliedCouponAnswer(allAnswers);
-  const subtotal = resolveOrderSubtotal(allAnswers, fallbackAmount);
+  const subtotal = resolveOrderSubtotal(allAnswers, fallbackAmount, paymentStep, allSteps);
 
   if (appliedCoupon) {
     // Re-compute against current subtotal in case user went back and changed tickets

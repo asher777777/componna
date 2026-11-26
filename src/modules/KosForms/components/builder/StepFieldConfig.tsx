@@ -26,6 +26,7 @@ import {
 
 export interface StepFieldConfigProps {
   step: FormStep;
+  allSteps?: FormStep[];
   stylePreset?: TenantStylePreset;
   onChange: (updatedStep: FormStep) => void;
   onDelete?: () => void;
@@ -51,6 +52,7 @@ const FIELD_TYPES: { type: FieldType; label: string; icon: any }[] = [
 
 export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
   step,
+  allSteps = [],
   stylePreset,
   onChange,
   onDelete,
@@ -604,6 +606,236 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
           </div>
         </div>
       )}
+
+      {/* Payment & Clearing Config */}
+      {step.fieldType === 'payment' && (() => {
+        const otherSteps = allSteps.filter((s) => s.id !== step.id);
+        const amountSource = step.paymentAmountSource || 'fixed';
+        const frequencyMode = step.paymentFrequencyMode || 'one_time';
+        const selectedFreqStep = otherSteps.find(
+          (s) => (s.mappingKey || s.id) === step.paymentFrequencyFieldKey || s.id === step.paymentFrequencyFieldKey
+        );
+
+        return (
+          <div className="space-y-4 pt-3 border-t border-slate-100 dark:border-slate-800" dir="rtl">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-indigo-500" />
+              <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
+                הגדרות סליקה ותשלום (תואם קשר ונדרים פלוס)
+              </span>
+            </div>
+
+            {/* 1. Price / Amount Source */}
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 text-xs">
+              <div className="font-bold text-slate-700 dark:text-slate-300">
+                1. קביעת מחיר / סכום לתשלום:
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => updateField('paymentAmountSource', 'fixed')}
+                  className={`px-3 py-1.5 rounded-lg border font-bold transition-colors ${
+                    amountSource === 'fixed'
+                      ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  סכום קבוע (₪)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateField('paymentAmountSource', 'field')}
+                  className={`px-3 py-1.5 rounded-lg border font-bold transition-colors ${
+                    amountSource === 'field'
+                      ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  לפי שדה מהטופס
+                </button>
+              </div>
+
+              {amountSource === 'fixed' ? (
+                <div className="flex items-center gap-2">
+                  <label className="font-semibold text-slate-600 dark:text-slate-400">
+                    סכום לחיוב (₪):
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={step.defaultValue ?? 100}
+                    onChange={(e) => updateField('defaultValue', e.target.value === '' ? 0 : Number(e.target.value))}
+                    className="w-28 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold text-slate-900 dark:text-white"
+                    dir="ltr"
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-600 dark:text-slate-400 block">
+                      בחר שדה מחיר מהטופס:
+                    </label>
+                    <select
+                      value={step.paymentAmountFieldKey || ''}
+                      onChange={(e) => updateField('paymentAmountFieldKey', e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                    >
+                      <option value="">-- בחר שדה מהטופס --</option>
+                      {otherSteps.map((s) => {
+                        const key = s.mappingKey || s.id;
+                        return (
+                          <option key={s.id} value={key}>
+                            שלב #{s.order}: {s.title} ({s.fieldType})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-600 dark:text-slate-400 block">
+                      סכום ברירת מחדל (אם השדה ריק):
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={step.defaultValue ?? 100}
+                      onChange={(e) => updateField('defaultValue', e.target.value === '' ? 0 : Number(e.target.value))}
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-white"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Payment Frequency: One-time vs Standing Order (הוראת קבע) */}
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 text-xs">
+              <div className="font-bold text-slate-700 dark:text-slate-300">
+                2. אופן התשלום (הוראת קבע / תשלום חד-פעמי):
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'one_time', label: 'תשלום חד-פעמי' },
+                  { id: 'recurring', label: 'הוראת קבע חודשית' },
+                  { id: 'from_field', label: 'נקבע לפי שדה בטופס' },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => updateField('paymentFrequencyMode', opt.id)}
+                    className={`px-3 py-1.5 rounded-lg border font-bold transition-colors ${
+                      frequencyMode === opt.id
+                        ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
+                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {frequencyMode === 'from_field' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-600 dark:text-slate-400 block">
+                      בחר שדה שקובע הוראת קבע / חד-פעמי:
+                    </label>
+                    <select
+                      value={step.paymentFrequencyFieldKey || ''}
+                      onChange={(e) => updateField('paymentFrequencyFieldKey', e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                    >
+                      <option value="">-- בחר שדה מהטופס --</option>
+                      {otherSteps.map((s) => {
+                        const key = s.mappingKey || s.id;
+                        return (
+                          <option key={s.id} value={key}>
+                            שלב #{s.order}: {s.title} ({s.fieldType})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-600 dark:text-slate-400 block">
+                      ערך/אפשרות שמפעילה הוראת קבע:
+                    </label>
+                    {selectedFreqStep?.options && selectedFreqStep.options.length > 0 ? (
+                      <select
+                        value={step.paymentRecurringMatchValue || ''}
+                        onChange={(e) => updateField('paymentRecurringMatchValue', e.target.value || undefined)}
+                        className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                      >
+                        <option value="">זיהוי אוטומטי (הוראת קבע / חודשי / recurring)</option>
+                        {selectedFreqStep.options.map((o) => (
+                          <option key={o.id} value={o.value}>
+                            {o.label} ({o.value})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={step.paymentRecurringMatchValue || ''}
+                        onChange={(e) => updateField('paymentRecurringMatchValue', e.target.value || undefined)}
+                        placeholder="אוטומטי (או הקלד ערך מדויק)"
+                        className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {(frequencyMode === 'recurring' || frequencyMode === 'from_field') && (
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <label className="font-semibold text-slate-600 dark:text-slate-400">
+                    מספר חודשים בהוראת קבע:
+                  </label>
+                  <select
+                    value={step.paymentRecurringInstallments ?? 0}
+                    onChange={(e) => updateField('paymentRecurringInstallments', Number(e.target.value))}
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                  >
+                    <option value={0}>ללא הגבלה (עד ביטול)</option>
+                    <option value={12}>12 חודשים</option>
+                    <option value={24}>24 חודשים</option>
+                    <option value={36}>36 חודשים</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Document Type & ID Requirement */}
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <label className="font-bold text-slate-700 dark:text-slate-300">
+                  סוג מסמך להפקה:
+                </label>
+                <select
+                  value={step.paymentDocumentType ?? 320}
+                  onChange={(e) => updateField('paymentDocumentType', Number(e.target.value))}
+                  className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                >
+                  <option value={320}>חשבונית מס קבלה (320)</option>
+                  <option value={400}>קבלה (400)</option>
+                  <option value={405}>קבלה על תרומה - סעיף 46 (405)</option>
+                </select>
+              </div>
+
+              <label className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={Boolean(step.paymentRequireId)}
+                  onChange={(e) => updateField('paymentRequireId', e.target.checked)}
+                  className="w-3.5 h-3.5 rounded text-indigo-600"
+                />
+                <span>חייב הזנת ת.ז בסליקת אשראי</span>
+              </label>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Icon Picker Modal */}
       <IconPickerModal

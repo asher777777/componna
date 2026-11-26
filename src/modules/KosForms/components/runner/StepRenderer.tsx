@@ -9,7 +9,7 @@ import { resolveActivePaymentProvider } from '../../../../core/connection/paymen
 import { useTenantScope } from '../../../../core/tenant';
 import { NedarimCheckout } from '../../../KosNedarim/components/NedarimCheckout';
 import { TicketBookingStepView, CouponCodeStepView } from './TicketAndCouponStepViews';
-import { resolveFinalPaymentAmount } from '../../services/ticketCouponService';
+import { resolveFinalPaymentAmount, resolvePaymentIsRecurring } from '../../services/ticketCouponService';
 import { resolveKoswebFormStyle } from '../../config/koswebStylePresets';
 import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2, Globe, Lock, CreditCard, CheckCircle2 } from 'lucide-react';
 
@@ -570,7 +570,12 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
           isFreeByCoupon,
           appliedCoupon,
           ticketBooking,
-        } = resolveFinalPaymentAmount(allAnswers, Number(step.defaultValue) || 100);
+        } = resolveFinalPaymentAmount(
+          allAnswers,
+          Number(step.defaultValue) || 100,
+          step,
+          form?.steps
+        );
         const resolvedClientName =
           allAnswers?.conta_name ||
           allAnswers?.name ||
@@ -586,9 +591,10 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
           allAnswers?.email ||
           allAnswers?.kosun_crm_email ||
           '';
-        const isRecurring =
-          allAnswers?.donation_type === 'recurring_monthly' ||
-          allAnswers?.is_recurring === true;
+        const isRecurring = resolvePaymentIsRecurring(allAnswers, step, form?.steps);
+        const recurringInstallments = step.paymentRecurringInstallments ?? 0;
+        const documentType = step.paymentDocumentType || 320;
+        const requireId = Boolean(step.paymentRequireId);
         const dedication =
           allAnswers?.dedication_note ||
           allAnswers?.dedication ||
@@ -603,7 +609,9 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                   {ticketBooking
                     ? `הזמנת כרטיסים (${ticketBooking.totalQuantity})`
                     : isRecurring
-                    ? 'הוראת קבע חודשית (12 חודשים)'
+                    ? recurringInstallments > 0
+                      ? `הוראת קבע חודשית (${recurringInstallments} חודשים)`
+                      : 'הוראת קבע חודשית (מתחדשת)'
                     : 'תשלום חד-פעמי'}
                 </span>
                 <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">
@@ -663,6 +671,9 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                 clientName={resolvedClientName || 'לקוח'}
                 phone={resolvedPhone}
                 mail={resolvedEmail}
+                receiptType={String(documentType)}
+                isRecurring={isRecurring}
+                installments={isRecurring ? recurringInstallments : undefined}
                 tenantId={tenantId}
                 onSuccess={() => onChange(`nedarim_${Date.now()}`)}
               />
@@ -675,6 +686,10 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                   phone: resolvedPhone,
                   email: resolvedEmail,
                   description: step.title || 'תשלום שאלון KSF',
+                  documentType,
+                  requireId,
+                  isRecurring,
+                  installments: isRecurring ? (recurringInstallments > 0 ? recurringInstallments : 9999) : undefined,
                   onSuccess: (res: any) => onChange(res.transactionId || 'approved'),
                 }}
                 fallback={

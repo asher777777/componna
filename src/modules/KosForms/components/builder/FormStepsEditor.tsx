@@ -181,6 +181,7 @@ export const FormStepsEditor: React.FC<FormStepsEditorProps> = ({
                 <div className="p-4 bg-slate-50/50 dark:bg-slate-900/50">
                   <StepFieldConfig
                     step={step}
+                    allSteps={steps}
                     stylePreset={stylePreset}
                     onChange={(updated) => handleUpdateStep(index, updated)}
                     onDelete={steps.length > 1 ? () => handleDeleteStep(index) : undefined}

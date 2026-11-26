@@ -290,7 +290,13 @@ export const CouponCodeStepView: React.FC<CouponCodeStepViewProps> = ({
   const [codeInput, setCodeInput] = useState<string>(value?.code || '');
   const [couponError, setCouponError] = useState<string | null>(null);
 
-  const subtotal = resolveOrderSubtotal(allAnswers, 0);
+  const paymentStep = form?.steps?.find((s) => s.fieldType === 'payment');
+  const subtotal = resolveOrderSubtotal(
+    allAnswers,
+    paymentStep ? Number(paymentStep.defaultValue) || 0 : 0,
+    paymentStep,
+    form?.steps
+  );
   const availableCoupons = useMemo(() => {
     const fromForm = getAvailableCoupons(form);
     if (fromForm.length > 0) return fromForm;

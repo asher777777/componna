@@ -10,6 +10,8 @@ export interface KesherPaymentSlotProps {
   description?: string;
   documentType?: number | string;
   requireId?: boolean;
+  isRecurring?: boolean;
+  installments?: number;
   onSuccess?: (result: { transactionId: string; amount: number; receiptUrl?: string }) => void;
   onCancel?: () => void;
 }
@@ -22,6 +24,8 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
   description = 'תשלום שאלון KSF',
   documentType = 320,
   requireId = false,
+  isRecurring = false,
+  installments,
   onSuccess,
 }) => {
   const { isConfigured, processCreditCardPayment, processBitPayment } = useKesherPaymentsContext();
@@ -43,7 +47,7 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
     setErrorMsg(null);
 
     try {
-      if (paymentMethod === 'bit') {
+      if (!isRecurring && paymentMethod === 'bit') {
         const res = await processBitPayment({
           clientName: clientName || 'לקוח KSF',
           phoneNumber: phone || '',
@@ -52,15 +56,22 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
           documentType: (Number(documentType) || 320) as any,
         });
 
+        const isOk =
+          res.Status === true ||
+          res.Success === true ||
+          res.success === true ||
+          res.status === 'Approved' ||
+          res.status === 'Success' ||
+          !isConfigured;
 
-        if (res.status === 'Approved' || res.status === 'Success' || !isConfigured) {
-          const tid = res.transactionId || `bit_${Date.now()}`;
-          const receiptUrl = (res as any)?.docUrl || (res as any)?.pdfLink || '';
+        if (isOk) {
+          const tid = res.TransactionId || res.BitTransactionId || res.transactionId || `bit_${Date.now()}`;
+          const receiptUrl = res.DocUrl || (res as any)?.docUrl || (res as any)?.pdfLink || '';
           setTransactionId(tid);
           setIsApproved(true);
           onSuccess?.({ transactionId: tid, amount, receiptUrl });
         } else {
-          setErrorMsg(res.errorMessage || 'התשלום ב-Bit לא אושר');
+          setErrorMsg(res.errorMessage || res.Description || res.Message || 'התשלום ב-Bit לא אושר');
         }
       } else {
         // Validate credit card inputs
@@ -83,6 +94,8 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
           cvv: cvv || '000',
           tz: tz || undefined,
           amount,
+          creditType: isRecurring ? 10 : 1,
+          installments: isRecurring ? (installments && installments > 0 ? installments : 9999) : 1,
           clientName: clientName || 'לקוח KSF',
           phone,
           email,
@@ -90,14 +103,22 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
           documentType: docTypeNum as any,
         });
 
-        if (res.status === 'Approved' || res.status === 'Success' || !isConfigured) {
-          const tid = res.transactionId || `kesher_${Date.now()}`;
-          const receiptUrl = (res as any)?.docUrl || (res as any)?.pdfLink || '';
+        const isOk =
+          res.Status === true ||
+          res.Success === true ||
+          res.success === true ||
+          res.status === 'Approved' ||
+          res.status === 'Success' ||
+          !isConfigured;
+
+        if (isOk) {
+          const tid = res.TransactionId || res.transactionId || `kesher_${Date.now()}`;
+          const receiptUrl = res.DocUrl || (res as any)?.docUrl || (res as any)?.pdfLink || '';
           setTransactionId(tid);
           setIsApproved(true);
           onSuccess?.({ transactionId: tid, amount, receiptUrl });
         } else {
-          setErrorMsg(res.errorMessage || 'התשלום לא אושר במסוף קשר');
+          setErrorMsg(res.errorMessage || res.Description || res.Message || 'התשלום לא אושר במסוף קשר');
         }
       }
     } catch (e: any) {
@@ -128,44 +149,46 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-indigo-600" />
           <span className="font-extrabold text-slate-900 dark:text-white text-sm">
-            מסוף סליקה מאובטח (קשר)
+            {isRecurring ? 'הוראת קבע מאובטחת (קשר)' : 'מסוף סליקה מאובטח (קשר)'}
           </span>
         </div>
         <div className="text-left font-black text-slate-900 dark:text-white text-lg font-mono">
-          ₪{amount}
+          ₪{amount}{isRecurring ? ' / חודש' : ''}
         </div>
       </div>
 
-      {/* Payment Method Selector */}
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setPaymentMethod('credit_card')}
-          className={`p-3 rounded-xl border text-center transition flex flex-col items-center gap-1 cursor-pointer ${
-            paymentMethod === 'credit_card'
-              ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-300 font-bold'
-              : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
-          }`}
-        >
-          <CreditCard className="w-5 h-5" />
-          <span className="text-xs">כרטיס אשראי</span>
-        </button>
+      {/* Payment Method Selector (Bit is only for one-time payments) */}
+      {!isRecurring && (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setPaymentMethod('credit_card')}
+            className={`p-3 rounded-xl border text-center transition flex flex-col items-center gap-1 cursor-pointer ${
+              paymentMethod === 'credit_card'
+                ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-300 font-bold'
+                : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <CreditCard className="w-5 h-5" />
+            <span className="text-xs">כרטיס אשראי</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setPaymentMethod('bit')}
-          className={`p-3 rounded-xl border text-center transition flex flex-col items-center gap-1 cursor-pointer ${
-            paymentMethod === 'bit'
-              ? 'border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-300 font-bold'
-              : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Smartphone className="w-5 h-5" />
-          <span className="text-xs">תשלום ב-Bit</span>
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => setPaymentMethod('bit')}
+            className={`p-3 rounded-xl border text-center transition flex flex-col items-center gap-1 cursor-pointer ${
+              paymentMethod === 'bit'
+                ? 'border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-300 font-bold'
+                : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Smartphone className="w-5 h-5" />
+            <span className="text-xs">תשלום ב-Bit</span>
+          </button>
+        </div>
+      )}
 
-      {paymentMethod === 'credit_card' && (
+      {(isRecurring || paymentMethod === 'credit_card') && (
         <div className="space-y-3 pt-2">
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">מספר כרטיס אשראי *</label>
@@ -271,7 +294,11 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
             <span>מעבד תשלום מאובטח במסוף...</span>
           </>
         ) : (
-          <span>אשר ובצע תשלום (₪{amount})</span>
+          <span>
+            {isRecurring
+              ? `אשר והקם הוראת קבע (₪${amount} / חודש)`
+              : `אשר ובצע תשלום (₪${amount})`}
+          </span>
         )}
       </button>
     </form>

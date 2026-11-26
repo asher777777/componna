@@ -104,6 +104,15 @@ export interface FormStep {
   ticketTiers?: TicketTier[];
   collectAttendeeNames?: boolean;
   coupons?: CouponDefinition[];
+  // Payment step configuration (fieldType === 'payment')
+  paymentAmountSource?: 'fixed' | 'field';
+  paymentAmountFieldKey?: string;
+  paymentFrequencyMode?: 'one_time' | 'recurring' | 'from_field';
+  paymentFrequencyFieldKey?: string;
+  paymentRecurringMatchValue?: string;
+  paymentRecurringInstallments?: number;
+  paymentDocumentType?: number;
+  paymentRequireId?: boolean;
 }
 
 import type { TenantStylePreset } from '../../../core/contracts';
