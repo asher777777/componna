@@ -866,6 +866,12 @@ ${existingSections ? `קונפיגורציה קודמת לעדכון:\n${JSON.st
         textColor: eventPosterSection.semanticStyle.textColor || textColor,
         fontFamily: 'Heebo',
       },
+      seoSettings: {
+        title: eventPosterSection.headline,
+        description: eventPosterSection.subtitle || report?.description || '',
+        keywords: [],
+        googleAuditRecommendations: [],
+      },
       createdAt: now,
       updatedAt: now,
       createdBy: 'KOSAI WhatsApp Agent',

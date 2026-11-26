@@ -575,8 +575,8 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
     }
   }, [formDataGlobal.layoutArchetype]);
 
-  const [formDataSeo, setFormDataSeo] = useState<SeoSettings>({ ...seoSettings });
-  const [initialSeoData, setInitialSeoData] = useState<SeoSettings>({ ...seoSettings });
+  const [formDataSeo, setFormDataSeo] = useState<SeoSettings>({ ...(seoSettings || {}) });
+  const [initialSeoData, setInitialSeoData] = useState<SeoSettings>({ ...(seoSettings || {}) });
 
   // Accordion state: by default ALL sections are closed as requested
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
@@ -589,8 +589,8 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   const [isAiGeneratingSeo, setIsAiGeneratingSeo] = useState(false);
   const [isBrandSynced, setIsBrandSynced] = useState(false);
   const [aiFallbackNotice, setAiFallbackNotice] = useState<string | null>(null);
-  const [auditRecommendations, setAuditRecommendations] = useState<string[]>(seoSettings.googleAuditRecommendations || []);
-  const [auditScore, setAuditScore] = useState<number | null>(seoSettings.googleAuditScore || null);
+  const [auditRecommendations, setAuditRecommendations] = useState<string[]>(seoSettings?.googleAuditRecommendations || []);
+  const [auditScore, setAuditScore] = useState<number | null>(seoSettings?.googleAuditScore || null);
 
   // Dynamic Light / Dark mode sync from document element and theme events
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -601,10 +601,10 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   });
 
   useEffect(() => {
-    setFormDataGlobal({ ...globalSettings });
-    setInitialGlobalData({ ...globalSettings });
-    setFormDataSeo({ ...seoSettings });
-    setInitialSeoData({ ...seoSettings });
+    setFormDataGlobal({ ...(globalSettings || {}) });
+    setInitialGlobalData({ ...(globalSettings || {}) });
+    setFormDataSeo({ ...(seoSettings || {}) });
+    setInitialSeoData({ ...(seoSettings || {}) });
     setShowUnsavedConfirm(false);
   }, [globalSettings, seoSettings]);
 

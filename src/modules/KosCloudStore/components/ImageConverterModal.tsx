@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import ReactCrop, { Crop, PixelCrop } from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css';
+import Cropper from 'cropperjs';
+import 'cropperjs/dist/cropper.css';
 import {
   X,
   Sparkles,
@@ -51,12 +51,15 @@ export const ImageConverterModal: React.FC = () => {
   const [bgFeather, setBgFeather] = useState<number>(2);
 
   // Crop states
-  const [crop, setCrop] = useState<Crop>();
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
+  const [isCropperReady, setIsCropperReady] = useState<boolean>(false);
   const [isCropApplied, setIsCropApplied] = useState<boolean>(false);
-  const imgRef = useRef<HTMLImageElement | null>(null);
+  const cropImgRef = useRef<HTMLImageElement | null>(null);
+  const cropperRef = useRef<Cropper | null>(null);
   const originalObjectUrlRef = useRef<string | null>(null);
+  const croppedObjectUrlRef = useRef<string | null>(null);
+  const previewReqIdRef = useRef<number>(0);
+  const lastPreviewObjectUrlRef = useRef<string | null>(null);
 
   // Conversion / Compression states
   const [targetFormat, setTargetFormat] = useState<'image/png' | 'image/jpeg' | 'image/webp'>('image/png');
@@ -92,20 +95,27 @@ export const ImageConverterModal: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
 
-    const revokeOriginalObjectUrl = () => {
+    const revokeTempUrls = () => {
       if (originalObjectUrlRef.current) {
         URL.revokeObjectURL(originalObjectUrlRef.current);
         originalObjectUrlRef.current = null;
       }
+      if (croppedObjectUrlRef.current) {
+        URL.revokeObjectURL(croppedObjectUrlRef.current);
+        croppedObjectUrlRef.current = null;
+      }
+      if (lastPreviewObjectUrlRef.current) {
+        URL.revokeObjectURL(lastPreviewObjectUrlRef.current);
+        lastPreviewObjectUrlRef.current = null;
+      }
     };
 
     if (!converterItem) {
-      revokeOriginalObjectUrl();
+      revokeTempUrls();
       setConvertedResult(null);
       setWorkingImageUrl('');
       setIsBgRemoved(false);
-      setCrop(undefined);
-      setCompletedCrop(null);
+      setIsCropperReady(false);
       setIsCropApplied(false);
       return;
     }
@@ -113,8 +123,7 @@ export const ImageConverterModal: React.FC = () => {
     const safeInitialUrl = resolveSafeMediaUrl(converterItem.url, converterItem);
     setWorkingImageUrl(safeInitialUrl);
     setIsBgRemoved(false);
-    setCrop(undefined);
-    setCompletedCrop(null);
+    setIsCropperReady(false);
     setIsCropApplied(false);
     setZoomScale(1);
 
@@ -130,15 +139,15 @@ export const ImageConverterModal: React.FC = () => {
           if (loaded.isObjectUrl) URL.revokeObjectURL(loaded.objectUrl);
           return;
         }
-        revokeOriginalObjectUrl();
+        if (originalObjectUrlRef.current) {
+          URL.revokeObjectURL(originalObjectUrlRef.current);
+          originalObjectUrlRef.current = null;
+        }
         if (loaded.isObjectUrl) {
           originalObjectUrlRef.current = loaded.objectUrl;
         }
         if (loaded.objectUrl) {
           setWorkingImageUrl(loaded.objectUrl);
-          handleConvertPreview(loaded.objectUrl);
-        } else {
-          handleConvertPreview(safeInitialUrl);
         }
       });
     } else if (
@@ -155,7 +164,7 @@ export const ImageConverterModal: React.FC = () => {
 
     return () => {
       cancelled = true;
-      revokeOriginalObjectUrl();
+      revokeTempUrls();
     };
   }, [converterItem]);
 
@@ -164,13 +173,53 @@ export const ImageConverterModal: React.FC = () => {
     if (converterItem?.type === 'image' && workingImageUrl) {
       handleConvertPreview(workingImageUrl);
     }
-  }, [workingImageUrl, targetFormat, quality, maxWidth, maxHeight]);
+  }, [workingImageUrl, targetFormat, quality, maxWidth, maxHeight, isBgRemoved]);
+
+  // Initialize CropperJS cleanly when entering the Crop tab
+  useEffect(() => {
+    if (activeTab !== 'crop' || !workingImageUrl || !cropImgRef.current) {
+      setIsCropperReady(false);
+      return;
+    }
+
+    setIsCropperReady(false);
+    const instance = new Cropper(cropImgRef.current, {
+      viewMode: 1,
+      dragMode: 'crop',
+      aspectRatio: aspectRatio ?? NaN,
+      autoCropArea: 0.85,
+      responsive: true,
+      restore: false,
+      checkCrossOrigin: false,
+      background: false,
+      guides: true,
+      center: true,
+      highlight: true,
+      cropBoxMovable: true,
+      cropBoxResizable: true,
+      toggleDragModeOnDblclick: false,
+      ready() {
+        setIsCropperReady(true);
+      },
+    });
+
+    cropperRef.current = instance;
+
+    return () => {
+      instance.destroy();
+      if (cropperRef.current === instance) {
+        cropperRef.current = null;
+      }
+      setIsCropperReady(false);
+    };
+  }, [activeTab, workingImageUrl]);
 
   if (!converterItem) return null;
 
-  // 1. Conversion Preview
+  // 1. Conversion Preview (race-condition safe)
   const handleConvertPreview = async (sourceUrl: string) => {
     if (!converterItem || converterItem.type !== 'image') return;
+    const reqId = ++previewReqIdRef.current;
     setIsProcessing(true);
     try {
       const options: ImageConversionOptions = {
@@ -182,57 +231,65 @@ export const ImageConverterModal: React.FC = () => {
       };
 
       const res = await FileCompressionService.convertAndCompressImage(sourceUrl, options);
+      if (reqId !== previewReqIdRef.current) {
+        URL.revokeObjectURL(res.objectUrl);
+        return;
+      }
+      if (lastPreviewObjectUrlRef.current && lastPreviewObjectUrlRef.current !== res.objectUrl) {
+        URL.revokeObjectURL(lastPreviewObjectUrlRef.current);
+      }
+      lastPreviewObjectUrlRef.current = res.objectUrl;
       setConvertedResult(res);
     } catch (err) {
-      console.warn('[ImageConverter] Preview error:', err);
+      if (reqId === previewReqIdRef.current) {
+        console.warn('[ImageConverter] Preview error:', err);
+      }
     } finally {
-      setIsProcessing(false);
+      if (reqId === previewReqIdRef.current) {
+        setIsProcessing(false);
+      }
     }
   };
 
-  // 2. Crop Action
+  // 2. Crop Action via CropperJS
   const handleApplyCrop = async () => {
-    if (!imgRef.current || !completedCrop || completedCrop.width === 0 || completedCrop.height === 0) {
-      return;
-    }
+    const instance = cropperRef.current;
+    if (!instance || !isCropperReady) return;
 
     setIsProcessing(true);
     try {
-      const image = imgRef.current;
-      const canvas = document.createElement('canvas');
-      const scaleX = image.naturalWidth / image.width;
-      const scaleY = image.naturalHeight / image.height;
+      const croppedCanvas = instance.getCroppedCanvas({
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high',
+      });
+      if (!croppedCanvas || croppedCanvas.width === 0 || croppedCanvas.height === 0) {
+        return;
+      }
 
-      canvas.width = Math.floor(completedCrop.width * scaleX);
-      canvas.height = Math.floor(completedCrop.height * scaleY);
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      ctx.drawImage(
-        image,
-        Math.floor(completedCrop.x * scaleX),
-        Math.floor(completedCrop.y * scaleY),
-        Math.floor(completedCrop.width * scaleX),
-        Math.floor(completedCrop.height * scaleY),
-        0,
-        0,
-        canvas.width,
-        canvas.height
+      const outputMime = isBgRemoved ? 'image/png' : targetFormat;
+      const blob = await new Promise<Blob | null>((resolve) =>
+        croppedCanvas.toBlob((b) => resolve(b), outputMime, 0.95)
       );
+      if (!blob) return;
 
-      const croppedDataUrl = canvas.toDataURL(isBgRemoved ? 'image/png' : targetFormat, 0.95);
-      setWorkingImageUrl(croppedDataUrl);
+      const newCroppedUrl = URL.createObjectURL(blob);
+      if (croppedObjectUrlRef.current) {
+        URL.revokeObjectURL(croppedObjectUrlRef.current);
+      }
+      croppedObjectUrlRef.current = newCroppedUrl;
+
+      setWorkingImageUrl(newCroppedUrl);
       setIsCropApplied(true);
-      setCrop(undefined);
-      setCompletedCrop(null);
+      setZoomScale(1);
 
       const baseName = converterItem.name.replace(/\.[^/.]+$/, '');
-      const ext = targetFormat.split('/')[1];
+      const ext = outputMime.split('/')[1];
       setTargetFileName(`${baseName}_חתוך.${ext}`);
       setStatusMessage('✂️ החיתוך בוצע בהצלחה!');
       setTimeout(() => setStatusMessage(null), 3500);
     } catch (err) {
       console.warn('[ImageConverter] Crop error:', err);
+      setStatusMessage('שגיאה בחיתוך התמונה. ודא שהתמונה נטענה כראוי.');
     } finally {
       setIsProcessing(false);
     }
@@ -269,9 +326,9 @@ export const ImageConverterModal: React.FC = () => {
   const handleResetToOriginal = () => {
     setWorkingImageUrl(originalObjectUrlRef.current || resolveSafeMediaUrl(converterItem.url, converterItem));
     setIsBgRemoved(false);
-    setCrop(undefined);
-    setCompletedCrop(null);
+    setAspectRatio(undefined);
     setIsCropApplied(false);
+    setZoomScale(1);
     setTargetFormat('image/png');
     const baseName = converterItem.name.replace(/\.[^/.]+$/, '');
     setTargetFileName(`${baseName}_ערוך.png`);
@@ -649,13 +706,9 @@ export const ImageConverterModal: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setAspectRatio(ar.ratio);
-                        setCrop((prev) => ({
-                          unit: '%',
-                          width: 80,
-                          height: ar.ratio ? 80 / ar.ratio : 80,
-                          x: 10,
-                          y: 10,
-                        }));
+                        if (cropperRef.current) {
+                          cropperRef.current.setAspectRatio(ar.ratio ?? NaN);
+                        }
                       }}
                       className={`py-1 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         aspectRatio === ar.ratio
@@ -674,9 +727,9 @@ export const ImageConverterModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleApplyCrop}
-                    disabled={!completedCrop || completedCrop.width === 0 || isProcessing}
+                    disabled={!isCropperReady || isProcessing}
                     className={`px-4 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1.5 rtl:space-x-reverse shadow transition-all cursor-pointer ${
-                      !completedCrop || completedCrop.width === 0 || isProcessing
+                      !isCropperReady || isProcessing
                         ? 'opacity-50 cursor-not-allowed bg-slate-300 text-slate-500 dark:bg-slate-800'
                         : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-black'
                     }`}
@@ -685,16 +738,16 @@ export const ImageConverterModal: React.FC = () => {
                     <span>אשר ובצע חיתוך</span>
                   </button>
 
-                  {crop && (
+                  {isCropperReady && (
                     <button
                       type="button"
                       onClick={() => {
-                        setCrop(undefined);
-                        setCompletedCrop(null);
+                        cropperRef.current?.reset();
+                        setZoomScale(1);
                       }}
                       className="px-3 py-1.5 rounded-xl text-xs font-semibold border text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                     >
-                      בטל בחירה
+                      אפס מסגרת
                     </button>
                   )}
                 </div>
@@ -815,7 +868,12 @@ export const ImageConverterModal: React.FC = () => {
           <div className="absolute top-4 left-4 z-20 flex items-center space-x-1 rtl:space-x-reverse p-1 rounded-xl bg-black/60 backdrop-blur-md border border-slate-700/80 text-white text-xs">
             <button
               type="button"
-              onClick={() => setZoomScale((prev) => Math.min(prev + 0.25, 3))}
+              onClick={() => {
+                if (activeTab === 'crop' && cropperRef.current) {
+                  cropperRef.current.zoom(0.15);
+                }
+                setZoomScale((prev) => Math.min(prev + 0.25, 3));
+              }}
               className="p-1 hover:text-amber-400 cursor-pointer"
               title="הגדל תצוגה"
             >
@@ -824,7 +882,12 @@ export const ImageConverterModal: React.FC = () => {
             <span className="font-mono text-[10px] px-1 font-bold">{Math.round(zoomScale * 100)}%</span>
             <button
               type="button"
-              onClick={() => setZoomScale((prev) => Math.max(prev - 0.25, 0.5))}
+              onClick={() => {
+                if (activeTab === 'crop' && cropperRef.current) {
+                  cropperRef.current.zoom(-0.15);
+                }
+                setZoomScale((prev) => Math.max(prev - 0.25, 0.5));
+              }}
               className="p-1 hover:text-amber-400 cursor-pointer"
               title="הקטן תצוגה"
             >
@@ -833,7 +896,12 @@ export const ImageConverterModal: React.FC = () => {
             {zoomScale !== 1 && (
               <button
                 type="button"
-                onClick={() => setZoomScale(1)}
+                onClick={() => {
+                  if (activeTab === 'crop' && cropperRef.current) {
+                    cropperRef.current.reset();
+                  }
+                  setZoomScale(1);
+                }}
                 className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 ml-1"
               >
                 100%
@@ -854,26 +922,21 @@ export const ImageConverterModal: React.FC = () => {
           {/* Center Canvas Display */}
           <div
             className="w-full h-full flex items-center justify-center transition-transform duration-200"
-            style={{ transform: `scale(${zoomScale})` }}
+            style={activeTab === 'crop' ? undefined : { transform: `scale(${zoomScale})` }}
           >
             {activeTab === 'crop' ? (
-              /* CROP MODE WITH INTERACTIVE CROP BOX */
-              <div className="max-w-full max-h-full flex items-center justify-center">
+              /* CROP MODE WITH CROPPERJS (LTR isolated so drag handles never flip in RTL) */
+              <div
+                dir="ltr"
+                className="w-full h-[58vh] flex items-center justify-center overflow-hidden rounded-2xl border border-amber-500/40 bg-black/20"
+              >
                 {workingImageUrl ? (
-                  <ReactCrop
-                    crop={crop}
-                    onChange={(c) => setCrop(c)}
-                    onComplete={(c) => setCompletedCrop(c)}
-                    aspect={aspectRatio}
-                    className="rounded-2xl shadow-2xl border border-amber-500/60"
-                  >
-                    <img
-                      ref={imgRef}
-                      src={workingImageUrl}
-                      alt="Crop Preview"
-                      className="max-h-[58vh] max-w-full object-contain rounded-2xl"
-                    />
-                  </ReactCrop>
+                  <img
+                    ref={cropImgRef}
+                    src={workingImageUrl}
+                    alt="Crop Preview"
+                    className="block max-w-full max-h-[58vh] opacity-0"
+                  />
                 ) : null}
               </div>
             ) : converterItem.type === 'image' ? (
