@@ -44,10 +44,6 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
 
   const handlePay = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!isConfigured) {
-      setErrorMsg('מסוף הסליקה של קשר אינו מוגדר עבור עסק זה');
-      return;
-    }
     setIsProcessing(true);
     setErrorMsg(null);
 

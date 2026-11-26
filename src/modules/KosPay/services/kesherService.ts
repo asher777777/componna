@@ -120,7 +120,7 @@ export class KesherService {
     }
 
     // 2. Built-in Firebase / Hosting Proxy rewrite (Server-to-Server via Cloud Function)
-    urlsToTry.push('/api/kesher-proxy?target=connect');
+    urlsToTry.push(`/api/kesher-proxy?target=connect&tenantId=${encodeURIComponent(this.currentTenantId || '_master')}`);
 
     // 3. Localhost dev proxy
     if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
@@ -258,10 +258,6 @@ export class KesherService {
    * סליקת כרטיס אשראי רגילה / תשלומים / הוראת קבע אשראי + הפקת קבלה/חשבונית (SendTransaction)
    */
   public async sendTransaction(req: CreditCardTransactionRequest): Promise<KesherApiResponse> {
-    if (!this.isConfigured()) {
-      throw new Error('לא הוגדרו שם משתמש וסיסמה למערכת קשר');
-    }
-
     let numPayments = 1;
     let creditType = req.creditType || 1;
 
@@ -462,10 +458,6 @@ export class KesherService {
    * תשלום באפליקציית Bit
    */
   public async sendBitTransaction(req: BitPaymentRequest): Promise<KesherApiResponse> {
-    if (!this.isConfigured()) {
-      throw new Error('לא הוגדרו שם משתמש וסיסמה למערכת קשר');
-    }
-
     const digitsPhone = req.phoneNumber.replace(/\D/g, '');
     const normalizedBitPhone = digitsPhone.startsWith('972')
       ? '0' + digitsPhone.slice(3)

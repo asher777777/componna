@@ -1319,6 +1319,39 @@ export const kesherProxy = functions.https.onRequest((req, res) => {
 
       // Forward request to destination
       const forwardBody = req.body?.payload !== undefined ? req.body.payload : req.body;
+
+      // Server-side credential injection for anonymous guests / public forms (Zero browser key exposure)
+      if (target === 'connect' && forwardBody && typeof forwardBody === 'object' && forwardBody.Json) {
+        const jsonBody = forwardBody.Json;
+        if (!jsonBody.userName || !jsonBody.password) {
+          const host = String(req.headers['x-fh-requested-host'] || req.headers['x-forwarded-host'] || req.headers.host || '');
+          const rawTenant = String(req.query.tenantId || req.body?.tenantId || '').trim().toLowerCase();
+          const tenantId = rawTenant || resolveTenantFromHost(host) || '_master';
+          const keysSnap = await db.collection('tenants').doc(tenantId).collection('settings').doc('api_keys').get();
+          const stored = keysSnap.exists ? (keysSnap.data() || {}) : {};
+          const kesherUserName = String(stored.kesherUserName || '').trim();
+          const kesherApiKey = String(stored.kesherApiKey || '').trim();
+          const kesherPaymentPageId = String(stored.kesherPaymentPageId || '').trim();
+
+          if (!kesherUserName || !kesherApiKey) {
+            res.status(200).json({
+              status: 'error',
+              error: 'מסוף הסליקה של קשר אינו מוגדר עבור עסק זה',
+            });
+            return;
+          }
+
+          jsonBody.userName = kesherUserName;
+          jsonBody.password = kesherApiKey;
+          if (jsonBody.tran && !jsonBody.tran.ProjectNumber && kesherPaymentPageId) {
+            jsonBody.tran.ProjectNumber = kesherPaymentPageId;
+          }
+          if (jsonBody.tran && !jsonBody.tran.DocumentType && stored.kesherDefaultReceiptType) {
+            jsonBody.tran.DocumentType = Number(stored.kesherDefaultReceiptType);
+          }
+        }
+      }
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
       };

@@ -1237,7 +1237,7 @@ exports.whatsappWebhook = functions.runWith({ timeoutSeconds: 120, memory: '512M
  */
 exports.kesherProxy = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
-        var _a, _b;
+        var _a, _b, _c;
         if (req.method === 'OPTIONS') {
             res.status(204).send('');
             return;
@@ -1263,6 +1263,35 @@ exports.kesherProxy = functions.https.onRequest((req, res) => {
             }
             // Forward request to destination
             const forwardBody = ((_b = req.body) === null || _b === void 0 ? void 0 : _b.payload) !== undefined ? req.body.payload : req.body;
+            // Server-side credential injection for anonymous guests / public forms (Zero browser key exposure)
+            if (target === 'connect' && forwardBody && typeof forwardBody === 'object' && forwardBody.Json) {
+                const jsonBody = forwardBody.Json;
+                if (!jsonBody.userName || !jsonBody.password) {
+                    const host = String(req.headers['x-fh-requested-host'] || req.headers['x-forwarded-host'] || req.headers.host || '');
+                    const rawTenant = String(req.query.tenantId || ((_c = req.body) === null || _c === void 0 ? void 0 : _c.tenantId) || '').trim().toLowerCase();
+                    const tenantId = rawTenant || resolveTenantFromHost(host) || '_master';
+                    const keysSnap = await db.collection('tenants').doc(tenantId).collection('settings').doc('api_keys').get();
+                    const stored = keysSnap.exists ? (keysSnap.data() || {}) : {};
+                    const kesherUserName = String(stored.kesherUserName || '').trim();
+                    const kesherApiKey = String(stored.kesherApiKey || '').trim();
+                    const kesherPaymentPageId = String(stored.kesherPaymentPageId || '').trim();
+                    if (!kesherUserName || !kesherApiKey) {
+                        res.status(200).json({
+                            status: 'error',
+                            error: 'מסוף הסליקה של קשר אינו מוגדר עבור עסק זה',
+                        });
+                        return;
+                    }
+                    jsonBody.userName = kesherUserName;
+                    jsonBody.password = kesherApiKey;
+                    if (jsonBody.tran && !jsonBody.tran.ProjectNumber && kesherPaymentPageId) {
+                        jsonBody.tran.ProjectNumber = kesherPaymentPageId;
+                    }
+                    if (jsonBody.tran && !jsonBody.tran.DocumentType && stored.kesherDefaultReceiptType) {
+                        jsonBody.tran.DocumentType = Number(stored.kesherDefaultReceiptType);
+                    }
+                }
+            }
             const headers = {
                 'Content-Type': 'application/json'
             };
@@ -1277,7 +1306,7 @@ exports.kesherProxy = functions.https.onRequest((req, res) => {
                 const json = JSON.parse(responseText);
                 res.status(200).json(Object.assign({ _upstreamStatus: response.status }, json));
             }
-            catch (_c) {
+            catch (_d) {
                 res.status(200).json({
                     status: response.ok ? 'success' : 'error',
                     _upstreamStatus: response.status,
