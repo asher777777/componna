@@ -7,6 +7,7 @@ import { StepRenderer } from './StepRenderer';
 import { ProgressBar } from './ProgressBar';
 import { FormCompletionScreen } from './FormCompletionScreen';
 import { resolveKoswebFormStyle } from '../../config/koswebStylePresets';
+import { resolveFinalPaymentAmount } from '../../services/ticketCouponService';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { DEFAULT_FORMS_COLLECTION } from '../../config/constants';
 import { SMART_FORM_TEMPLATES } from '../../config/formTemplates';
@@ -376,8 +377,23 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
             )}
           </div>
 
-          {/* Next / Submit Button */}
-          <div className="flex items-center gap-3">
+          {/* Next / Submit Button (hidden while awaiting payment on a paid payment step so only one pay button is shown) */}
+          {(() => {
+            const isPaidPaymentPending =
+              currentStep.fieldType === 'payment' &&
+              !currentAnswer &&
+              (() => {
+                const { isFreeByCoupon, finalAmount } = resolveFinalPaymentAmount(
+                  answers,
+                  Number(currentStep.defaultValue) || 100,
+                  currentStep,
+                  form.steps
+                );
+                return !isFreeByCoupon && finalAmount > 0;
+              })();
+            if (isPaidPaymentPending) return null;
+            return (
+              <div className="flex items-center gap-3">
             <span className={`hidden sm:inline-block text-[11px] opacity-70 ${styleTokens.helperTextClass}`}>
               לחץ <kbd className="px-1.5 py-0.5 bg-black/15 dark:bg-black/30 rounded font-mono text-[10px]">Enter ↵</kbd>
             </span>
@@ -435,7 +451,9 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
                 </>
               )}
             </button>
-          </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

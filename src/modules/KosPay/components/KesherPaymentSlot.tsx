@@ -43,6 +43,10 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
 
   const handlePay = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!isConfigured) {
+      setErrorMsg('מסוף הסליקה של קשר אינו מוגדר עבור עסק זה');
+      return;
+    }
     setIsProcessing(true);
     setErrorMsg(null);
 
@@ -61,8 +65,7 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
           res.Success === true ||
           res.success === true ||
           res.status === 'Approved' ||
-          res.status === 'Success' ||
-          !isConfigured;
+          res.status === 'Success';
 
         if (isOk) {
           const tid = res.TransactionId || res.BitTransactionId || res.transactionId || `bit_${Date.now()}`;
@@ -76,22 +79,34 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
       } else {
         // Validate credit card inputs
         const cleanCard = cardNumber.replace(/\s+/g, '');
-        if (isConfigured && cleanCard.length < 8) {
+        if (cleanCard.length < 12 || !/^\d+$/.test(cleanCard)) {
           setErrorMsg('נא להזין מספר כרטיס אשראי תקין');
           setIsProcessing(false);
           return;
         }
+        if (!expiryMonth || !expiryYear) {
+          setErrorMsg('נא לבחור תוקף כרטיס (חודש ושנה)');
+          setIsProcessing(false);
+          return;
+        }
+        if (!cvv || cvv.length < 3) {
+          setErrorMsg('נא להזין קוד אבטחה (CVV) תקין');
+          setIsProcessing(false);
+          return;
+        }
+        if (requireId && (!tz || tz.length < 5)) {
+          setErrorMsg('נא להזין מספר תעודת זהות תקין');
+          setIsProcessing(false);
+          return;
+        }
 
-        const formattedExpiry = expiryMonth && expiryYear 
-          ? `${expiryMonth.padStart(2, '0')}${expiryYear.padStart(2, '0')}`
-          : '1228';
-
+        const formattedExpiry = `${expiryMonth.padStart(2, '0')}${expiryYear.padStart(2, '0')}`;
         const docTypeNum = Number(documentType) || 320;
 
         const res = await processCreditCardPayment({
           cardNumber: cleanCard,
           expiry: formattedExpiry,
-          cvv: cvv || '000',
+          cvv,
           tz: tz || undefined,
           amount,
           creditType: isRecurring ? 10 : 1,
@@ -108,11 +123,10 @@ export const KesherPaymentSlot: React.FC<KesherPaymentSlotProps> = ({
           res.Success === true ||
           res.success === true ||
           res.status === 'Approved' ||
-          res.status === 'Success' ||
-          !isConfigured;
+          res.status === 'Success';
 
-        if (isOk) {
-          const tid = res.TransactionId || res.transactionId || `kesher_${Date.now()}`;
+        if (isOk && (res.TransactionId || res.transactionId)) {
+          const tid = res.TransactionId || res.transactionId || '';
           const receiptUrl = res.DocUrl || (res as any)?.docUrl || (res as any)?.pdfLink || '';
           setTransactionId(tid);
           setIsApproved(true);

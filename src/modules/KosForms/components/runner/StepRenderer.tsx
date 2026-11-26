@@ -744,7 +744,10 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                 isRecurring={isRecurring}
                 installments={isRecurring ? recurringInstallments : undefined}
                 tenantId={tenantId}
-                onSuccess={() => onChange(`nedarim_${Date.now()}`)}
+                onSuccess={() => {
+                  onChange(`nedarim_${Date.now()}`);
+                  setTimeout(() => onEnter?.(), 150);
+                }}
               />
             ) : (
               <CapabilitySlot
@@ -759,7 +762,10 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                   requireId,
                   isRecurring,
                   installments: isRecurring ? (recurringInstallments > 0 ? recurringInstallments : 9999) : undefined,
-                  onSuccess: (res: any) => onChange(res.transactionId || 'approved'),
+                  onSuccess: (res: any) => {
+                    onChange(res.transactionId || 'approved');
+                    setTimeout(() => onEnter?.(), 150);
+                  },
                 }}
                 fallback={
                   <div className="p-6 bg-white dark:bg-slate-900 border-2 border-indigo-500/30 rounded-2xl text-center space-y-3 shadow-md">

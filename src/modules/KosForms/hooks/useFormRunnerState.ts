@@ -175,6 +175,10 @@ export function useFormRunnerState({
         setValidationError(null);
         return true;
       }
+      if (!value) {
+        setValidationError('יש להשלים את התשלום בכרטיס אשראי או Bit לפני שליחת הטופס');
+        return false;
+      }
     }
 
     if (currentStep.required) {
@@ -260,8 +264,13 @@ export function useFormRunnerState({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || isCompleted || isSubmitting) return;
 
-      // Don't auto-advance on Enter if inside textarea or if shift is pressed
-      if (e.key === 'Enter' && !e.shiftKey && currentStep?.fieldType !== 'textarea') {
+      // Don't auto-advance on Enter if inside textarea, payment step, or if shift is pressed
+      if (
+        e.key === 'Enter' &&
+        !e.shiftKey &&
+        currentStep?.fieldType !== 'textarea' &&
+        currentStep?.fieldType !== 'payment'
+      ) {
         const target = e.target as HTMLElement;
         if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.tagName === 'DIV') {
           e.preventDefault();

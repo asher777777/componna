@@ -4,6 +4,46 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        function triggerCacheBustedReload() {
+          try {
+            var key = 'kosun_preload_reload_at';
+            var last = Number(sessionStorage.getItem(key) || '0');
+            if (Date.now() - last > 15000) {
+              sessionStorage.setItem(key, String(Date.now()));
+              var url = new URL(window.location.href);
+              url.searchParams.set('_v', String(Date.now()));
+              window.location.replace(url.toString());
+            }
+          } catch (err) {
+            window.location.reload();
+          }
+        }
+
+        window.addEventListener('error', function(e) {
+          var t = e && e.target;
+          if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
+            var src = t.getAttribute('src') || t.getAttribute('href') || '';
+            if (src.indexOf('/assets/') !== -1) {
+              triggerCacheBustedReload();
+            }
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(e) {
+          var msg = String((e && e.reason && (e.reason.message || e.reason)) || '');
+          if (
+            msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
+            msg.indexOf('Importing a module script failed') !== -1 ||
+            msg.indexOf('Expected a JavaScript-or-Wasm module script') !== -1 ||
+            msg.indexOf('error loading dynamically imported module') !== -1
+          ) {
+            triggerCacheBustedReload();
+          }
+        });
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700;800&family=Heebo:wght@300;400;500;600;700;800;900&family=Rubik:wght@300;400;500;600;700;800;900&family=Alef:wght@400;700&family=Varela+Round&display=swap" rel="stylesheet">
@@ -181,46 +221,6 @@
     </script>
 
     <div id="root"></div>
-    <script>
-      (function() {
-        function triggerCacheBustedReload() {
-          try {
-            var key = 'kosun_preload_reload_at';
-            var last = Number(sessionStorage.getItem(key) || '0');
-            if (Date.now() - last > 15000) {
-              sessionStorage.setItem(key, String(Date.now()));
-              var url = new URL(window.location.href);
-              url.searchParams.set('_v', String(Date.now()));
-              window.location.replace(url.toString());
-            }
-          } catch (err) {
-            window.location.reload();
-          }
-        }
-
-        window.addEventListener('error', function(e) {
-          var t = e && e.target;
-          if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
-            var src = t.getAttribute('src') || t.getAttribute('href') || '';
-            if (src.indexOf('/assets/') !== -1) {
-              triggerCacheBustedReload();
-            }
-          }
-        }, true);
-
-        window.addEventListener('unhandledrejection', function(e) {
-          var msg = String((e && e.reason && (e.reason.message || e.reason)) || '');
-          if (
-            msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
-            msg.indexOf('Importing a module script failed') !== -1 ||
-            msg.indexOf('Expected a JavaScript-or-Wasm module script') !== -1 ||
-            msg.indexOf('error loading dynamically imported module') !== -1
-          ) {
-            triggerCacheBustedReload();
-          }
-        });
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

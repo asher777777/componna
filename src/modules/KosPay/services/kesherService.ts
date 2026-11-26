@@ -322,17 +322,45 @@ export class KesherService {
     const result = await this.postToConnect(payload);
     const resData = result?.data || result;
 
-    if (resData.Status === false || resData.status === 'error' || resData.error || resData.faultcode) {
-      throw new Error(resData.Description || resData.faultstring || resData.error || resData.Message || 'שגיאה בסליקה מול קשר');
+    const numericCode = resData?.Code !== undefined && resData?.Code !== null && resData?.Code !== ''
+      ? Number(resData.Code)
+      : 0;
+    const isExplicitFailure =
+      !resData ||
+      resData.Status === false ||
+      resData.Succeeded === false ||
+      resData.Success === false ||
+      resData.success === false ||
+      resData.Result === false ||
+      resData.status === 'error' ||
+      resData.Status === 'Error' ||
+      Boolean(resData.Error) ||
+      Boolean(resData.error) ||
+      Boolean(resData.faultcode) ||
+      (Number.isFinite(numericCode) && numericCode !== 0);
+
+    if (isExplicitFailure) {
+      throw new Error(
+        resData?.Description ||
+          resData?.faultstring ||
+          resData?.Error ||
+          resData?.error ||
+          resData?.Message ||
+          (numericCode ? `העסקה נדחתה (קוד ${numericCode})` : 'העסקה לא אושרה במסוף קשר')
+      );
     }
 
-    const txId = String(resData.TransactionId || resData.Data || resData.Id || `trx_${Date.now()}`);
+    const txId = String(resData.TransactionId || resData.NumTransaction || resData.Data || resData.Id || '');
+    if (!txId && resData.Status !== true && resData.Succeeded !== true && resData.Success !== true) {
+      throw new Error(resData?.Description || resData?.Message || 'לא התקבל אישור עסקה ממסוף קשר');
+    }
+    const finalTxId = txId || `trx_${Date.now()}`;
     const receiptDocUrl = resData.DocUrl || resData.Url || (resData.Data && typeof resData.Data === 'string' && resData.Data.startsWith('http') ? resData.Data : '') || '';
 
     // שמירה ביומן תקבולים מקומי
     this.recordLocalTransaction({
       id: `trx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      transactionId: txId,
+      transactionId: finalTxId,
       date: new Date().toISOString(),
       amount: Number(req.amount),
       clientName: req.clientName,
@@ -350,7 +378,7 @@ export class KesherService {
 
     return {
       ...resData,
-      TransactionId: txId,
+      TransactionId: finalTxId,
       DocUrl: receiptDocUrl,
       Status: true
     };
