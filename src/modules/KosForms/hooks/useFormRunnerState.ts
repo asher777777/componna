@@ -258,7 +258,7 @@ export function useFormRunnerState({
   // Keyboard shortcut listener (Enter for next)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isCompleted || isSubmitting) return;
+      if (e.defaultPrevented || isCompleted || isSubmitting) return;
 
       // Don't auto-advance on Enter if inside textarea or if shift is pressed
       if (e.key === 'Enter' && !e.shiftKey && currentStep?.fieldType !== 'textarea') {

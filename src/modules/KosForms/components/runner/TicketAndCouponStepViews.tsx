@@ -336,8 +336,23 @@ export const CouponCodeStepView: React.FC<CouponCodeStepViewProps> = ({
             dir="ltr"
             value={codeInput}
             onChange={(e) => {
-              setCodeInput(e.target.value.toUpperCase());
+              const nextCode = e.target.value.toUpperCase();
+              setCodeInput(nextCode);
               setCouponError(null);
+              const trimmed = nextCode.trim();
+              if (!trimmed) {
+                onChange(undefined);
+                return;
+              }
+              const exactMatch = availableCoupons.find(
+                (c) => c.code.trim().toUpperCase() === trimmed
+              );
+              if (exactMatch) {
+                const outcome = validateAndApplyCoupon(trimmed, availableCoupons, subtotal);
+                if (outcome.valid && outcome.result) {
+                  onChange(outcome.result);
+                }
+              }
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {

@@ -188,11 +188,14 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
   const hasBgImage = theme?.backgroundType === 'image' && !!theme?.backgroundImageUrl;
   const overlayOpacity = (theme?.backgroundOverlayOpacity ?? 50) / 100;
 
-  // Aspect ratio class helper
+  // Aspect ratio class helper (avoid fixed height/aspect clipping on payment steps)
   const getAspectRatioClasses = () => {
+    if (currentStep?.fieldType === 'payment') {
+      return 'w-full max-w-2xl min-h-[520px]';
+    }
     switch (theme?.aspectRatio) {
       case '16:9':
-        return 'aspect-video max-w-4xl max-h-[620px]';
+        return 'aspect-video max-w-4xl min-h-[520px]';
       case '9:16':
         return 'aspect-[9/16] max-w-sm min-h-[640px]';
       case '1:1':
@@ -274,7 +277,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
   return (
     <div
       dir="rtl"
-      className={`${isDarkBg ? 'dark text-white' : 'text-slate-900'} relative overflow-hidden transition-all flex flex-col justify-between mx-auto ${styleTokens.runnerContainerClass} ${getShapeClasses()} ${getAspectRatioClasses()} ${className}`}
+      className={`${isDarkBg ? 'dark text-white' : 'text-slate-900'} relative overflow-y-auto transition-all flex flex-col justify-between mx-auto ${styleTokens.runnerContainerClass} ${getShapeClasses()} ${getAspectRatioClasses()} ${className}`}
       style={{
         backgroundColor: hasBgImage ? '#0F172A' : (cardBg || undefined),
         color: hasBgImage ? '#FFFFFF' : (theme?.textColor || styleTokens.themeDefaults.textColor || undefined),
