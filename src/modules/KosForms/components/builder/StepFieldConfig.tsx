@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FormStep,
   FieldType,
@@ -8,7 +8,8 @@ import {
   ConditionOperator,
   StepConditionRule,
 } from '../../types';
-import { TenantStylePreset } from '../../../../core/contracts';
+import { TenantStylePreset, CrmMetadataContract, CrmFieldOption } from '../../../../core/contracts';
+import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import { IconPickerModal } from '../shared/IconPickerModal';
 import {
@@ -65,6 +66,19 @@ const FIELD_TYPES: { type: FieldType; label: string; icon: any }[] = [
   { type: 'payment', label: 'סליקה ותשלום', icon: CreditCard },
 ];
 
+const FALLBACK_CRM_FIELDS: CrmFieldOption[] = [
+  { value: 'kosun_crm_name', label: 'שם מלא', group: 'פרטי קשר' },
+  { value: 'kosun_crm_phone', label: 'טלפון נייד', group: 'פרטי קשר' },
+  { value: 'kosun_crm_email', label: 'דואר אלקטרוני', group: 'פרטי קשר' },
+  { value: 'kosun_crm_gov_id', label: 'תעודת זהות / ח.פ', group: 'פרטי קשר' },
+  { value: 'kosun_crm_company', label: 'שם חברה / ארגון', group: 'עסק וכתובת' },
+  { value: 'kosun_crm_city', label: 'עיר', group: 'עסק וכתובת' },
+  { value: 'kosun_crm_street', label: 'כתובת / רחוב', group: 'עסק וכתובת' },
+  { value: 'kosun_crm_notes', label: 'הערות', group: 'נוסף' },
+  { value: 'kosun_crm_tags', label: 'תגיות', group: 'נוסף' },
+  { value: 'kosun_crm_source', label: 'מקור הגעה', group: 'נוסף' },
+];
+
 export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
   step,
   allSteps = [],
@@ -74,6 +88,31 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
 }) => {
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [activeOptionIndexForIcon, setActiveOptionIndexForIcon] = useState<number | null>(null);
+  const [crmFields, setCrmFields] = useState<CrmFieldOption[]>(FALLBACK_CRM_FIELDS);
+  const [isCustomMappingMode, setIsCustomMappingMode] = useState(false);
+
+  const { getCapability } = useHostCapabilities();
+  const crmMetadata = getCapability<CrmMetadataContract>('crm-metadata');
+
+  useEffect(() => {
+    let active = true;
+    const loadFields = async () => {
+      if (crmMetadata?.getMappingFields) {
+        try {
+          const loaded = await crmMetadata.getMappingFields();
+          if (active && loaded && loaded.length > 0) {
+            setCrmFields(loaded);
+          }
+        } catch (err) {
+          console.warn('[StepFieldConfig] Failed to load CRM mapping fields:', err);
+        }
+      }
+    };
+    loadFields();
+    return () => {
+      active = false;
+    };
+  }, [crmMetadata]);
 
   const updateField = (key: keyof FormStep, value: any) => {
     onChange({ ...step, [key]: value });
@@ -220,16 +259,62 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-            <span>מפתח נתונים וסנכרון CRM (mappingKey):</span>
-            <span className="text-[10px] text-slate-400 font-mono">(kosun_crm_name / kosun_crm_email / kosun_crm_phone וכו')</span>
+            <span>שיוך לשדה בקולקציית אנשי הקשר (CRM):</span>
           </label>
-          <input
-            type="text"
-            value={step.mappingKey || ''}
-            onChange={(e) => updateField('mappingKey', e.target.value)}
-            placeholder="kosun_crm_name, kosun_crm_phone, kosun_crm_email, kosun_crm_notes"
-            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
-          />
+          {(() => {
+            const grouped = crmFields.reduce<Record<string, CrmFieldOption[]>>((acc, f) => {
+              const g = f.group || 'שדות אנשי קשר';
+              if (!acc[g]) acc[g] = [];
+              acc[g].push(f);
+              return acc;
+            }, {});
+            const currentKey = step.mappingKey || '';
+            const isKnownCrmField = crmFields.some((f) => f.value === currentKey);
+
+            return (
+              <div className="space-y-1.5">
+                <select
+                  value={isCustomMappingMode ? '__custom__' : currentKey}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '__custom__') {
+                      setIsCustomMappingMode(true);
+                    } else {
+                      setIsCustomMappingMode(false);
+                      updateField('mappingKey', val);
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="">-- ללא שיוך לשדה CRM --</option>
+                  {!isKnownCrmField && currentKey && (
+                    <option value={currentKey}>שדה פנימי של הטופס ({step.title || currentKey})</option>
+                  )}
+                  {Object.entries(grouped).map(([groupLabel, items]) => (
+                    <optgroup key={groupLabel} label={groupLabel}>
+                      {items.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                  <option value="__custom__">מפתח מותאם אישית...</option>
+                </select>
+
+                {isCustomMappingMode && (
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={currentKey}
+                    onChange={(e) => updateField('mappingKey', e.target.value)}
+                    placeholder="הקלד מפתח מותאם אישית"
+                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-mono text-left text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         <div className="space-y-1.5">
