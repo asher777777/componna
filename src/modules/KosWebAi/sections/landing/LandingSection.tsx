@@ -1199,14 +1199,14 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
       {isModalOpen && (
         <div
           className={clsx(
-            'fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200',
+            'fixed inset-0 z-50 flex items-stretch sm:items-center justify-center p-[2px] sm:p-4 animate-in fade-in duration-200',
             theme.modalBackdrop
           )}
           onClick={() => setIsModalOpen(false)}
         >
           <div
             className={clsx(
-              'relative w-full max-w-xl max-h-[92vh] overflow-y-auto no-scrollbar p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200 text-right',
+              'relative w-full h-[calc(100dvh-4px)] sm:h-auto sm:max-w-2xl sm:max-h-[92dvh] flex flex-col overflow-hidden p-[2px] sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-right rounded-2xl sm:rounded-3xl',
               theme.modalBox
             )}
             style={{ fontFamily: "'Heebo', sans-serif" }}
@@ -1214,10 +1214,10 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/10">
+            <div className="flex items-center justify-between px-3 py-2 sm:px-0 sm:pb-3 sm:mb-3 border-b border-white/10 shrink-0">
               <div className="truncate">
-                <h3 className="text-base sm:text-lg font-black truncate">{title}</h3>
-                {subtitle && <p className="text-xs text-zinc-400 truncate mt-0.5">{subtitle}</p>}
+                <h3 className="text-sm sm:text-lg font-black truncate">{title}</h3>
+                {subtitle && <p className="text-[11px] sm:text-xs text-zinc-400 truncate mt-0.5">{subtitle}</p>}
               </div>
 
               <button
@@ -1231,7 +1231,9 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
             </div>
 
             {/* Modal Form Content */}
-            {renderFormContent()}
+            <div className="flex-1 overflow-y-auto overscroll-contain no-scrollbar flex flex-col justify-center">
+              {renderFormContent()}
+            </div>
           </div>
         </div>
       )}

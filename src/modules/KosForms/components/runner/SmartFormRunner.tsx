@@ -278,7 +278,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
   return (
     <div
       dir="rtl"
-      className={`${isDarkBg ? 'dark text-white' : 'text-slate-900'} relative overflow-y-auto transition-all flex flex-col justify-between mx-auto ${styleTokens.runnerContainerClass} ${getShapeClasses()} ${getAspectRatioClasses()} ${className}`}
+      className={`${isDarkBg ? 'dark text-white' : 'text-slate-900'} relative overflow-y-auto transition-all flex flex-col justify-between mx-auto w-full min-h-full sm:min-h-0 ${styleTokens.runnerContainerClass} ${getShapeClasses()} ${getAspectRatioClasses()} ${className}`}
       style={{
         backgroundColor: hasBgImage ? '#0F172A' : (cardBg || undefined),
         color: hasBgImage ? '#FFFFFF' : (theme?.textColor || styleTokens.themeDefaults.textColor || undefined),
@@ -300,7 +300,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
       {/* Content Container (z-10 above background image) */}
       <div className="relative z-10 flex flex-col justify-between h-full w-full">
         {/* Top Header: Progress & Title (hidden in extreme focus if desired) */}
-        <div className={`p-6 pb-2 flex flex-col gap-4 ${styleTokens.headerClass}`}>
+        <div className={`p-3 pb-1.5 sm:p-6 sm:pb-2 flex flex-col gap-3 sm:gap-4 ${styleTokens.headerClass}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-sm sm:text-base tracking-wide drop-shadow-sm">
@@ -346,7 +346,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
         </div>
 
         {/* Main Body (One field per step) */}
-        <div className="flex-1 flex items-center justify-center p-6 sm:p-10 my-auto">
+        <div className="flex-1 flex flex-col items-center justify-center p-2 sm:p-8 my-auto w-full">
           <StepRenderer
             key={currentStep.id}
             step={currentStep}
@@ -361,7 +361,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
         </div>
 
         {/* Bottom Footer Navigation */}
-        <div className={`p-6 flex items-center justify-between gap-4 ${styleTokens.footerClass}`}>
+        <div className={`p-3 sm:p-6 flex items-center justify-between gap-3 sm:gap-4 ${styleTokens.footerClass}`}>
           {/* Previous Button */}
           <div>
             {!isFirstStep && (
