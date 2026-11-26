@@ -30,6 +30,8 @@ export function useFormRunnerState({
 }: UseFormRunnerOptions) {
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
+  const answersRef = useRef<Record<string, any>>({});
+  answersRef.current = answers;
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
@@ -128,6 +130,7 @@ export function useFormRunnerState({
     (value: any) => {
       if (!currentStep) return;
       const key = getStepKey(currentStep);
+      answersRef.current = { ...answersRef.current, [key]: value };
       setAnswers((prev) => ({ ...prev, [key]: value }));
       setValidationError(null);
 
@@ -144,7 +147,8 @@ export function useFormRunnerState({
   const validateCurrentStep = useCallback((): boolean => {
     if (!currentStep) return true;
     const key = getStepKey(currentStep);
-    const value = answers[key];
+    const liveAnswers = answersRef.current;
+    const value = liveAnswers[key];
 
     if (currentStep.fieldType === 'ticket_booking') {
       if (!value || typeof value !== 'object' || !value.totalQuantity || value.totalQuantity <= 0) {
@@ -166,7 +170,7 @@ export function useFormRunnerState({
 
     if (currentStep.fieldType === 'payment') {
       const { isFreeByCoupon, finalAmount } = resolveFinalPaymentAmount(
-        answers,
+        liveAnswers,
         Number(currentStep.defaultValue) || 100,
         currentStep,
         steps
@@ -217,9 +221,10 @@ export function useFormRunnerState({
       setIsSubmitting(true);
       try {
         const completionTime = Math.round((Date.now() - startTimeRef.current) / 1000);
+        const liveAnswers = answersRef.current;
         const res = await submitFormResponse(
           form,
-          answers,
+          liveAnswers,
           completionTime,
           customFirestore,
           collectionName
@@ -228,7 +233,7 @@ export function useFormRunnerState({
         if (res.ticketOrderCode) setTicketOrderCode(res.ticketOrderCode);
         if (res.ticketCodes) setTicketCodes(res.ticketCodes);
         setIsCompleted(true);
-        if (onComplete) onComplete(answers, res.submissionId);
+        if (onComplete) onComplete(liveAnswers, res.submissionId);
       } catch (err: any) {
         console.error('Error submitting form:', err);
         setValidationError(err.message || 'שגיאה בשליחת הטופס. אנא נסה שוב.');

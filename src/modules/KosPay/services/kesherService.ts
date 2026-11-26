@@ -466,6 +466,11 @@ export class KesherService {
       throw new Error('לא הוגדרו שם משתמש וסיסמה למערכת קשר');
     }
 
+    const digitsPhone = req.phoneNumber.replace(/\D/g, '');
+    const normalizedBitPhone = digitsPhone.startsWith('972')
+      ? '0' + digitsPhone.slice(3)
+      : digitsPhone;
+
     const payload = {
       Json: {
         userName: this.settings.userName,
@@ -473,7 +478,7 @@ export class KesherService {
         func: 'SendBitTransaction',
         format: 'json',
         transaction: {
-          Phone: req.phoneNumber.replace(/\D/g, ''),
+          Phone: normalizedBitPhone,
           Total: Math.round(Number(req.amount) * 100),
           Currency: 1,
           Description: req.description || 'תשלום עבור שירות',

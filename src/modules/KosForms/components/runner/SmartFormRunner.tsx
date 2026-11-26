@@ -377,11 +377,10 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
             )}
           </div>
 
-          {/* Next / Submit Button (hidden while awaiting payment on a paid payment step so only one pay button is shown) */}
+          {/* Next / Submit Button (hidden on paid payment steps so only the terminal's own pay button is shown) */}
           {(() => {
-            const isPaidPaymentPending =
+            const isPaidPaymentStep =
               currentStep.fieldType === 'payment' &&
-              !currentAnswer &&
               (() => {
                 const { isFreeByCoupon, finalAmount } = resolveFinalPaymentAmount(
                   answers,
@@ -391,7 +390,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
                 );
                 return !isFreeByCoupon && finalAmount > 0;
               })();
-            if (isPaidPaymentPending) return null;
+            if (isPaidPaymentStep) return null;
             return (
               <div className="flex items-center gap-3">
             <span className={`hidden sm:inline-block text-[11px] opacity-70 ${styleTokens.helperTextClass}`}>
