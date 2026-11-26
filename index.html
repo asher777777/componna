@@ -183,20 +183,42 @@
     <div id="root"></div>
     <script>
       (function() {
-        window.addEventListener('error', function(e) {
-          var t = e && e.target;
-          if (!t || t.tagName !== 'SCRIPT') return;
-          var src = t.getAttribute('src') || '';
-          if (src.indexOf('/assets/') === -1) return;
+        function triggerCacheBustedReload() {
           try {
             var key = 'kosun_preload_reload_at';
             var last = Number(sessionStorage.getItem(key) || '0');
             if (Date.now() - last > 15000) {
               sessionStorage.setItem(key, String(Date.now()));
-              window.location.reload();
+              var url = new URL(window.location.href);
+              url.searchParams.set('_v', String(Date.now()));
+              window.location.replace(url.toString());
             }
-          } catch (err) {}
+          } catch (err) {
+            window.location.reload();
+          }
+        }
+
+        window.addEventListener('error', function(e) {
+          var t = e && e.target;
+          if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
+            var src = t.getAttribute('src') || t.getAttribute('href') || '';
+            if (src.indexOf('/assets/') !== -1) {
+              triggerCacheBustedReload();
+            }
+          }
         }, true);
+
+        window.addEventListener('unhandledrejection', function(e) {
+          var msg = String((e && e.reason && (e.reason.message || e.reason)) || '');
+          if (
+            msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
+            msg.indexOf('Importing a module script failed') !== -1 ||
+            msg.indexOf('Expected a JavaScript-or-Wasm module script') !== -1 ||
+            msg.indexOf('error loading dynamically imported module') !== -1
+          ) {
+            triggerCacheBustedReload();
+          }
+        });
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>

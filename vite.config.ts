@@ -255,6 +255,7 @@ function localWebsiteScraperPlugin(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/',
   plugins: [react(), localWebsiteScraperPlugin()],
   resolve: {
     alias: {

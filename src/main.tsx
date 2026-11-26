@@ -3,15 +3,37 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Auto-reload once if a stale hashed JS chunk fails to load after a new deploy
+// Auto-reload once with cache-busting if a stale hashed JS chunk fails to load after a new deploy
 if (typeof window !== 'undefined') {
+  const triggerCacheBustedReload = () => {
+    try {
+      const key = 'kosun_preload_reload_at';
+      const lastReload = Number(sessionStorage.getItem(key) || '0');
+      if (Date.now() - lastReload > 15000) {
+        sessionStorage.setItem(key, String(Date.now()));
+        const url = new URL(window.location.href);
+        url.searchParams.set('_v', String(Date.now()));
+        window.location.replace(url.toString());
+      }
+    } catch {
+      window.location.reload();
+    }
+  };
+
   window.addEventListener('vite:preloadError', (event) => {
     event.preventDefault();
-    const key = 'kosun_preload_reload_at';
-    const lastReload = Number(sessionStorage.getItem(key) || '0');
-    if (Date.now() - lastReload > 15000) {
-      sessionStorage.setItem(key, String(Date.now()));
-      window.location.reload();
+    triggerCacheBustedReload();
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const msg = String(event?.reason?.message || event?.reason || '');
+    if (
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Importing a module script failed') ||
+      msg.includes('Expected a JavaScript-or-Wasm module script') ||
+      msg.includes('error loading dynamically imported module')
+    ) {
+      triggerCacheBustedReload();
     }
   });
 }
