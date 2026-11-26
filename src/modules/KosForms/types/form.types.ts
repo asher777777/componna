@@ -6,6 +6,7 @@ export type FieldType =
   | 'number'
   | 'price'
   | 'calculated'
+  | 'hidden'
   | 'single_choice'
   | 'multi_choice'
   | 'rating'
@@ -131,7 +132,11 @@ export interface FormStep {
   collectAttendeeNames?: boolean;
   coupons?: CouponDefinition[];
   // Price field configuration (fieldType === 'price')
+  priceSource?: 'default' | 'field';
+  priceSourceFieldKey?: string;
   priceEditable?: boolean;
+  // Hidden field configuration (fieldType === 'hidden')
+  hiddenUrlParam?: string;
   // Calculated field configuration (fieldType === 'calculated')
   calcFormula?: string;
   isPriceField?: boolean;

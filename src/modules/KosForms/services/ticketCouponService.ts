@@ -99,9 +99,22 @@ export function resolveOrderSubtotal(
     if (parsed !== null) {
       return parsed;
     }
-    if (sourceStep?.fieldType === 'price' && sourceStep.defaultValue !== undefined) {
-      const defNum = Number(sourceStep.defaultValue);
-      if (Number.isFinite(defNum) && defNum >= 0) return defNum;
+    if (sourceStep?.fieldType === 'price') {
+      if (sourceStep.priceSource === 'field' && sourceStep.priceSourceFieldKey) {
+        const srcStep = allSteps?.find(
+          (s) => (s.mappingKey || s.id) === sourceStep.priceSourceFieldKey || s.id === sourceStep.priceSourceFieldKey
+        );
+        if (srcStep?.fieldType === 'calculated') {
+          return Math.max(0, evaluateFormula(srcStep.calcFormula, allAnswers, allSteps));
+        }
+        const rawSrc = allAnswers[sourceStep.priceSourceFieldKey];
+        const parsedSrc = parseNumericAmount(rawSrc, srcStep);
+        if (parsedSrc !== null) return parsedSrc;
+      }
+      if (sourceStep.defaultValue !== undefined) {
+        const defNum = Number(sourceStep.defaultValue);
+        if (Number.isFinite(defNum) && defNum >= 0) return defNum;
+      }
     }
     return fallbackAmount;
   }

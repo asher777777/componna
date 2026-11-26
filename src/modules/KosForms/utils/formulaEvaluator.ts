@@ -271,6 +271,10 @@ export function isStepVisible(
   answers: Record<string, any> = {},
   steps: FormStep[] = []
 ): boolean {
+  if (step.fieldType === 'hidden') {
+    return false;
+  }
+
   const logic = step.conditionalLogic;
   if (!logic?.enabled || !Array.isArray(logic.rules) || logic.rules.length === 0) {
     return true;
@@ -280,4 +284,72 @@ export function isStepVisible(
     return logic.rules.some((rule) => evaluateConditionRule(rule, answers, steps));
   }
   return logic.rules.every((rule) => evaluateConditionRule(rule, answers, steps));
+}
+
+/**
+ * Resolve dynamic tokens inside a hidden field's defaultValue or URL parameter.
+ */
+export function resolveHiddenFieldValue(
+  step: FormStep,
+  answers: Record<string, any> = {},
+  steps: FormStep[] = [],
+  context?: { tenantId?: string; formId?: string; formTitle?: string }
+): string {
+  if (typeof window !== 'undefined' && step.hiddenUrlParam) {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlVal = params.get(step.hiddenUrlParam.trim());
+      if (urlVal !== null && urlVal !== '') {
+        return urlVal;
+      }
+    } catch {
+      // ignore invalid URL search
+    }
+  }
+
+  const template = step.defaultValue !== undefined && step.defaultValue !== null
+    ? String(step.defaultValue)
+    : '';
+  if (!template) return '';
+
+  const now = new Date();
+  const urlParams =
+    typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+
+  return template.replace(/\{([^}]+)\}/g, (_, rawToken: string) => {
+    const token = rawToken.trim();
+    switch (token) {
+      case 'tenantId':
+        return context?.tenantId || '';
+      case 'formId':
+        return context?.formId || '';
+      case 'formTitle':
+        return context?.formTitle || '';
+      case 'url':
+        return typeof window !== 'undefined' ? window.location.href : '';
+      case 'pathname':
+        return typeof window !== 'undefined' ? window.location.pathname : '';
+      case 'date':
+        return now.toISOString().slice(0, 10);
+      case 'datetime':
+        return now.toISOString();
+      case 'timestamp':
+        return String(Date.now());
+      case 'utm_source':
+      case 'utm_medium':
+      case 'utm_campaign':
+        return urlParams?.get(token) || '';
+      default: {
+        if (urlParams?.has(token)) {
+          return urlParams.get(token) || '';
+        }
+        const targetStep = steps.find(
+          (s) => (s.mappingKey || s.id) === token || s.id === token
+        );
+        const val = answers[token] ?? (targetStep ? answers[targetStep.id] : undefined);
+        if (val === undefined || val === null) return '';
+        return Array.isArray(val) ? val.join(', ') : String(val);
+      }
+    }
+  });
 }

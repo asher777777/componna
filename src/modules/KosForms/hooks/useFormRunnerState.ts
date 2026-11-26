@@ -4,8 +4,14 @@ import { SmartFormDefinition, FormStep } from '../types';
 import { submitFormResponse } from '../services/submissionStorageService';
 import { trackFormView, trackFormStart } from '../services/formStorageService';
 import { resolveFinalPaymentAmount } from '../services/ticketCouponService';
-import { evaluateFormula, isStepVisible } from '../utils/formulaEvaluator';
+import {
+  evaluateFormula,
+  isStepVisible,
+  resolveHiddenFieldValue,
+  toNumericAnswer,
+} from '../utils/formulaEvaluator';
 import { DEFAULT_FORMS_COLLECTION } from '../config/constants';
+import { useTenantScope } from '../../../core/tenant';
 
 export interface UseFormRunnerOptions {
   form: SmartFormDefinition;
@@ -32,6 +38,7 @@ export function useFormRunnerState({
   const [ticketCodes, setTicketCodes] = useState<string[]>([]);
   const [direction, setDirection] = useState<'next' | 'prev'>('next');
 
+  const { tenantId } = useTenantScope();
   const startTimeRef = useRef<number>(Date.now());
   const hasStartedRef = useRef<boolean>(false);
 
@@ -44,16 +51,49 @@ export function useFormRunnerState({
 
   const allSteps = form.steps || [];
 
-  // Auto-sync default values for price steps and live formulas for calculated steps
+  // Auto-sync hidden fields, price steps (default or derived), and live calculated formulas
   useEffect(() => {
     setAnswers((prev) => {
       let changed = false;
       const next = { ...prev };
       for (const s of allSteps) {
         const key = s.mappingKey || s.id;
-        if (s.fieldType === 'price' && next[key] === undefined && s.defaultValue !== undefined) {
-          next[key] = Number(s.defaultValue) || 0;
-          changed = true;
+        if (s.fieldType === 'hidden') {
+          const val = resolveHiddenFieldValue(s, next, allSteps, {
+            tenantId,
+            formId: form.id,
+            formTitle: form.title,
+          });
+          if (next[key] !== val) {
+            next[key] = val;
+            changed = true;
+          }
+        } else if (s.fieldType === 'price') {
+          let derived: number | undefined;
+          if (s.priceSource === 'field' && s.priceSourceFieldKey) {
+            const srcStep = allSteps.find(
+              (st) => (st.mappingKey || st.id) === s.priceSourceFieldKey || st.id === s.priceSourceFieldKey
+            );
+            const rawSrc = next[s.priceSourceFieldKey] ?? (srcStep ? next[srcStep.id] : undefined);
+            if (srcStep?.fieldType === 'calculated') {
+              derived = Math.max(0, evaluateFormula(srcStep.calcFormula, next, allSteps));
+            } else if (rawSrc !== undefined && rawSrc !== null && rawSrc !== '') {
+              derived = Math.max(0, toNumericAnswer(rawSrc, srcStep));
+            } else if (s.defaultValue !== undefined) {
+              derived = Number(s.defaultValue) || 0;
+            }
+          } else if (s.defaultValue !== undefined) {
+            derived = Number(s.defaultValue) || 0;
+          }
+
+          if (derived !== undefined) {
+            if (s.priceEditable === false || next[key] === undefined) {
+              if (next[key] !== derived) {
+                next[key] = derived;
+                changed = true;
+              }
+            }
+          }
         } else if (s.fieldType === 'calculated') {
           const val = evaluateFormula(s.calcFormula, next, allSteps);
           if (next[key] !== val) {
@@ -64,7 +104,7 @@ export function useFormRunnerState({
       }
       return changed ? next : prev;
     });
-  }, [allSteps, answers]);
+  }, [allSteps, answers, tenantId, form.id, form.title]);
 
   const steps = useMemo(
     () => allSteps.filter((s) => isStepVisible(s, answers, allSteps)),

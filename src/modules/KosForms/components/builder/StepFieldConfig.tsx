@@ -33,6 +33,7 @@ import {
   Coins,
   Calculator,
   GitBranch,
+  EyeOff,
 } from 'lucide-react';
 
 export interface StepFieldConfigProps {
@@ -51,6 +52,7 @@ const FIELD_TYPES: { type: FieldType; label: string; icon: any }[] = [
   { type: 'number', label: 'מספר / כמות', icon: Hash },
   { type: 'price', label: 'שדה מחיר (₪)', icon: Coins },
   { type: 'calculated', label: 'שדה חישוב', icon: Calculator },
+  { type: 'hidden', label: 'שדה נסתר', icon: EyeOff },
   { type: 'single_choice', label: 'בחירה יחידה (כרטיסיות יוקרה)', icon: Sparkles },
   { type: 'multi_choice', label: 'בחירה מרובה (צ\'קבוקס)', icon: CheckSquare },
   { type: 'rating', label: 'דירוג כוכבי יוקרה', icon: Star },
@@ -319,39 +321,214 @@ export const StepFieldConfig: React.FC<StepFieldConfigProps> = ({
       )}
 
       {/* Price Field Config */}
-      {step.fieldType === 'price' && (
-        <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 text-xs" dir="rtl">
-          <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200">
-            <Coins className="w-4 h-4 text-amber-500" />
-            <span>הגדרות שדה מחיר (₪)</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="font-semibold text-slate-600 dark:text-slate-400">
-                סכום ברירת מחדל / מחיר (₪):
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={step.defaultValue ?? 0}
-                onChange={(e) => updateField('defaultValue', e.target.value === '' ? 0 : Number(e.target.value))}
-                className="w-28 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold text-slate-900 dark:text-white"
-                dir="ltr"
-              />
+      {step.fieldType === 'price' && (() => {
+        const otherSteps = allSteps.filter((s) => s.id !== step.id);
+        const priceSource = step.priceSource || 'default';
+        const isEditable = step.priceEditable !== false;
+
+        return (
+          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 text-xs" dir="rtl">
+            <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200">
+              <Coins className="w-4 h-4 text-amber-500" />
+              <span>הגדרות שדה מחיר (₪)</span>
             </div>
 
-            <label className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={step.priceEditable !== false}
-                onChange={(e) => updateField('priceEditable', e.target.checked)}
-                className="w-3.5 h-3.5 rounded text-amber-600"
-              />
-              <span>אפשר למשתמש לשנות את הסכום (תרומה / מחיר חופשי)</span>
-            </label>
+            {/* Source: Default amount vs Derived from another field */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => updateField('priceSource', 'default')}
+                className={`px-3 py-1.5 rounded-lg border font-bold transition-colors ${
+                  priceSource === 'default'
+                    ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-300'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                מסכום ברירת מחדל
+              </button>
+              <button
+                type="button"
+                onClick={() => updateField('priceSource', 'field')}
+                className={`px-3 py-1.5 rounded-lg border font-bold transition-colors ${
+                  priceSource === 'field'
+                    ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-300'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                נגזר משדה בטופס
+              </button>
+            </div>
+
+            {priceSource === 'default' ? (
+              <div className="flex items-center gap-2">
+                <label className="font-semibold text-slate-600 dark:text-slate-400">
+                  סכום ברירת מחדל (₪):
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={step.defaultValue ?? 0}
+                  onChange={(e) => updateField('defaultValue', e.target.value === '' ? 0 : Number(e.target.value))}
+                  className="w-28 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono font-bold text-slate-900 dark:text-white"
+                  dir="ltr"
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-600 dark:text-slate-400 block">
+                    בחר שדה שממנו נגזר המחיר:
+                  </label>
+                  <select
+                    value={step.priceSourceFieldKey || ''}
+                    onChange={(e) => updateField('priceSourceFieldKey', e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                  >
+                    <option value="">-- בחר שדה מהטופס --</option>
+                    {otherSteps.map((s) => {
+                      const key = s.mappingKey || s.id;
+                      return (
+                        <option key={s.id} value={key}>
+                          שלב #{s.order}: {s.title} ({s.fieldType})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-600 dark:text-slate-400 block">
+                    סכום ברירת מחדל (אם השדה ריק):
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={step.defaultValue ?? 0}
+                    onChange={(e) => updateField('defaultValue', e.target.value === '' ? 0 : Number(e.target.value))}
+                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-white"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Fixed vs User-Editable choice — available for BOTH default and field-derived */}
+            <div className="pt-2 border-t border-slate-200/70 dark:border-slate-700/70 flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-slate-600 dark:text-slate-400">
+                אפשרות עריכה למשתמש:
+              </span>
+              <button
+                type="button"
+                onClick={() => updateField('priceEditable', false)}
+                className={`px-3 py-1 rounded-lg border font-bold transition-colors ${
+                  !isEditable
+                    ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                סכום קבוע (לקריאה בלבד)
+              </button>
+              <button
+                type="button"
+                onClick={() => updateField('priceEditable', true)}
+                className={`px-3 py-1 rounded-lg border font-bold transition-colors ${
+                  isEditable
+                    ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                ניתן לשינוי ע&quot;י המשתמש
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
+      {/* Hidden Field Config */}
+      {step.fieldType === 'hidden' && (() => {
+        const otherSteps = allSteps.filter((s) => s.id !== step.id);
+        const currentVal = step.defaultValue !== undefined && step.defaultValue !== null ? String(step.defaultValue) : '';
+        const insertToken = (token: string) => {
+          updateField('defaultValue', currentVal ? `${currentVal}${token}` : token);
+        };
+
+        return (
+          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 text-xs" dir="rtl">
+            <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200">
+              <EyeOff className="w-4 h-4 text-slate-500" />
+              <span>הגדרות שדה נסתר (נשמר אוטומטית ללא תצוגה למשתמש)</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-600 dark:text-slate-400 block">
+                  הוסף שדה דינמי או שדה מהטופס:
+                </label>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) insertToken(e.target.value);
+                  }}
+                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white"
+                >
+                  <option value="">-- בחר שדה דינמי להוספה --</option>
+                  <optgroup label="משתני מערכת וכתובת">
+                    <option value="{tenantId}">מזהה טננט / עסק ({'{tenantId}'})</option>
+                    <option value="{formId}">מזהה טופס ({'{formId}'})</option>
+                    <option value="{formTitle}">שם הטופס ({'{formTitle}'})</option>
+                    <option value="{url}">כתובת URL מלאה ({'{url}'})</option>
+                    <option value="{pathname}">נתיב עמוד ({'{pathname}'})</option>
+                    <option value="{utm_source}">UTM Source ({'{utm_source}'})</option>
+                    <option value="{utm_medium}">UTM Medium ({'{utm_medium}'})</option>
+                    <option value="{utm_campaign}">UTM Campaign ({'{utm_campaign}'})</option>
+                    <option value="{date}">תאריך נוכחי ({'{date}'})</option>
+                    <option value="{datetime}">תאריך ושעה ({'{datetime}'})</option>
+                    <option value="{timestamp}">חותמת זמן ({'{timestamp}'})</option>
+                  </optgroup>
+                  {otherSteps.length > 0 && (
+                    <optgroup label="שדות מהטופס">
+                      {otherSteps.map((s) => {
+                        const key = s.mappingKey || s.id;
+                        return (
+                          <option key={s.id} value={`{${key}}`}>
+                            שלב #{s.order}: {s.title} ({`{${key}}`})
+                          </option>
+                        );
+                      })}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-600 dark:text-slate-400 block">
+                  פרמטר URL אופציונלי (למשל ref או source):
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={step.hiddenUrlParam || ''}
+                  onChange={(e) => updateField('hiddenUrlParam', e.target.value)}
+                  placeholder="לדוגמה: utm_source"
+                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-left text-slate-900 dark:text-white"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-600 dark:text-slate-400 block">
+                ערך השדה הנסתר (טקסט קבוע או תבנית דינמית):
+              </label>
+              <input
+                type="text"
+                value={currentVal}
+                onChange={(e) => updateField('defaultValue', e.target.value)}
+                placeholder="הקלד ערך או בחר שדה דינמי מהתפריט למעלה..."
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Calculated Field Config */}
       {step.fieldType === 'calculated' && (() => {

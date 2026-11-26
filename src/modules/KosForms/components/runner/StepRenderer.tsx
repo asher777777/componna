@@ -10,7 +10,7 @@ import { useTenantScope } from '../../../../core/tenant';
 import { NedarimCheckout } from '../../../KosNedarim/components/NedarimCheckout';
 import { TicketBookingStepView, CouponCodeStepView } from './TicketAndCouponStepViews';
 import { resolveFinalPaymentAmount, resolvePaymentIsRecurring } from '../../services/ticketCouponService';
-import { evaluateFormula } from '../../utils/formulaEvaluator';
+import { evaluateFormula, toNumericAnswer } from '../../utils/formulaEvaluator';
 import { resolveKoswebFormStyle } from '../../config/koswebStylePresets';
 import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2, Globe, Lock, CreditCard, CheckCircle2, Coins, Calculator } from 'lucide-react';
 
@@ -256,8 +256,25 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
         );
 
       case 'price': {
-        const displayVal = value !== undefined && value !== '' ? value : (step.defaultValue ?? 0);
+        let derivedVal: number | undefined;
+        if (step.priceSource === 'field' && step.priceSourceFieldKey) {
+          const srcStep = form?.steps?.find(
+            (s) => (s.mappingKey || s.id) === step.priceSourceFieldKey || s.id === step.priceSourceFieldKey
+          );
+          if (srcStep?.fieldType === 'calculated') {
+            derivedVal = Math.max(0, evaluateFormula(srcStep.calcFormula, allAnswers || {}, form?.steps || []));
+          } else {
+            const rawSrc = allAnswers?.[step.priceSourceFieldKey] ?? (srcStep ? allAnswers?.[srcStep.id] : undefined);
+            if (rawSrc !== undefined && rawSrc !== null && rawSrc !== '') {
+              derivedVal = Math.max(0, toNumericAnswer(rawSrc, srcStep));
+            }
+          }
+        }
+        const fallbackVal = derivedVal ?? (step.defaultValue ?? 0);
         const isEditable = step.priceEditable !== false;
+        const displayVal = isEditable
+          ? (value !== undefined && value !== '' ? value : fallbackVal)
+          : fallbackVal;
         return (
           <div className="w-full max-w-xl">
             {isEditable ? (
